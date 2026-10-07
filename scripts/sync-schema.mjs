@@ -12,6 +12,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const codex = process.argv[2]
 if (!codex) throw new Error('usage: node scripts/sync-schema.mjs <path to the codex checkout>')
 
+// The recorded commit must describe the copied files, so a checkout with uncommitted schema changes is refused.
+const dirty = execFileSync('git', ['status', '--porcelain', '--', 'schema'], { cwd: codex }).toString().trim()
+if (dirty) throw new Error(`the codex checkout has uncommitted changes under schema/:\n${dirty}`)
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: codex }).toString().trim()
 const files = readdirSync(join(codex, 'schema')).filter((file) => file.endsWith('.schema.yaml')).sort()
 const source = JSON.parse(readFileSync(join(root, 'schema', 'SOURCE.json'), 'utf8'))

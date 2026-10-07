@@ -1,0 +1,4 @@
+# The schema files and the module generated from them are compared byte for byte (the SHA-256 values in
+# schema/SOURCE.json, and src/schemas.ts against a fresh render), so they keep LF line endings on every checkout.
+schema/** text eol=lf
+src/schemas.ts text eol=lf
