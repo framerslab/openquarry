@@ -1,0 +1,53 @@
+name: sync-schema
+
+# Copies the format's schema files from framerslab/codex (their source), records the corpus commit and the files'
+# SHA-256 in schema/SOURCE.json, regenerates src/schemas.ts, and commits when anything changed. The push runs ci.yml,
+# whose schema test checks the copy against SOURCE.json.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-schema
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync the schema files from the corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Checkout the corpus
+        uses: actions/checkout@v5
+        with:
+          repository: framerslab/codex
+          ref: master
+          path: .corpus
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Sync
+        run: node scripts/sync-schema.mjs .corpus
+
+      - name: Commit when the copy changed
+        run: |
+          if git diff --quiet -- schema src/schemas.ts; then
+            echo "The schema copy already matches framerslab/codex $(git -C .corpus rev-parse --short HEAD)."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add schema src/schemas.ts
+          git commit -m "chore(schema): sync from framerslab/codex $(git -C .corpus rev-parse --short HEAD)"
+          git push origin HEAD:master
