@@ -35,12 +35,12 @@ export const blocksIndexSchema: Record<string, unknown> = {
         "totalStrands": {
           "type": "integer",
           "minimum": 0,
-          "description": "Number of strands with block-level data"
+          "description": "Number of threads with block-level data"
         },
         "totalBlocks": {
           "type": "integer",
           "minimum": 0,
-          "description": "Total number of blocks across all strands"
+          "description": "Total number of blocks across all threads"
         },
         "totalTags": {
           "type": "integer",
@@ -132,7 +132,7 @@ export const blocksIndexSchema: Record<string, unknown> = {
     },
     "strands": {
       "type": "object",
-      "description": "Per-strand block data, keyed by strand path",
+      "description": "Per-thread block data, keyed by thread path",
       "additionalProperties": {
         "type": "object",
         "required": [
@@ -143,11 +143,11 @@ export const blocksIndexSchema: Record<string, unknown> = {
         "properties": {
           "path": {
             "type": "string",
-            "description": "Relative path to the strand file"
+            "description": "Relative path to the thread file"
           },
           "title": {
             "type": "string",
-            "description": "Strand title for display"
+            "description": "Thread title for display"
           },
           "blockCount": {
             "type": "integer",
@@ -163,7 +163,7 @@ export const blocksIndexSchema: Record<string, unknown> = {
           },
           "blocks": {
             "type": "array",
-            "description": "All blocks in this strand",
+            "description": "All blocks in this thread",
             "items": {
               "type": "object",
               "required": [

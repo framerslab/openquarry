@@ -1,10 +1,10 @@
 {
   "repository": "framerslab/codex",
-  "commit": "97cf36d2521cf93bbeb3518517f3ceb1bfbaed5f",
+  "commit": "471b1c3904a0e1ca286effa2c662bd18cb305146",
   "path": "schema/",
   "note": "The corpus repository holds the source of these files; sync them with scripts/sync-schema.mjs and record the commit here.",
   "files": {
-    "blocks-index.schema.yaml": "92a8fbc14d9be492ab7412804aabbff4fb38f42c95fe8b3413e6cdddabb6266a",
+    "blocks-index.schema.yaml": "78bf128adb172d522333fc89e47fe0d89b2b96073e12a0671c3587bf4b87bea2",
     "fabric.schema.yaml": "290ee1b0eed8debaf1ff458cf94806bd9bb8eaf0dacd5cd2bfdab15690de9b8a",
     "loom.schema.yaml": "761e668f0ebb52ccf34d6833ee466ac556d000b1fbfa2f95bcb0174450fecc9e",
     "strand.schema.yaml": "f6f217484f03793046861d8b152804382eeba58f98c49cae3a8560bb55e34ce8",
