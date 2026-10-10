@@ -106,6 +106,18 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 The team server's API client (`OpenStrandSDK` and its request and response types) is not part of this package.
 
+## The schema host
+
+The schemas are served from https://openquarry.dev, built in CI by `scripts/build-site.mjs` from the files this package ships:
+
+| Address | What it is |
+|---|---|
+| `https://openquarry.dev/schema/v1/<name>.json` | the JSON Schema, with `$id` set to this address; otherwise the YAML file's content |
+| `https://openquarry.dev/schema/v1/<name>.yaml` | the YAML source, byte for byte the file in `schema/` (its SHA-256 is in `schema/SOURCE.json`) |
+| `https://openquarry.dev/schema/v1/index.json` | the six schemas with their addresses and hashes, the corpus commit they came from, and this package's version |
+
+`<name>` is one of `blocks-index.schema`, `fabric.schema`, `loom.schema`, `strand.schema`, `thread.schema` and `weave.schema`. Every address answers with `Access-Control-Allow-Origin: *`, so a page on any origin can fetch a schema. `openquarry.io`, `www.openquarry.io` and `www.openquarry.dev` redirect to the same path on `openquarry.dev`; the root of the site goes to this repository. OpenQuarry is a Framers Lab project.
+
 ## Keeping the schemas in step
 
 The schema files come from the Frame Codex corpus repository. `schema/SOURCE.json` records the commit they were copied from and each file's SHA-256, and the tests fail when a file drifts from that record or from the generated `src/schemas.ts`. To take newer schemas: `node scripts/sync-schema.mjs <path to the corpus checkout>`.
