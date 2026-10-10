@@ -35,3 +35,32 @@ jobs:
 
       - name: The files npm would publish
         run: npm pack --dry-run
+
+  site:
+    name: The schema host (openquarry.dev)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build the host
+        run: npm run site
+
+      - name: The files the host serves
+        run: find dist-site -type f | sort
+
+      - name: Keep the build for the deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: dist-site/
+          retention-days: 30
