@@ -32,6 +32,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Trusted publishing needs npm 11.5.1 or later.
+      - name: npm 11.20.0 for trusted publishing
+        run: npm install -g npm@11.20.0 && npm --version
+
       - name: Publish with provenance
         run: npm publish --access public --provenance
         env:
