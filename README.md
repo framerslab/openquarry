@@ -24,7 +24,7 @@ const result = validateThreadFrontmatter(frontmatter)
 // { valid: true, errors: [] }
 // A missing id gives { valid: false, errors: ["/ must have required property 'id'"] }
 // contentType: essay gives the line
-// '/contentType must be equal to one of the allowed values: "lesson", "reference", ...'
+// '/contentType must be equal to one of the allowed values: "lesson", "reference", "exercise", "assessment", "project", "discussion", "resource", "markdown", "code", "data", "media"'
 ```
 
 The validator takes parsed YAML, so bring the YAML parser your project already uses.
