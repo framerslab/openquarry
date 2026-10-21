@@ -1,6 +1,6 @@
 {
   "name": "@framers/openquarry",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The OpenQuarry format for Markdown knowledge bases: JSON Schemas for note frontmatter and folder manifests, TypeScript types, and a validator.",
   "keywords": [
     "openquarry",
