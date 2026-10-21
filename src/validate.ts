@@ -1,6 +1,6 @@
 import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
-import type { ValidateFunction } from 'ajv'
+import type { ErrorObject, ValidateFunction } from 'ajv'
 import { blocksIndexSchema, fabricSchema, loomSchema, threadSchema, weaveSchema } from './schemas.js'
 
 export interface ValidationResult {
@@ -22,10 +22,22 @@ function validatorFor(schema: Record<string, unknown>): ValidateFunction {
   return validate
 }
 
+/** What is wrong, with the values an enum or a const allows, which Ajv's message leaves out. */
+function describe(error: ErrorObject): string {
+  const message = error.message ?? 'is invalid'
+  if (error.keyword === 'enum' && Array.isArray(error.params.allowedValues)) {
+    return `${message}: ${error.params.allowedValues.map((allowed: unknown) => JSON.stringify(allowed)).join(', ')}`
+  }
+  if (error.keyword === 'const' && 'allowedValue' in error.params) {
+    return `${message}: ${JSON.stringify(error.params.allowedValue)}`
+  }
+  return message
+}
+
 function check(schema: Record<string, unknown>, value: unknown): ValidationResult {
   const validate = validatorFor(schema)
   const valid = validate(value) as boolean
-  const errors = (validate.errors ?? []).map((error) => `${error.instancePath || '/'} ${error.message ?? 'is invalid'}`)
+  const errors = (validate.errors ?? []).map((error) => `${error.instancePath || '/'} ${describe(error)}`)
   return { valid, errors }
 }
 
