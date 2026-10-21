@@ -99,3 +99,25 @@ describe('validateLoom and validateWeave', () => {
     expect(validateWeave({ slug: 'Wiki', title: 'Frame Wiki' }).valid).toBe(false)
   })
 })
+
+describe('error lines', () => {
+  it('name the allowed values when a value is not one of them', () => {
+    const result = validateThreadFrontmatter({ ...thread, publishing: { status: 'live' } })
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain(
+      '/publishing/status must be equal to one of the allowed values: "draft", "review", "published", "archived"',
+    )
+  })
+
+  it('name the value a constant requires', () => {
+    const result = validateFabricManifest({ format: 'openstrand', version: 1 })
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain('/format must be equal to constant: "openquarry"')
+  })
+
+  it('name numbers as numbers', () => {
+    expect(validateFabricManifest({ format: 'openquarry', version: 3 }).errors).toContain(
+      '/version must be equal to one of the allowed values: 1, 2',
+    )
+  })
+})
