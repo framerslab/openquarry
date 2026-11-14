@@ -15,7 +15,8 @@ const compiled = new Map<object, ValidateFunction>()
 function validatorFor(schema: Record<string, unknown>): ValidateFunction {
   let validate = compiled.get(schema)
   if (!validate) {
-    const ajv = new Ajv2020({ allErrors: true, strict: false })
+    // verbose: an error carries the value it is about, which the line for a value listed twice quotes.
+    const ajv = new Ajv2020({ allErrors: true, strict: false, verbose: true })
     addFormats(ajv)
     validate = ajv.compile(schema)
     compiled.set(schema, validate)
@@ -23,7 +24,19 @@ function validatorFor(schema: Record<string, unknown>): ValidateFunction {
   return validate
 }
 
-/** What is wrong, with what Ajv's message leaves out: the values an enum or a const allows, and the key a closed record refuses. */
+/**
+ * One line for a problem: the path inside the value, then what is wrong, with what Ajv's message leaves out: the values
+ * an enum or a const allows, the key a closed record refuses, and the value a list holds twice.
+ */
+function line(error: ErrorObject): string {
+  if (error.keyword === 'uniqueItems' && Array.isArray(error.data)) {
+    // Ajv names the two places; the line points at the later one and quotes the value.
+    const again = Math.max(Number(error.params.i), Number(error.params.j))
+    return `${error.instancePath}/${again} is listed twice: ${JSON.stringify(error.data[again])}`
+  }
+  return `${error.instancePath || '/'} ${describe(error)}`
+}
+
 function describe(error: ErrorObject): string {
   const message = error.message ?? 'is invalid'
   if (error.keyword === 'additionalProperties' && typeof error.params.additionalProperty === 'string') {
@@ -41,7 +54,7 @@ function describe(error: ErrorObject): string {
 function check(schema: Record<string, unknown>, value: unknown): ValidationResult {
   const validate = validatorFor(schema)
   const valid = validate(value) as boolean
-  const errors = (validate.errors ?? []).map((error) => `${error.instancePath || '/'} ${describe(error)}`)
+  const errors = (validate.errors ?? []).map(line)
   return { valid, errors }
 }
 
@@ -87,9 +100,9 @@ function circles(links: Map<string, string[]>): string[][] {
 }
 
 /**
- * The rules catalogue.schema.yaml states in words, which a JSON Schema cannot hold: an id or a slug is listed once, a
- * link names something the catalogue lists, an entry's home is one of its subjects, and no chain of links comes back
- * to where it started.
+ * The four rules catalogue.schema.yaml states in words, which a JSON Schema cannot hold: a subject id and an entry
+ * slug are each listed once, a link names something the catalogue lists, an entry's home is one of its subjects, and no
+ * chain of links comes back to where it started.
  */
 function catalogueLinkErrors(catalogue: Catalogue): string[] {
   const errors: string[] = []
@@ -114,15 +127,13 @@ function catalogueLinkErrors(catalogue: Catalogue): string[] {
     else entryAt.set(entry.slug, index)
   })
   catalogue.entries.forEach((entry, index) => {
-    const seen = new Set<string>()
+    // The schema holds "each once" for an entry's subjects, so no subject is listed twice here.
     entry.subjects.forEach((id, at) => {
-      if (seen.has(id)) errors.push(`/entries/${index}/subjects/${at} is listed twice: ${quote(id)}`)
-      else if (!subjectAt.has(id)) {
+      if (!subjectAt.has(id)) {
         errors.push(`/entries/${index}/subjects/${at} names a subject the catalogue does not list: ${quote(id)}`)
       }
-      seen.add(id)
     })
-    if (!seen.has(entry.home)) {
+    if (!entry.subjects.includes(entry.home)) {
       errors.push(`/entries/${index}/home must be one of the entry's subjects: ${entry.subjects.map(quote).join(', ')}`)
     }
     entry.requires.forEach((slug, at) => {
