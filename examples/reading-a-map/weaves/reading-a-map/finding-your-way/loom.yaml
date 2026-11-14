@@ -1,0 +1,8 @@
+slug: finding-your-way
+title: Finding your way
+kind: unit
+summary: Turn the map to match the ground, then plan a walk with it.
+ordering: manual
+relationships:
+  - targetSlug: the-map
+    type: extends
