@@ -78,24 +78,45 @@ export function validateFabricManifest(manifest: unknown): ValidationResult {
   return check(fabricSchema, manifest)
 }
 
-/** Each circle in a set of links, as the ids along it: `['a', 'b', 'a']` when a links to b and b to a. */
+/**
+ * Each circle in a set of links, as the ids along it: `['a', 'b', 'a']` when a links to b and b to a.
+ *
+ * A depth-first walk that keeps its own stack, so a chain of any length takes no call per link, and a map from each id
+ * on the path to its place, so finding a circle takes no search of the path.
+ */
 function circles(links: Map<string, string[]>): string[][] {
   const found: string[][] = []
   const settled = new Set<string>()
   const path: string[] = []
-  const walk = (id: string): void => {
-    const at = path.indexOf(id)
-    if (at !== -1) {
-      found.push([...path.slice(at), id])
-      return
-    }
-    if (settled.has(id)) return
+  const placeOnPath = new Map<string, number>()
+  // For each place on the path, how many of that id's links the walk has followed.
+  const followed: number[] = []
+  const enter = (id: string): void => {
+    placeOnPath.set(id, path.length)
     path.push(id)
-    for (const next of links.get(id) ?? []) walk(next)
-    path.pop()
-    settled.add(id)
+    followed.push(0)
   }
-  for (const id of links.keys()) walk(id)
+  for (const start of links.keys()) {
+    if (settled.has(start)) continue
+    enter(start)
+    while (path.length > 0) {
+      const top = path.length - 1
+      const id = path[top]
+      const out = links.get(id) ?? []
+      if (followed[top] === out.length) {
+        path.pop()
+        followed.pop()
+        placeOnPath.delete(id)
+        settled.add(id)
+        continue
+      }
+      const next = out[followed[top]]
+      followed[top] += 1
+      const at = placeOnPath.get(next)
+      if (at !== undefined) found.push([...path.slice(at), next])
+      else if (!settled.has(next)) enter(next)
+    }
+  }
   return found
 }
 
