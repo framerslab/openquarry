@@ -100,6 +100,40 @@ describe('validateLoom and validateWeave', () => {
   })
 })
 
+describe('kind', () => {
+  it('makes a weave a course and a loom a unit', () => {
+    expect(validateWeave({ slug: 'reading-a-map', title: 'Reading a map', kind: 'course', license: 'MIT' })).toEqual({
+      valid: true,
+      errors: [],
+    })
+    expect(validateLoom({ slug: 'the-map', title: 'The map', kind: 'unit', ordering: 'manual' })).toEqual({
+      valid: true,
+      errors: [],
+    })
+  })
+
+  it("takes a publisher's own lowercase word", () => {
+    expect(validateWeave({ slug: 'birds', title: 'Birds of the coast', kind: 'field-guide' }).valid).toBe(true)
+    expect(validateLoom({ slug: 'week-1', title: 'Week 1', kind: 'week' }).valid).toBe(true)
+  })
+
+  it('names the pattern when a kind is not a lowercase word', () => {
+    for (const kind of ['Course', 'two words', '2nd-year', '']) {
+      const weave = validateWeave({ slug: 'reading-a-map', title: 'Reading a map', kind })
+      expect(weave.valid, JSON.stringify(kind)).toBe(false)
+      expect(weave.errors, JSON.stringify(kind)).toEqual(['/kind must match pattern "^[a-z][a-z0-9-]*$"'])
+      const loom = validateLoom({ slug: 'the-map', title: 'The map', kind })
+      expect(loom.valid, JSON.stringify(kind)).toBe(false)
+      expect(loom.errors, JSON.stringify(kind)).toEqual(['/kind must match pattern "^[a-z][a-z0-9-]*$"'])
+    }
+  })
+
+  it('refuses a kind that is not text', () => {
+    expect(validateWeave({ slug: 'reading-a-map', title: 'Reading a map', kind: 7 }).errors).toEqual(['/kind must be string'])
+    expect(validateLoom({ slug: 'the-map', title: 'The map', kind: ['unit'] }).errors).toEqual(['/kind must be string'])
+  })
+})
+
 describe('error lines', () => {
   it('name the allowed values when a value is not one of them', () => {
     const result = validateThreadFrontmatter({ ...thread, publishing: { status: 'live' } })

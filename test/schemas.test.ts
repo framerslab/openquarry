@@ -12,9 +12,10 @@ const files = readdirSync(schemaDir).filter((file) => file.endsWith('.schema.yam
 const load = (file: string) => yaml.load(readFileSync(join(schemaDir, file), 'utf8')) as Record<string, unknown>
 
 describe('the schema files', () => {
-  it('are the six files of the format', () => {
+  it('are the seven files of the format', () => {
     expect(files).toEqual([
       'blocks-index.schema.yaml',
+      'catalogue.schema.yaml',
       'fabric.schema.yaml',
       'loom.schema.yaml',
       'strand.schema.yaml',

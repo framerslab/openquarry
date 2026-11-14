@@ -1,0 +1,14 @@
+id: field-skills
+title: Field skills
+subjects:
+  - id: outdoors
+    title: Outdoors
+    broader: []
+  - id: navigation
+    title: Navigation
+    broader: [outdoors]
+entries:
+  - slug: reading-a-map
+    home: navigation
+    subjects: [navigation]
+    requires: []

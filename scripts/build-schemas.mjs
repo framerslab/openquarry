@@ -9,6 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const NAMES = {
   'blocks-index.schema.yaml': 'blocksIndexSchema',
+  'catalogue.schema.yaml': 'catalogueSchema',
   'fabric.schema.yaml': 'fabricSchema',
   'loom.schema.yaml': 'loomSchema',
   'strand.schema.yaml': 'strandSchema',

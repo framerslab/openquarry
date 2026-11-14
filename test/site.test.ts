@@ -19,7 +19,7 @@ afterAll(() => rmSync(out, { recursive: true, force: true }))
 describe('the schema host', () => {
   it('serves each schema as JSON at its $id and as its YAML source, byte for byte', () => {
     const files = schemaFiles()
-    expect(files).toHaveLength(6)
+    expect(files).toHaveLength(7)
     for (const file of files) {
       const name = file.replace(/\.yaml$/, '')
       const json = JSON.parse(readFileSync(join(served, `${name}.json`), 'utf8')) as Record<string, unknown>
@@ -31,9 +31,16 @@ describe('the schema host', () => {
     }
   })
 
-  it('lists the six schemas, their corpus commit and the package in the index', () => {
+  it('lists the seven schemas, their corpus commit and the package in the index', () => {
     const idx = JSON.parse(readFileSync(join(served, 'index.json'), 'utf8'))
     expect(idx.schemas.map((s: { name: string }) => s.name)).toEqual(schemaFiles().map((f) => f.replace(/\.yaml$/, '')))
+    expect(idx.schemas.find((s: { name: string }) => s.name === 'catalogue.schema')).toEqual({
+      name: 'catalogue.schema',
+      title: 'Catalogue',
+      url: 'https://openquarry.dev/schema/v1/catalogue.schema.json',
+      yaml: 'https://openquarry.dev/schema/v1/catalogue.schema.yaml',
+      sha256: source.files['catalogue.schema.yaml'],
+    })
     expect(idx.source.commit).toBe(source.commit)
     expect(idx.package.name).toBe('@framers/openquarry')
     expect(idx).toEqual(index)

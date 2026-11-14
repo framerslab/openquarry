@@ -1,6 +1,7 @@
 /**
  * TypeScript types for the OpenQuarry format. They describe the files the JSON Schemas in schema/ validate:
- * a fabric's optional fabric.yaml, a weave's weave.yaml, a loom's loom.yaml and a thread's frontmatter.
+ * a fabric's optional fabric.yaml and catalogue.yaml, a weave's weave.yaml, a loom's loom.yaml and a thread's
+ * frontmatter.
  */
 
 /**
@@ -145,10 +146,12 @@ export interface ThreadFrontmatter {
   [key: string]: unknown
 }
 
-/** A loom's loom.yaml: a folder inside a weave. */
+/** A loom's loom.yaml: a folder inside a weave. A loom of kind `unit` is a unit of a course. */
 export interface Loom {
   slug: string
   title: string
+  /** What the loom is, as one lowercase word in the publisher's own noun. The course layer's value is `unit`. */
+  kind?: string
   summary?: string
   tags?: string[]
   ordering?: 'manual' | 'alpha' | 'date' | 'weight'
@@ -160,15 +163,52 @@ export interface Loom {
   [key: string]: unknown
 }
 
-/** A weave's weave.yaml: a knowledge base. */
+/** A weave's weave.yaml: a knowledge base. A weave of kind `course` is a course. */
 export interface Weave {
   slug: string
   title: string
+  /** What the weave is, as one lowercase word in the publisher's own noun. The course layer's value is `course`. */
+  kind?: string
   description?: string
   maintainedBy?: string
   license?: string
   tags?: string[]
   [key: string]: unknown
+}
+
+/** A subject of a catalogue: a heading its weaves are listed under. */
+export interface CatalogueSubject {
+  id: string
+  /** The subject's name in the publisher's own words. */
+  title: string
+  /** The ids of the subjects this one sits under. Empty at the top of the tree. */
+  broader: string[]
+}
+
+/** One weave's entry in a catalogue. */
+export interface CatalogueEntry {
+  /** The weave's slug. Another product links to the weave by it. */
+  slug: string
+  /** The id of the entry's home subject, one of its `subjects`: where the weave is listed first. */
+  home: string
+  /** The ids of every subject the weave sits under, each once. */
+  subjects: string[]
+  /** The slugs of the entries this one builds on. */
+  requires: string[]
+}
+
+/**
+ * The optional catalogue.yaml at a fabric's root: the subjects its weaves sit under, each weave's home subject and
+ * which weave builds on which. The record is closed: it takes no key besides these.
+ */
+export interface Catalogue {
+  id: string
+  /** The publisher's name for the whole catalogue. */
+  title: string
+  /** The subject tree, in the order the publisher lists it. */
+  subjects: CatalogueSubject[]
+  /** One entry for each weave of the fabric, in the order the publisher lists them. */
+  entries: CatalogueEntry[]
 }
 
 /**
