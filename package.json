@@ -1,7 +1,7 @@
 {
   "name": "@framers/openquarry",
   "version": "0.2.0",
-  "description": "The OpenQuarry format for Markdown knowledge bases: JSON Schemas for note frontmatter and folder manifests, TypeScript types, and a validator.",
+  "description": "The OpenQuarry format for Markdown knowledge bases and courses: JSON Schemas for notes, lessons and folder manifests, TypeScript types, and a validator.",
   "keywords": [
     "openquarry",
     "quarry",
@@ -10,6 +10,10 @@
     "json-schema",
     "knowledge-base",
     "notes",
+    "course",
+    "lesson",
+    "education",
+    "llm",
     "zettelkasten",
     "validator",
     "typescript"
@@ -45,7 +49,10 @@
   "files": [
     "dist",
     "schema",
+    "docs",
+    "examples",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "sideEffects": false,
