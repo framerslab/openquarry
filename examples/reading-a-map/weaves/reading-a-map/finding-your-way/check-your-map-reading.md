@@ -35,7 +35,7 @@ Answer each question, then compare with the answers below.
 1. In the key, also called the legend.
 2. 1 cm is 500 m, so 8 cm is 4,000 m. The villages are 4 km apart.
 3. 1 km is 4 cm, so 2 km is 8 cm.
-4. Turn the map until the tower on the map is on the same side as the real tower. The map is then oriented.
+4. Turn the map until a line from where you stand to the tower on the map points at the real tower. Then check a second thing you can see, such as a path or a bridge: it should line up too. The map is then oriented. The tower being on the same side is not enough on its own.
 
 ## Marking
 

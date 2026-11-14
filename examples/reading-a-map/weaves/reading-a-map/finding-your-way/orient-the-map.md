@@ -32,4 +32,4 @@ The map now matches the ground. What is to your left on the map is to your left 
 
 ## Example
 
-You stand where two paths meet. A lake is on your right. On the map the lake is drawn to the left of the place where the paths meet. Turn the map half a turn. The lake is now on the right on the map too, and the map is oriented.
+You stand where two paths meet, with a lake on your right. On the map the lake is drawn to the left of the place where the paths meet, so the map is the wrong way round. Turn the map until a line from the meeting of the paths to the lake on the map points at the real lake. Then check a second thing: one of the paths on the map should run the same way as the real path. When both match, the map is oriented.
