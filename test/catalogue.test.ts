@@ -1,3 +1,4 @@
+import Ajv2020 from 'ajv/dist/2020.js'
 import { describe, expect, it } from 'vitest'
 import { type Catalogue, catalogueSchema, validateCatalogue } from '../src/index.js'
 
@@ -83,6 +84,15 @@ describe('a catalogue the schema refuses', () => {
   it('refuses a value that is not a record', () => {
     expect(validateCatalogue('field-skills')).toEqual({ valid: false, errors: ['/ must be object'] })
     expect(validateCatalogue(null).valid).toBe(false)
+  })
+})
+
+describe('the catalogue schema on its own', () => {
+  // A reader in another language holds the schema file and no more. The rule a JSON Schema can hold, it holds.
+  it('refuses a subject listed twice in one entry', () => {
+    const reads = new Ajv2020({ strict: false }).compile(catalogueSchema)
+    expect(reads(catalogue)).toBe(true)
+    expect(reads(withEntries({ ...mapReading, subjects: ['navigation', 'navigation'] }))).toBe(false)
   })
 })
 
