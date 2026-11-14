@@ -228,6 +228,6 @@ Write both. The two schemas give `license` a default of `MIT` with JSON Schema's
 
 ## What a 0.2.0 reader sees
 
-Version 0.3.0 only adds. `thread.schema.yaml`, `strand.schema.yaml`, `fabric.schema.yaml` and `blocks-index.schema.yaml` are the files of 0.2.0, byte for byte. `weave.schema.yaml` and `loom.schema.yaml` gain the optional `kind` and change in no other byte. A file that validated under 0.2.0 validates under 0.3.0.
+`thread.schema.yaml`, `strand.schema.yaml`, `fabric.schema.yaml` and `blocks-index.schema.yaml` are the files of 0.2.0, byte for byte. `weave.schema.yaml` and `loom.schema.yaml` gain the optional `kind` and change in no other byte. A file that validated under 0.2.0 validates under 0.3.0, with one exception. 0.2.0 refused no key it did not name, so a weave or a loom could carry `kind` with any value. 0.3.0 takes only a lowercase word there: `kind: Course` and `kind: 3` are now refused, and `kind: field-guide` validates.
 
 A reader built on 0.2.0 reads a course as a knowledge base: the weave and loom schemas of 0.2.0 refuse no key they do not name, so `kind` passes. It has no schema for `catalogue.yaml`. The tests in `test/compat.test.ts` hold each of these statements.

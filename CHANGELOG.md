@@ -6,7 +6,7 @@ Every release of `@framers/openquarry`, newest first. The package follows semant
 
 The course layer. A course is a weave of kind `course`, a unit is a loom of kind `unit`, and a catalogue files courses under subjects.
 
-This release only adds. A file that validated under 0.2.0 validates unchanged, and a reader built on 0.2.0 reads a course as a knowledge base.
+This release adds, and gives one key a meaning. A file that validated under 0.2.0 validates unchanged, with one exception: 0.2.0 let a weave or a loom carry a key named `kind` with any value, and 0.3.0 takes only a lowercase word there, so `kind: Course` or `kind: 3` is now refused. A file with no `kind` key, or with a lowercase word in it, validates as before. A reader built on 0.2.0 reads a course as a knowledge base.
 
 ### Added
 
@@ -21,7 +21,7 @@ This release only adds. A file that validated under 0.2.0 validates unchanged, a
 
 - `thread.schema.yaml`, `strand.schema.yaml`, `fabric.schema.yaml` and `blocks-index.schema.yaml` are the files of 0.2.0, byte for byte.
 - `weave.schema.yaml` and `loom.schema.yaml` differ from 0.2.0 by the `kind` property alone. Both still require only `slug` and `title`.
-- Every validator and type of 0.2.0 keeps its name and its result. The error lines of 0.2.0 read the same.
+- Every validator and type of 0.2.0 keeps its name, and its result for every file but a weave or a loom whose `kind` is not a lowercase word. The error lines of 0.2.0 read the same.
 
 ## 0.2.0
 

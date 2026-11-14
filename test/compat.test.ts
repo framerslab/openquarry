@@ -95,6 +95,20 @@ describe("0.2.0's examples", () => {
   })
 })
 
+describe('a 0.2.0 file that already has a key named kind', () => {
+  // 0.2.0's weave and loom refused no key they did not name, so a file could carry `kind` with any value. 0.3.0 gives
+  // the key a meaning: a lowercase word validates as before, any other value is refused. The changelog says so.
+  it('validates when its kind is a lowercase word, and is refused otherwise', () => {
+    const weave = { slug: 'maps', title: 'Maps', kind: 'Course' }
+    expect(readerAt020(weaveSchema)(weave)).toBe(true)
+    expect(validateWeave(weave).errors).toEqual(['/kind must match pattern "^[a-z][a-z0-9-]*$"'])
+    expect(validateWeave({ ...weave, kind: 'field-guide' })).toEqual({ valid: true, errors: [] })
+    const loom = { slug: 'part-one', title: 'Part one', kind: 3 }
+    expect(readerAt020(loomSchema)(loom)).toBe(true)
+    expect(validateLoom(loom).errors).toEqual(['/kind must be string'])
+  })
+})
+
 describe('a reader built on 0.2.0', () => {
   it('reads a weave of kind course and a loom of kind unit', () => {
     const weave = readerAt020(weaveSchema)

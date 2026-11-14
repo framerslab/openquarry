@@ -133,7 +133,7 @@ publishing:
 
 The lesson teaches one skill, the map's scale, and assumes another, the map's symbols, which the lesson before it teaches. A reader can order a course's threads from those two lists.
 
-`kind` is optional, and so is the catalogue. A fabric written for 0.2.0 validates unchanged, and a reader built on 0.2.0 reads a course as a knowledge base. [Courses and lessons](docs/courses.md) shows every kind of file in the example, the catalogue's rules and the validator's error lines.
+`kind` is optional, and so is the catalogue. A fabric written for 0.2.0 validates unchanged unless a weave or a loom already used a key named `kind` for something other than a lowercase word. A reader built on 0.2.0 reads a course as a knowledge base. [Courses and lessons](docs/courses.md) shows every kind of file in the example, the catalogue's rules and the validator's error lines.
 
 ## Written for people and for language models
 
@@ -247,7 +247,7 @@ In this package under `schema/`, as YAML. At `https://openquarry.dev/schema/v1/`
 
 ### What changed in 0.3.0, and does a 0.2.0 reader still read my files?
 
-0.3.0 adds the course layer: an optional `kind` on the weave and the loom, the catalogue record with `validateCatalogue`, the example course and these docs. It only adds. Four of the six schema files of 0.2.0 are unchanged byte for byte, and the weave and loom schemas gain `kind` alone. A file that validated under 0.2.0 validates under 0.3.0, and a reader built on 0.2.0 reads a course as a knowledge base. The [changelog](CHANGELOG.md) has the list.
+0.3.0 adds the course layer: an optional `kind` on the weave and the loom, the catalogue record with `validateCatalogue`, the example course and these docs. Four of the six schema files of 0.2.0 are unchanged byte for byte, and the weave and loom schemas gain `kind` alone. A file that validated under 0.2.0 validates under 0.3.0, with one exception: 0.2.0 took any value in a key named `kind` on a weave or a loom, and 0.3.0 takes only a lowercase word, so `kind: Course` is now refused. A reader built on 0.2.0 reads a course as a knowledge base. The [changelog](CHANGELOG.md) has the list.
 
 ### Do I need a catalogue?
 
