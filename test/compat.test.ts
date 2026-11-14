@@ -5,8 +5,6 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import Ajv2020 from 'ajv/dist/2020.js'
-import addFormats from 'ajv-formats'
 import yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 import {
@@ -17,43 +15,11 @@ import {
   validateWeave,
   weaveSchema,
 } from '../src/index.js'
+import { AT_0_2_0, readerAt020, withoutKind } from './reader-020.js'
 
 const schemaDir = join(fileURLToPath(new URL('..', import.meta.url)), 'schema')
 const read = (file: string) => readFileSync(join(schemaDir, file), 'utf8')
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
-
-// The SHA-256 of each schema file in @framers/openquarry 0.2.0, from that version's schema/SOURCE.json.
-const AT_0_2_0: Record<string, string> = {
-  'blocks-index.schema.yaml': '78bf128adb172d522333fc89e47fe0d89b2b96073e12a0671c3587bf4b87bea2',
-  'fabric.schema.yaml': '290ee1b0eed8debaf1ff458cf94806bd9bb8eaf0dacd5cd2bfdab15690de9b8a',
-  'loom.schema.yaml': '761e668f0ebb52ccf34d6833ee466ac556d000b1fbfa2f95bcb0174450fecc9e',
-  'strand.schema.yaml': 'f6f217484f03793046861d8b152804382eeba58f98c49cae3a8560bb55e34ce8',
-  'thread.schema.yaml': '1af37f95bb61532c102ab2a30c0250a6e2375afe20228dd1b50b40c17e28e766',
-  'weave.schema.yaml': 'a37d65837e73f6a72ac2bec5746a9db8724d25c500e4c1c6dc89d10444197b29',
-}
-
-/** A schema file with its top-level `kind` property taken out: the `  kind:` line and the lines indented under it. */
-function withoutKind(text: string): string {
-  const kept: string[] = []
-  let inside = false
-  for (const line of text.split('\n')) {
-    if (line.startsWith('  kind:')) {
-      inside = true
-    } else if (!(inside && line.startsWith('    '))) {
-      inside = false
-      kept.push(line)
-    }
-  }
-  return kept.join('\n')
-}
-
-/** The validator a 0.2.0 reader holds: the schema as 0.2.0 shipped it, which has no `kind`. */
-function readerAt020(schema: Record<string, unknown>) {
-  const { kind: _kind, ...properties } = schema.properties as Record<string, unknown>
-  const ajv = new Ajv2020({ allErrors: true, strict: false })
-  addFormats(ajv)
-  return ajv.compile({ ...schema, properties })
-}
 
 describe('the schema files, against 0.2.0', () => {
   it('keep the thread, the strand copy, the manifest and the blocks index byte for byte', () => {
