@@ -170,6 +170,33 @@ describe('a catalogue whose links do not hold', () => {
     expect(validateCatalogue({ ...catalogue, subjects, entries })).toEqual({ valid: true, errors: [] })
   })
 
+  it('walks a long chain of links and answers', () => {
+    // Each entry builds on the next and each subject sits under the next, so the walk from the first goes down the
+    // whole chain. The schema sets no length, so the check must not take a call per link.
+    const length = 50_000
+    const slug = (n: number) => `course-${n}`
+    const subjectId = (n: number) => `subject-${n}`
+    const subjects = Array.from({ length }, (_, n) => ({
+      id: subjectId(n),
+      title: `Subject ${n}`,
+      broader: n < length - 1 ? [subjectId(n + 1)] : [],
+    }))
+    const entries = Array.from({ length }, (_, n) => ({
+      slug: slug(n),
+      home: subjectId(0),
+      subjects: [subjectId(0)],
+      requires: n < length - 1 ? [slug(n + 1)] : [],
+    }))
+    expect(validateCatalogue({ ...catalogue, subjects, entries })).toEqual({ valid: true, errors: [] })
+
+    entries[length - 1] = { ...entries[length - 1], requires: [slug(0)] }
+    const { valid, errors } = validateCatalogue({ ...catalogue, subjects, entries })
+    expect(valid).toBe(false)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].startsWith('/entries/0/requires makes a circle: "course-0" > "course-1" > ')).toBe(true)
+    expect(errors[0].endsWith(` > "course-${length - 1}" > "course-0"`)).toBe(true)
+  })
+
   it('gives every line when several links fail', () => {
     const result = validateCatalogue(
       withEntries({ ...mapReading, home: 'outdoors' }, { ...nightNavigation, requires: ['reading-maps'] }),

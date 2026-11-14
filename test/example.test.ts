@@ -46,6 +46,15 @@ const threads = units.flatMap((unit) =>
     .map((file) => ({ unit, file, data: frontmatter('weaves', course, unit, file) as ThreadFrontmatter })),
 )
 
+/** Each skill a thread requires that no lesson in the list teaches, as `unit/file requires skill`. */
+function untaught(list: { unit: string; file: string; data: ThreadFrontmatter }[]): string[] {
+  const lessons = list.filter(({ data }) => data.contentType === 'lesson')
+  const taught = new Set(lessons.flatMap(({ data }) => data.teaches ?? []))
+  return list.flatMap(({ unit, file, data }) =>
+    (data.requires ?? []).filter((skill) => !taught.has(skill)).map((skill) => `${unit}/${file} requires ${skill}`),
+  )
+}
+
 describe('the example course', () => {
   it('is a fabric with a manifest and a catalogue that lists its one weave', () => {
     expect(validateFabricManifest(readYaml('fabric.yaml'))).toEqual({ valid: true, errors: [] })
@@ -91,13 +100,20 @@ describe('the example course', () => {
   })
 
   it('links its threads by skill: every skill a thread requires, a lesson of the course teaches', () => {
-    const taught = new Set(threads.flatMap(({ data }) => data.teaches ?? []))
-    expect(taught.size).toBeGreaterThan(0)
+    expect(untaught(threads)).toEqual([])
     for (const { unit, file, data } of threads) {
-      for (const skill of data.requires ?? []) expect(taught.has(skill), `${unit}/${file} requires ${skill}`).toBe(true)
       if (data.contentType === 'lesson') expect(data.teaches?.length, `${unit}/${file}`).toBeGreaterThan(0)
       else expect(data.requires?.length, `${unit}/${file}`).toBeGreaterThan(0)
     }
+  })
+
+  it('counts a skill as taught only when a lesson teaches it', () => {
+    const thread = (file: string, data: Partial<ThreadFrontmatter>) => ({ unit: 'the-map', file, data: data as ThreadFrontmatter })
+    const drill = thread('drill.md', { contentType: 'exercise', teaches: ['map-scale'] })
+    const quiz = thread('quiz.md', { contentType: 'assessment', requires: ['map-scale'] })
+    expect(untaught([drill, quiz])).toEqual(['the-map/quiz.md requires map-scale'])
+    const lesson = thread('lesson.md', { contentType: 'lesson', teaches: ['map-scale'] })
+    expect(untaught([drill, lesson, quiz])).toEqual([])
   })
 
   it("files its threads under the catalogue's subjects", () => {
