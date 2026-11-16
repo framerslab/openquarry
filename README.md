@@ -1,5 +1,7 @@
 # OpenQuarry
 
+**The open format for notes and courses in plain Markdown files. Site and docs: [openquarry.dev](https://openquarry.dev/).** Made by [Frame](https://frame.dev) and used by [Quarry School](https://quarry.school) and [Quarry](https://quarry.space).
+
 [![npm](https://img.shields.io/npm/v/@framers/openquarry)](https://www.npmjs.com/package/@framers/openquarry) [![CI](https://github.com/framerslab/openquarry/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/framerslab/openquarry/actions/workflows/ci.yml?query=branch%3Amaster) [![License: MIT](https://img.shields.io/github/license/framerslab/openquarry)](LICENSE) [![Site: openquarry.dev](https://img.shields.io/badge/site-openquarry.dev-103822)](https://openquarry.dev/)
 
 OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A note or a lesson is one Markdown file with YAML frontmatter. Folders group the files into looms, and looms into weaves: a weave is a knowledge base or a course. The files are plain text that a person can read and a language model can write, and JSON Schemas say what each file may hold.
@@ -250,5 +252,7 @@ No. A fabric with one course needs none. Add `catalogue.yaml` when you have seve
 ## License
 
 MIT, copyright Framers Lab, Inc. See [LICENSE](LICENSE). The licence covers this package. It does not cover the files you write in the format: see the FAQ.
+
+The site at openquarry.dev is built from `site/` and `scripts/` in this repository. Its mark, the five cut stones it shares with Quarry and Quarry School, is the Quarry brand's logo and is not licensed for other uses by the MIT licence. Its fonts are under the SIL Open Font License, with each licence in `site/fonts/`.
 
 npm is a registered trademark of npm, Inc.

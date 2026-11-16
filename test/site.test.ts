@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 import { afterAll, describe, expect, it } from 'vitest'
 import { buildSite, schemaFiles, ORIGIN, SCHEMA_PATH } from '../scripts/build-site.mjs'
+import { highlight } from '../scripts/highlight.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const out = mkdtempSync(join(tmpdir(), 'openquarry-site-'))
@@ -75,8 +76,8 @@ describe('the schema host', () => {
 
 
 describe('the public format site', () => {
-  it('writes all seven canonical pages, navigation and sitemap entries', () => {
-    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral']) {
+  it('writes all eight canonical pages, navigation and sitemap entries', () => {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       const url = `${ORIGIN}/${path ? path + '/' : ''}`
       expect(html).toContain(`<link rel="canonical" href="${url}">`)
@@ -100,7 +101,44 @@ describe('the public format site', () => {
     for (const path of ['', 'courses', 'llm', 'schema', 'validate', 'spiral']) {
       expect(readFileSync(join(site, path, 'index.html'), 'utf8')).not.toMatch(/strand\.schema|StrandFrontmatter|strands\//)
     }
-    expect(readFileSync(join(site, 'fonts/Inter-OFL.txt'), 'utf8')).toContain('SIL OPEN FONT LICENSE')
-    expect(readFileSync(join(site, 'fonts/Newsreader-OFL.txt'), 'utf8')).toContain('SIL OPEN FONT LICENSE')
+    for (const font of ['HankenGrotesk', 'Fraunces', 'JetBrainsMono']) {
+      expect(readFileSync(join(site, `fonts/${font}-OFL.txt`), 'utf8')).toContain('SIL OPEN FONT LICENSE')
+    }
+  })
+  it('carries the mark, the GitHub key, who makes it and who uses it on every page', () => {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'about']) {
+      const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+      for (const link of ['https://github.com/framerslab/openquarry', 'https://frame.dev', 'https://quarry.school', 'https://quarry.space']) {
+        expect(html, `${path} links ${link}`).toContain(`href="${link}"`)
+      }
+      expect(html).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml">')
+      expect(html).toContain('<meta property="og:image" content="https://openquarry.dev/og.png">')
+    }
+    const courses = readFileSync(join(site, 'courses', 'index.html'), 'utf8')
+    expect(courses).toContain('<a href="/format/" class="in-section">Docs</a>')
+    expect(courses.match(/aria-current="page"/g)).toHaveLength(1)
+    const about = readFileSync(join(site, 'about', 'index.html'), 'utf8')
+    expect(about).toContain('AboutPage')
+    expect(about).toContain('Who makes it')
+  })
+  it('highlights code at build time, keeps its text exact and gives each block a copy key', () => {
+    const home = readFileSync(join(site, 'index.html'), 'utf8')
+    expect(home).toContain('<span class="t-key">id</span><span class="t-pun">:</span> <span class="t-str">70c967bf-2dba-4399-aef1-671174eb904f</span>')
+    expect(home).toContain('data-copy')
+    const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
+    const blocks = [...home.matchAll(/<code class="language-[a-z]+">([\s\S]*?)<\/code>/g)].map((m) => unescape(m[1]))
+    const sample = readFileSync(join(root, 'examples/reading-a-map/weaves/reading-a-map/the-map/scale-and-distance.md'), 'utf8')
+    expect(blocks).toContain(sample)
+  })
+  it('highlights a file saved with Windows line endings and keeps every byte', () => {
+    const text = '---\r\nid: a1\r\ntitle: Scale and distance\r\ntags: [maps]\r\n---\r\n\r\n# Scale\r\n\r\n- one `code`\r\n2. two\r\n'
+    // An HTML parser turns a bare CR into a line feed, so a CR must reach the page as a character reference.
+    const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&#13;', '\r').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
+    for (const lang of ['markdown', 'yaml']) {
+      const html = highlight(text, lang)
+      expect(html).not.toContain('\r')
+      expect(unescape(html)).toBe(text)
+    }
+    expect(highlight(text, 'markdown')).toContain('<span class="t-key">title</span>')
   })
 })
