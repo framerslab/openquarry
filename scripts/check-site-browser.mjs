@@ -34,7 +34,7 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
    return errors
   })
   if(issues.length)throw Error(`${width} ${theme} ${route}: ${issues.join(', ')}`)
-  if(!route)await page.screenshot({path:`site-screenshots/landing-${width}-${theme}.png`,fullPage:true})
+  if(!route)await page.screenshot({path:`site-screenshots/landing-${width}-${theme}.png`,fullPage:true,animations:'disabled'})
   const links=await page.locator('a[href^="/"]').evaluateAll(as=>as.map(a=>a.getAttribute('href')))
   for(const link of links){const u=new URL(link,'http://127.0.0.1:4173');const r=await page.request.get(u.href);if(!r.ok())throw Error('Broken link '+link)}
  }
