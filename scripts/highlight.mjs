@@ -36,13 +36,13 @@ export function yamlLines(text) {
     }
     if (/^---\s*$|^\.\.\.\s*$/.test(line)) return tok('pun', line)
     if (/^\s*#/.test(line)) return tok('com', line)
-    const m = /^(\s*)(- )?([^\s:#'"][^:#]*?|"[^"]*"|'[^']*')(:)(\s+|$)(.*)$/.exec(line)
+    const m = /^(\s*)(- )?([^\s:#'"][^:#]*?|"[^"]*"|'[^']*')(:)(\s+|$)([^\n]*)$/.exec(line)
     if (m) {
       const [, lead, dash, key, colon, gap, value] = m
       if (/^[|>][-+]?\d*$/.test(value.trim())) block = indent + (dash ? 2 : 0)
       return esc(lead) + tok('pun', dash) + tok('key', key) + tok('pun', colon) + esc(gap) + scalar(value)
     }
-    const item = /^(\s*)(- )(.*)$/.exec(line)
+    const item = /^(\s*)(- )([^\n]*)$/.exec(line)
     if (item) return esc(item[1]) + tok('pun', item[2]) + scalar(item[3])
     return esc(line)
   }).join('\n')
@@ -54,7 +54,7 @@ function markdownLines(text) {
   const head = front ? yamlLines(front[0]) : ''
   const body = (front ? text.slice(front[0].length) : text).split('\n').map((line) => {
     if (/^#{1,6} /.test(line)) return tok('key', line)
-    const lead = /^(\s*)([-*+] |\d+\. )?(.*)$/.exec(line)
+    const lead = /^(\s*)([-*+] |\d+\. )?([^\n]*)$/.exec(line)
     const inline = lead[3].split(/(`[^`]+`)/).map((part) => (part.startsWith('`') && part.endsWith('`') && part.length > 1 ? tok('str', part) : esc(part))).join('')
     return esc(lead[1]) + tok('pun', lead[2] || '') + inline
   }).join('\n')

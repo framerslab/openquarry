@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 import { afterAll, describe, expect, it } from 'vitest'
 import { buildSite, schemaFiles, ORIGIN, SCHEMA_PATH } from '../scripts/build-site.mjs'
+import { highlight } from '../scripts/highlight.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const out = mkdtempSync(join(tmpdir(), 'openquarry-site-'))
@@ -128,5 +129,11 @@ describe('the public format site', () => {
     const blocks = [...home.matchAll(/<code class="language-[a-z]+">([\s\S]*?)<\/code>/g)].map((m) => unescape(m[1]))
     const sample = readFileSync(join(root, 'examples/reading-a-map/weaves/reading-a-map/the-map/scale-and-distance.md'), 'utf8')
     expect(blocks).toContain(sample)
+  })
+  it('highlights a file saved with Windows line endings and keeps every byte', () => {
+    const text = '---\r\nid: a1\r\ntitle: Scale and distance\r\ntags: [maps]\r\n---\r\n\r\n# Scale\r\n\r\n- one `code`\r\n2. two\r\n'
+    const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
+    for (const lang of ['markdown', 'yaml']) expect(unescape(highlight(text, lang))).toBe(text)
+    expect(highlight(text, 'markdown')).toContain('<span class="t-key">title</span>')
   })
 })
