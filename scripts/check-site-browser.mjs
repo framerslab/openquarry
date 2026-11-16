@@ -30,6 +30,9 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
    // Every row of links stays one row at every width: it scrolls sideways instead of wrapping.
    for(const nav of document.querySelectorAll('nav')){const tops=[...nav.querySelectorAll('a')].map(a=>Math.round(a.getBoundingClientRect().top));if(new Set(tops).size>1)errors.push('navigation wraps: '+nav.getAttribute('aria-label'))}
    if(!document.querySelector('header a[href="https://github.com/framerslab/openquarry"]'))errors.push('no GitHub key in the header')
+   // The brand, the GitHub key and the theme switch share the header's first row at every width.
+   const firstRow=['.top .brand','.gh-key','[data-theme-toggle]'].map(s=>document.querySelector(s)).filter(e=>e&&!e.hidden).map(e=>{const r=e.getBoundingClientRect();return Math.round(r.top+r.height/2)})
+   if(Math.max(...firstRow)-Math.min(...firstRow)>4)errors.push('header first row wraps')
    for(const el of document.querySelectorAll('p, a, code, button, li, td')) if(parseFloat(getComputedStyle(el).fontSize)<14)errors.push('small type')
    const luminance=c=>{const v=c.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return v[0]*.2126+v[1]*.7152+v[2]*.0722}
    const s=getComputedStyle(document.body),a=luminance(s.color),b=luminance(s.backgroundColor)

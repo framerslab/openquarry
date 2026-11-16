@@ -147,5 +147,5 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .foot{grid-template-columns:1fr 1fr;padding:36px 20px 48px}
  .foot-brand{grid-column:1/-1}
 }
-@media(max-width:400px){.brand{font-size:23px;gap:8px}.gh-key{padding:0 12px}.gh-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
+@media(max-width:400px){.top{padding-inline:16px;column-gap:8px}main{padding-inline:16px}.brand{font-size:22px;gap:8px}.brand .mark{width:26px;height:26px}.gh-key{padding:0 11px}.gh-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
 @media(prefers-reduced-motion:no-preference){.hero{animation:arrive .35s ease-out}.card,.key,.gh-key,.button{transition:background-color .15s,border-color .15s}@keyframes arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
