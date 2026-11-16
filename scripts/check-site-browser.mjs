@@ -9,24 +9,27 @@ const server = createServer((req,res)=>{
   if (!path.startsWith(root+'/') && path!==root) {res.writeHead(403).end();return}
   if (existsSync(path) && statSync(path).isDirectory()) path+='/index.html'
   if(!existsSync(path)){res.writeHead(404).end();return}
-  res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.ttf':'font/ttf'})[extname(path)]||'application/octet-stream')
+  res.setHeader('Content-Type',({'.html':'text/html','.css':'text/css','.js':'text/javascript','.ttf':'font/ttf','.woff2':'font/woff2','.svg':'image/svg+xml','.png':'image/png','.ico':'image/x-icon','.webmanifest':'application/manifest+json'})[extname(path)]||'application/octet-stream')
   res.end(readFileSync(path))
 })
 await new Promise(r=>server.listen(4173,'127.0.0.1',r))
 const browser=await chromium.launch()
+// The icons, the manifest and the share image the pages name in their heads.
+for(const asset of ['icon.svg','favicon.ico','apple-touch-icon.png','icon-192.png','icon-512.png','manifest.webmanifest','og.png','site.js','robots.txt','sitemap.xml']) if(!existsSync(resolve(root,asset)))throw Error('Missing '+asset)
 mkdirSync('site-screenshots',{recursive:true})
 try {
 for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
  const page=await browser.newPage({viewport:{width,height:1000},colorScheme:theme})
- for(const route of ['','format/','courses/','llm/','schema/','validate/','spiral/']) {
+ for(const route of ['','format/','courses/','llm/','schema/','validate/','spiral/','about/']) {
   const response=await page.goto('http://127.0.0.1:4173/'+route)
   if(response.status()!==200) throw Error('Missing '+route)
   await page.evaluate(()=>document.fonts.ready)
   const issues=await page.evaluate(()=>{
    const errors=[]
    if(document.documentElement.scrollWidth>innerWidth)errors.push('page overflow')
-   const links=[...document.querySelectorAll('nav a')]
-   if(new Set(links.map(a=>a.offsetTop)).size!==1)errors.push('navigation wraps')
+   // Every row of links stays one row at every width: it scrolls sideways instead of wrapping.
+   for(const nav of document.querySelectorAll('nav')){const tops=[...nav.querySelectorAll('a')].map(a=>Math.round(a.getBoundingClientRect().top));if(new Set(tops).size>1)errors.push('navigation wraps: '+nav.getAttribute('aria-label'))}
+   if(!document.querySelector('header a[href="https://github.com/framerslab/openquarry"]'))errors.push('no GitHub key in the header')
    for(const el of document.querySelectorAll('p, a, code, button, li, td')) if(parseFloat(getComputedStyle(el).fontSize)<14)errors.push('small type')
    const luminance=c=>{const v=c.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return v[0]*.2126+v[1]*.7152+v[2]*.0722}
    const s=getComputedStyle(document.body),a=luminance(s.color),b=luminance(s.backgroundColor)
@@ -47,6 +50,11 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
   }
  }
  await page.goto('http://127.0.0.1:4173/')
+ // The copy key on a code block copies the code and says so.
+ await page.context().grantPermissions(['clipboard-read','clipboard-write'],{origin:'http://127.0.0.1:4173'})
+ const copy=page.locator('.check [data-copy]')
+ await copy.click()
+ if(await copy.textContent()!=='Copied')throw Error('The copy key did not copy')
  await page.locator('[data-theme-toggle]').click()
  await page.reload()
  if(await page.locator('html').getAttribute('data-theme')!==(theme==='dark'?'light':'dark'))throw Error('Theme did not persist')
