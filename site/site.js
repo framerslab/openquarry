@@ -17,9 +17,13 @@ const status = document.createElement('p')
 status.className = 'sr-only'
 status.setAttribute('role', 'status')
 document.body.append(status)
+// Clipboard writes run one after another in click order, so an earlier copy never lands after a later one.
+let queue = Promise.resolve()
 for (const button of document.querySelectorAll('[data-copy]')) {
   button.hidden = false
-  button.addEventListener('click', async () => {
+  button.addEventListener('click', () => { queue = queue.then(() => copy(button)) })
+}
+async function copy(button) {
     const text = button.closest('.code').querySelector('code').textContent
     let done = false
     try { await navigator.clipboard.writeText(text); done = true } catch {
@@ -36,7 +40,6 @@ for (const button of document.querySelectorAll('[data-copy]')) {
     status.textContent = done ? 'Code copied' : 'Copy failed'
     clearTimeout(button.timer)
     button.timer = setTimeout(() => { button.textContent = 'Copy' }, 1800)
-  })
 }
 
 // On a narrow screen the row of guides scrolls: bring the current guide into view.

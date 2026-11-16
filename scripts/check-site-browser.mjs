@@ -28,6 +28,7 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
    const errors=[]
    if(document.documentElement.scrollWidth>innerWidth)errors.push('page overflow')
    // Every row of links stays one row at every width: it scrolls sideways instead of wrapping.
+   if(document.querySelectorAll('header nav[aria-label=Main] a').length<5)errors.push('the main navigation is missing')
    for(const nav of document.querySelectorAll('nav')){const tops=[...nav.querySelectorAll('a')].map(a=>Math.round(a.getBoundingClientRect().top));if(new Set(tops).size>1)errors.push('navigation wraps: '+nav.getAttribute('aria-label'))}
    if(!document.querySelector('header a[href="https://github.com/framerslab/openquarry"]'))errors.push('no GitHub key in the header')
    // The brand, the GitHub key and the theme switch share the header's first row at every width.

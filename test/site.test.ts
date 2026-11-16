@@ -113,6 +113,9 @@ describe('the public format site', () => {
       expect(html).toContain('<link rel="icon" href="/icon.svg" type="image/svg+xml">')
       expect(html).toContain('<meta property="og:image" content="https://openquarry.dev/og.png">')
     }
+    const courses = readFileSync(join(site, 'courses', 'index.html'), 'utf8')
+    expect(courses).toContain('<a href="/format/" class="in-section">Docs</a>')
+    expect(courses.match(/aria-current="page"/g)).toHaveLength(1)
     const about = readFileSync(join(site, 'about', 'index.html'), 'utf8')
     expect(about).toContain('AboutPage')
     expect(about).toContain('Who makes it')
