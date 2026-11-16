@@ -27,9 +27,10 @@ for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark'])
   const issues=await page.evaluate(()=>{
    const errors=[]
    if(document.documentElement.scrollWidth>innerWidth)errors.push('page overflow')
-   // Every row of links stays one row at every width: it scrolls sideways instead of wrapping.
+   // Every row of links stays one row at every width: it scrolls sideways instead of wrapping. Links a width folds
+   // into the menu are not in the row and are not measured.
    if(document.querySelectorAll('header nav[aria-label=Main] a').length<5)errors.push('the main navigation is missing')
-   for(const nav of document.querySelectorAll('nav:not(.menu-panel)')){const tops=[...nav.querySelectorAll('a')].map(a=>Math.round(a.getBoundingClientRect().top));if(new Set(tops).size>1)errors.push('navigation wraps: '+nav.getAttribute('aria-label'))}
+   for(const nav of document.querySelectorAll('nav:not(.menu-panel)')){const tops=[...nav.querySelectorAll('a')].filter(a=>a.getClientRects().length).map(a=>Math.round(a.getBoundingClientRect().top));if(new Set(tops).size>1)errors.push('navigation wraps: '+nav.getAttribute('aria-label'))}
    if(!document.querySelector('header a[href="https://github.com/framerslab/openquarry"]'))errors.push('no GitHub key in the header')
    // The header is ONE row at every width: every control that shows sits on one centre line inside the page, and the
    // row is no taller than its keys. Below 1160 px the menu key shows; below 960 px the row's own links are folded away.
