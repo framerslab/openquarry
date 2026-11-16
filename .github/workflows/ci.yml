@@ -7,6 +7,12 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# A newer push to a pull request cancels its older run; on master the running run finishes and only the newest
+# waiting one is kept.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     name: Types, tests, build and the packed files
@@ -77,7 +83,9 @@ jobs:
           node scripts/check-site-browser.mjs
 
       - name: Keep browser screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: site-screenshots
           path: site-screenshots/
+          if-no-files-found: ignore

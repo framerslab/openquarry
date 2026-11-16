@@ -33,10 +33,18 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
    if((Math.max(a,b)+.05)/(Math.min(a,b)+.05)<12)errors.push('body contrast below 12:1')
    return errors
   })
-  if(issues.length)throw Error(`${width} ${theme} ${route}: ${issues.join(', ')}`)
+  // A failing page is captured before the check stops, so the screenshots artifact shows it.
+  if(issues.length){await page.screenshot({path:`site-screenshots/failed-${width}-${theme}-${route.replace('/','')||'home'}.png`,fullPage:true,animations:'disabled'});throw Error(`${width} ${theme} ${route}: ${issues.join(', ')}`)}
   if(!route)await page.screenshot({path:`site-screenshots/landing-${width}-${theme}.png`,fullPage:true,animations:'disabled'})
-  const links=await page.locator('a[href^="/"]').evaluateAll(as=>as.map(a=>a.getAttribute('href')))
-  for(const link of links){const u=new URL(link,'http://127.0.0.1:4173');const r=await page.request.get(u.href);if(!r.ok())throw Error('Broken link '+link)}
+  // Every same-site link: root-relative, relative, and absolute ones on the canonical origin (the schema list writes
+  // https://openquarry.dev/schema/v1/...), each requested from this build, never from the deployed host.
+  const hrefs=await page.locator('a[href]').evaluateAll(as=>as.map(a=>a.href))
+  for(const href of new Set(hrefs)){
+   const u=new URL(href); u.hash=''
+   if(u.origin==='https://openquarry.dev'){u.protocol='http:';u.host='127.0.0.1:4173'}
+   else if(u.origin!=='http://127.0.0.1:4173')continue
+   const r=await page.request.get(u.href);if(!r.ok())throw Error(`Broken link ${href} on /${route}`)
+  }
  }
  await page.goto('http://127.0.0.1:4173/')
  await page.locator('[data-theme-toggle]').click()

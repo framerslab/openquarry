@@ -183,15 +183,13 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 ## Version 1 fabrics
 
-New content uses thread names. Version 1 fabrics retain `strand.schema.yaml`, the deprecated `StrandFrontmatter` type and `strandSchema` export, the stored `'strand'` level in `KnowledgeNodeType`, and `looms/` and `strands/` folders. All remain supported; this site update removes no API. A fabric without `fabric.yaml` is version 1.
+New content uses thread names. Version 1 fabrics retain `strand.schema.yaml`, the deprecated `StrandFrontmatter` type and `strandSchema` export, the stored `'strand'` level in `KnowledgeNodeType`, and `looms/` and `strands/` folders. All remain supported. A fabric without `fabric.yaml` is version 1.
 
 ```text
 weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md
 ```
 
 Version 2 uses `weaves/reading-a-map/the-map/scale-and-distance.md` with `thread.schema.yaml` and `ThreadFrontmatter`. The `relationships` and `notes` keys keep their names. The older schema URL, named `strand.schema` in the index, remains available unchanged. The team server SDK is a separate package.
-
-See [the 1.0 removal proposal](docs/site-design/STRAND-REMOVAL.md) for the migration work required before removing compatibility names.
 
 ## The schema host
 
