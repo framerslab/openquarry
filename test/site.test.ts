@@ -132,8 +132,13 @@ describe('the public format site', () => {
   })
   it('highlights a file saved with Windows line endings and keeps every byte', () => {
     const text = '---\r\nid: a1\r\ntitle: Scale and distance\r\ntags: [maps]\r\n---\r\n\r\n# Scale\r\n\r\n- one `code`\r\n2. two\r\n'
-    const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
-    for (const lang of ['markdown', 'yaml']) expect(unescape(highlight(text, lang))).toBe(text)
+    // An HTML parser turns a bare CR into a line feed, so a CR must reach the page as a character reference.
+    const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&#13;', '\r').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
+    for (const lang of ['markdown', 'yaml']) {
+      const html = highlight(text, lang)
+      expect(html).not.toContain('\r')
+      expect(unescape(html)).toBe(text)
+    }
     expect(highlight(text, 'markdown')).toContain('<span class="t-key">title</span>')
   })
 })

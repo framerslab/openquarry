@@ -6,7 +6,9 @@
 //   lit  a number, true, false, null
 //   com  a comment, a file-tree label
 //   pun  the YAML document markers, list dashes, colons, brackets
-export const esc = (s) => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+// A CR is written as a character reference: an HTML parser would turn a bare one into a line feed, and the copy key
+// would then copy a different file.
+export const esc = (s) => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll('\r', '&#13;')
 const tok = (kind, s) => (s ? `<span class="t-${kind}">${esc(s)}</span>` : '')
 
 const LANGS = { yaml: 'YAML', yml: 'YAML', markdown: 'Markdown', md: 'Markdown', ts: 'TypeScript', typescript: 'TypeScript', js: 'JavaScript', javascript: 'JavaScript', json: 'JSON', bash: 'Shell', sh: 'Shell', shell: 'Shell', text: 'Text', tree: 'Files' }
