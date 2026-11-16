@@ -1,5 +1,7 @@
 # OpenQuarry
 
+[![npm](https://img.shields.io/npm/v/@framers/openquarry)](https://www.npmjs.com/package/@framers/openquarry) [![CI](https://github.com/framerslab/openquarry/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/framerslab/openquarry/actions/workflows/ci.yml?query=branch%3Amaster) [![License: MIT](https://img.shields.io/github/license/framerslab/openquarry)](LICENSE) [![Site: openquarry.dev](https://img.shields.io/badge/site-openquarry.dev-103822)](https://openquarry.dev/)
+
 OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A note or a lesson is one Markdown file with YAML frontmatter. Folders group the files into looms, and looms into weaves: a weave is a knowledge base or a course. The files are plain text that a person can read and a language model can write, and JSON Schemas say what each file may hold.
 
 This package holds the format's JSON Schemas, TypeScript types for every file the format defines, and a validator built on [Ajv](https://ajv.js.org/).
