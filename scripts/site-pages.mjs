@@ -115,7 +115,6 @@ export function writePages(site, index) {
   // Without a 404.html at the root, Pages answers every unknown address, a mistyped schema URL included, with the
   // landing page and status 200. With it, an unknown address answers 404.
   writeFileSync(join(site,'404.html'),shell(null,'Page not found','This address is not part of the OpenQuarry site.',`<article class="reading"><section class="hero"><p class="eyebrow">OpenQuarry</p><h1>Page not found</h1><p class="intro">This address is not part of the OpenQuarry site.</p></section><p><a href="/">Home</a> · <a href="/format/">The format</a> · <a href="/schema/">Schemas</a></p></article>`))
-  const day = new Date().toISOString().slice(0, 10)
-  writeFileSync(join(site,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${routes.map(p=>`<url><loc>${origin}/${p?p+'/':''}</loc><lastmod>${day}</lastmod></url>`).join('')}</urlset>`)
+  writeFileSync(join(site,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${routes.map(p=>`<url><loc>${origin}/${p?p+'/':''}</loc></url>`).join('')}</urlset>`)
 }
 export { depth, command }

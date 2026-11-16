@@ -124,6 +124,6 @@ describe('the public format site', () => {
     const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
     const blocks = [...home.matchAll(/<code class="language-[a-z]+">([\s\S]*?)<\/code>/g)].map((m) => unescape(m[1]))
     const sample = readFileSync(join(root, 'examples/reading-a-map/weaves/reading-a-map/the-map/scale-and-distance.md'), 'utf8')
-    expect(blocks).toContain(sample.replace(/\n$/, ''))
+    expect(blocks).toContain(sample)
   })
 })

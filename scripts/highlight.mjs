@@ -131,8 +131,9 @@ export function highlight(text, lang) {
   }
 }
 
-/** A code block: a bar with the file name or language and a copy key, then the highlighted code. */
+/** A code block: a bar with the file name or language and a copy key, then the highlighted code. The text is kept
+ * exactly, its final newline included, so the copy key copies the file as it is on disk. `label` may hold markup. */
 export function codeBlock(text, lang, label) {
   const name = label || languageName(lang)
-  return `<figure class="code"><figcaption class="code-bar"><span class="code-name">${name}</span><button class="copy" type="button" data-copy hidden>Copy</button></figcaption><pre tabindex="0"><code class="language-${esc((lang || 'text').toLowerCase())}">${highlight(text.replace(/\n$/, ''), lang)}</code></pre></figure>`
+  return `<figure class="code"><figcaption class="code-bar"><span class="code-name">${name}</span><button class="copy" type="button" data-copy hidden>Copy</button></figcaption><pre tabindex="0"><code class="language-${esc((lang || 'text').toLowerCase())}">${highlight(text, lang)}</code></pre></figure>`
 }

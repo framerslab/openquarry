@@ -129,6 +129,7 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
 .foot p{max-width:340px;color:var(--dim);margin:14px 0 0}
 .foot p a{color:var(--ink)}
 @media(max-width:900px){
+ html{scroll-padding-top:136px}
  .top{flex-wrap:wrap;padding:8px 20px;gap:8px 10px}
  .gh-key{margin-left:auto}
  .main-nav{order:4;flex-basis:100%;margin:0 -8px;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
