@@ -1,0 +1,107 @@
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { marked } from 'marked'
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const repo = 'https://github.com/framerslab/openquarry'
+const origin = 'https://openquarry.dev'
+export const routes = ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral']
+const labels = ['Home', 'Format', 'Courses', 'LLM', 'Schemas', 'Validate', 'Spiral']
+const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+const code = s => `<pre><code>${esc(s)}</code></pre>`
+const samplePath = 'examples/reading-a-map/weaves/reading-a-map/the-map/scale-and-distance.md'
+const file = readFileSync(join(root, samplePath), 'utf8')
+const hierarchy = `<div class="nest"><p><strong>Fabric</strong> / Field skills</p><div class="nest"><p><strong>Weave</strong> / Reading a map</p><div class="nest"><p><strong>Loom</strong> / The map</p><div class="nest"><p><strong>Thread</strong> / Scale and distance</p></div></div></div></div>`
+const command = `npm install @framers/openquarry yaml
+node --input-type=module -e '
+import { readFileSync } from "node:fs";
+import { parse } from "yaml";
+import { validateThreadFrontmatter } from "@framers/openquarry";
+const text = readFileSync(process.argv[1], "utf8");
+const match = /^---\\r?\\n([\\s\\S]*?)\\r?\\n---(?:\\r?\\n|$)/.exec(text);
+if (!match) throw new Error("Missing YAML frontmatter");
+const result = validateThreadFrontmatter(parse(match[1]));
+console.log(result);
+process.exitCode = result.valid ? 0 : 1;
+' scale-and-distance.md`
+const depth = `# Proposal: reading depths
+
+**Proposal only.** OpenQuarry 0.3.0 does not define two depths of the same text. No schema change accompanies this proposal.
+
+## What works today
+
+A thread has \`extractiveSummary\` (pipeline summary), \`aiSummary\` (model summary), and the deprecated \`summary\` alias. Blocks have their own \`extractiveSummary\`. \`difficulty\` describes the thread's level. Typed relationships such as \`summarizes\`, \`extends\` and \`refines\` can connect separate threads. \`teaches\` and \`requires\` identify skills. These fields can help a reader select content; they do not specify which passages to hide.
+
+## Proposed fields
+
+Add an optional thread-level \`overview\` string: an author-written orientation to the whole thread. Add optional \`depth\` to each block with exactly three values:
+
+- \`core\`: the essential explanation, shown first.
+- \`detail\`: derivation, worked examples and further explanation, opened on request.
+- \`refresher\`: prerequisite reminders, opened when needed.
+
+A reader could show “Overview” followed by core blocks, with “Full explanation” revealing every block in source order. A new reader could choose the full explanation from the start. Depth is an editorial choice, independent of difficulty.
+
+## Example: Scale and distance
+
+This proposed metadata annotates passages in [the existing lesson](${repo}/blob/master/${samplePath}). Line numbers below refer to the existing Markdown file including its frontmatter; a publisher must update ranges when editing. This is an illustrative metadata fragment, not a complete thread.
+
+\`\`\`yaml
+overview: Turn a distance on the map into a distance on the ground.
+blocks:
+  - id: scale-rule
+    line: 26
+    endLine: 26
+    type: paragraph
+    depth: core
+  - id: conversion
+    line: 30
+    endLine: 32
+    type: paragraph
+    depth: detail
+  - id: scale-reminder
+    line: 44
+    endLine: 44
+    type: paragraph
+    depth: refresher
+\`\`\`
+
+The core says what 1:25,000 means. The detail works through centimetres and metres. The refresher reminds the reader that a larger denominator makes a smaller drawing.
+
+## Compatibility and decisions before adoption
+
+Missing depth must mean core, so older content remains fully visible. Readers that do not understand depth must show the full Markdown. Never hide a warning or a necessary premise only in detail. Keep headings with their content and preserve document order, keyboard access, search and print access to every block.
+
+The schema currently allows unknown properties in these objects; validation accepting a new key does not make it a supported format feature. Before adoption, agree on block identity and range maintenance, whether overview is plain text, how overlapping ranges behave, and how author annotations survive reindexing. Update the source schemas in framerslab/codex first, sync them here, then add types, tests and reader support. No proposal fields are added to the example or schema in this change.
+`
+function markdown(text) {
+  return marked.parse(text).replace(/<h([1-6])>(.*?)<\/h\1>/g, (_, n, text) => `<h${n} id="${text.replace(/<[^>]+>/g, '').toLowerCase().replace(/[^a-z0-9 -]/g, '').replace(/ /g, '-')}">${text}</h${n}>`).replaceAll('<table>', '<div class="table-wrap"><table>').replaceAll('</table>', '</table></div>')
+}
+function guide(name) {
+  let text = readFileSync(join(root, 'docs', name), 'utf8').replace(/^# .*\n/, '')
+  text = text.replaceAll('(courses.md', '(/courses/').replaceAll('(../examples/', `(${repo}/tree/master/examples/`)
+  return markdown(text)
+}
+function shell(path, title, description, content) {
+  const url = origin + (path ? `/${path}/` : '/')
+  const data = JSON.stringify({'@context':'https://schema.org','@type':'WebPage',name:title,description,url,isPartOf:{'@type':'WebSite',name:'OpenQuarry',url:origin},license:'https://opensource.org/license/mit'})
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · OpenQuarry</title><meta name="description" content="${esc(description)}"><link rel="canonical" href="${url}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}"><meta property="og:url" content="${url}"><meta property="og:type" content="website"><meta name="color-scheme" content="light dark"><link rel="stylesheet" href="/style.css"><script>try{const t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script><script type="application/ld+json">${data}</script><script src="/theme.js" defer></script></head><body><a class="skip" href="#main">Skip to content</a><header><a class="brand" href="/">OpenQuarry</a><nav aria-label="Main">${routes.slice(1).map((p,i)=>`<a href="/${p}/"${path===p?' aria-current="page"':''}>${labels[i+1]}</a>`).join('')}</nav><button class="theme" data-theme-toggle hidden aria-label="Switch color theme">Light / dark</button></header><main id="main">${content}</main><footer><span>OpenQuarry · Open format · MIT</span><span><a href="${repo}">GitHub</a> · <a href="https://www.npmjs.com/package/@framers/openquarry">npm</a> · <a href="https://quarry.space">Quarry</a> · <a href="https://quarry.school">Quarry School</a></span></footer></body></html>`
+}
+export function writePages(site, index) {
+  cpSync(join(root,'site'), site, {recursive:true})
+  const pages = {
+    '': ['Notes and courses, in plain files.', 'An open format for notes and courses that people and language models can both read.', `<section class="hero"><p class="eyebrow">The OpenQuarry format</p><h1>Notes and courses,<br>in plain files.</h1><p class="intro">An open format for notes and courses that people and language models can both read.</p><div class="actions"><a class="button" href="/format/">Read the format</a><a href="/validate/">Validate a file ↗</a></div><p class="used">Used by <a href="https://quarry.space">Quarry</a> and <a href="https://quarry.school">Quarry School</a></p></section><section class="specimen" aria-label="A real course, from folder to file"><div>${hierarchy}<p>A fabric holds weaves. A weave groups looms. A thread is one Markdown file.</p><a href="${repo}/tree/master/examples/reading-a-map">Explore the map-reading course ↗</a></div><div class="file"><div class="file-label">scale-and-distance.md · <a href="${repo}/blob/master/${samplePath}">Full source</a></div>${code(file)}</div></section><section class="rows">${[['Format','/format/','Four names for your files and folders. Start with a note; group it into a course.'],['Courses','/courses/','A course is a weave, a unit is a loom, a lesson is a thread.'],['Language models','/llm/','Give a model the schema. Check its frontmatter and return specific errors.'],['Spiral learning','/spiral/','Link lessons that build on each other and revisit an idea in a new setting.'],['Schemas','/schema/','Stable JSON Schema addresses for your tools, with the original YAML alongside.']].map(([t,u,p])=>`<div class="row"><h2><a href="${u}">${t}</a></h2><p>${p}</p></div>`).join('')}</section><section class="reading"><h2>Check the files you write.</h2><p>Install the package, then run the validator on a lesson saved as <code>scale-and-distance.md</code>.</p>${code(command)}<a href="/validate/">What validation checks</a></section>`],
+    format: ['The format, from the beginning', 'Four levels, plain files, and an example you can follow.', `${hierarchy}<h2>The short version</h2><p>A <strong>thread</strong> is a note or lesson in Markdown with YAML frontmatter. A <strong>loom</strong> groups threads in a folder. A <strong>weave</strong> groups those folders into a knowledge base or course. A <strong>fabric</strong> holds the weaves.</p><h2>Files on disk</h2>${code('reading-a-map/                 fabric\n├── fabric.yaml\n├── catalogue.yaml             optional course catalogue\n└── weaves/\n    └── reading-a-map/          weave\n        ├── weave.yaml\n        └── the-map/            loom\n            ├── loom.yaml\n            └── scale-and-distance.md  thread')}<p>A fabric manifest is optional; use <code>format: openquarry</code> and <code>version: 2</code> for a new fabric. The weave manifest describes the course; <code>kind: course</code> identifies it. A loom manifest is optional for ordinary folders; <code>kind: unit</code> identifies a course unit. Looms can nest.</p><h2>One real file</h2><p>The required thread fields are <code>id</code>, <code>slug</code>, <code>title</code>, <code>version</code> and <code>contentType</code>. The Markdown body follows the frontmatter.</p>${code(file)}<p><a href="/courses/">Follow every file in the example course</a> or <a href="/schema/">read the schemas</a>.</p><h2 id="version-1-fabrics">Version 1 fabrics</h2><p>Older fabrics use <code>looms/</code> and <code>strands/</code> folders. A fabric without a manifest is version 1. Both layouts are supported.</p>${code('weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md')}<p>The older <code>strand.schema.yaml</code>, <code>StrandFrontmatter</code> type, <code>strandSchema</code> export and stored <code>strand</code> level value remain supported. Prefer thread names in new content. <a href="/schema/v1/strand.schema.json">Compatibility JSON schema</a> · <a href="/schema/v1/strand.schema.yaml">YAML</a>. No package API is removed.</p><h2 id="overview-first-full-explanation-next">Overview first, full explanation next</h2><p>Today, summaries can introduce a thread and typed links can join separate explanations. The format has no standard field for two depths of the same text.</p><details><summary>Proposed reading depths: core, detail, refresher</summary>${markdown(depth.replace(/^# .*\n/, ''))}</details>`],
+    courses: ['Courses and lessons', 'Start with a course, a unit and a lesson. Follow the complete map-reading example.', `<div class="callout"><p><strong>In brief:</strong> a course is a weave with <code>kind: course</code>. Its units are looms and its lessons are threads. Skills connect what a lesson teaches to what the next one needs.</p><p>The full guide follows, starting from the files on disk.</p></div>${guide('courses.md')}`],
+    llm: ['Write files with a language model', 'Plain text in, specific validation errors out.', `<div class="callout"><p><strong>In brief:</strong> give the model a UUID, the schema, allowed skill ids and a licence. Parse its reply, validate the frontmatter, and return any errors. Review the lesson for accuracy.</p></div>${guide('language-models.md')}`],
+    schema: ['Schemas for your tools', 'JSON Schema draft 2020-12, with stable addresses and original YAML sources.', `<p>Every address below permits cross-origin requests. The YAML files are served byte for byte; the JSON versions add their stable <code>$id</code>.</p><ul class="schema-list">${index.schemas.filter(s=>s.name!=='strand.schema').map(s=>`<li><strong>${esc(s.name)}</strong> · <a href="${s.url}">JSON</a> · <a href="${s.yaml}">YAML</a></li>`).join('')}</ul><p><a href="/schema/v1/index.json">Machine-readable index with all schemas, source hashes and package version</a></p><p>The compatibility schema is documented under <a href="/format/#version-1-fabrics">Version 1 fabrics</a>.</p>`],
+    validate: ['Validate a file', 'Use @framers/openquarry to check frontmatter and manifests.', `<p>The package provides a JavaScript API, TypeScript types and schemas. It has no standalone CLI. This Node command uses the API and the YAML parser to check a lesson in your current folder. Requires Node 18 or later.</p>${code(command)}<p>It prints <code>{ valid: true, errors: [] }</code> on success and exits nonzero for invalid frontmatter, missing delimiters, unreadable files or malformed YAML.</p><h2>What gets checked</h2><p><code>validateThreadFrontmatter</code> checks the parsed metadata. Use <code>validateWeave</code>, <code>validateLoom</code>, <code>validateFabricManifest</code> and <code>validateCatalogue</code> for their respective manifests. Catalogue validation also checks duplicate ids, missing targets, home subjects and cycles.</p><p>The validator does not check a lesson's factual accuracy, Markdown body or thread links across files. Your application must check those.</p><p><a href="https://www.npmjs.com/package/@framers/openquarry">Package on npm</a> · <a href="${repo}/tree/master/examples/reading-a-map">Get the example course</a></p>`],
+    spiral: ['Return to an idea with more to do', 'Use existing lesson links and skills to build a spiral course.', `<p>A spiral course returns to an idea in a harder or broader setting. In Reading a map, a learner first meets scale, uses it to measure a walk, then combines it with orientation to plan a route.</p><ol><li><strong>Scale and distance:</strong> learn what a map's scale means.</li><li><strong>Measure a walk:</strong> apply that scale to a path.</li><li><strong>Plan a route:</strong> use scale and orientation together.</li></ol><h2>Available today</h2><p><code>teaches</code> and <code>requires</code> record skill ids. Typed <code>relationships</code> include <code>prerequisite</code>, <code>follows</code>, <code>extends</code>, <code>refines</code>, <code>applies</code> and <code>summarizes</code>. They express connections; a reader decides how to navigate them. A prerequisite link points to the earlier thread the current one needs.</p>${code('relationships:\n  - target: scale-and-distance\n    type: applies\nrequires:\n  - field-skills/skill/map-scale')}<p>This is an illustrative link, using fields available today. The format does not schedule reviews or infer mastery. Applications must resolve targets and check prerequisite cycles.</p><h2>Proposal: explicit return paths</h2><p>A future reader could group lessons by skill, show the first encounter, and offer later applications at increasing difficulty. An explicit revisit relationship and progression rules would need agreement and schema work before becoming standard. No such fields are added here.</p><p>Within a lesson, the proposed <a href="/format/#overview-first-full-explanation-next">reading depths</a> could offer a refresher without interrupting the core explanation. This is also a proposal.</p><p><a href="/courses/">Read the complete example course</a></p>`]
+  }
+  for (const [path, [title, desc, body]] of Object.entries(pages)) {
+    const dir=join(site,path); mkdirSync(dir,{recursive:true})
+    writeFileSync(join(dir,'index.html'),shell(path,title,desc,path?`<article class="reading"><section class="hero"><p class="eyebrow">OpenQuarry / ${labels[routes.indexOf(path)]}</p><h1>${title}</h1><p class="intro">${desc}</p></section>${body}</article>`:body))
+  }
+  writeFileSync(join(site,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${routes.map(p=>`<url><loc>${origin}/${p?p+'/':''}</loc></url>`).join('')}</urlset>`)
+}
+export { depth, command }

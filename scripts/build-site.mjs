@@ -7,6 +7,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'nod
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
+import { writePages } from './site-pages.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -24,9 +25,7 @@ const HEADERS = `/schema/*
   Referrer-Policy: strict-origin-when-cross-origin
 `
 
-const REDIRECTS = `/ ${REPOSITORY} 302
-/schema /schema/v1/index.json 302
-/schema/ /schema/v1/index.json 302
+const REDIRECTS = `/schema /schema/ 301
 /schema/v1 /schema/v1/index.json 302
 /schema/v1/ /schema/v1/index.json 302
 /npm ${NPM} 302
@@ -88,7 +87,8 @@ export function buildSite(out = join(root, 'dist-site')) {
   writeFileSync(join(served, 'index.json'), JSON.stringify(index, null, 2) + '\n')
   writeFileSync(join(site, '_headers'), HEADERS)
   writeFileSync(join(site, '_redirects'), REDIRECTS)
-  writeFileSync(join(site, 'robots.txt'), 'User-agent: *\nAllow: /\n')
+  writeFileSync(join(site, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${ORIGIN}/sitemap.xml\n`)
+  writePages(site, index)
   writeFileSync(join(out, 'functions', '_middleware.js'), MIDDLEWARE)
   return index
 }

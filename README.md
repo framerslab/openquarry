@@ -4,6 +4,7 @@ OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A
 
 This package holds the format's JSON Schemas, TypeScript types for every file the format defines, and a validator built on [Ajv](https://ajv.js.org/).
 
+- [Read the format guide](https://openquarry.dev/format/), including current summaries and the proposed reading depths.
 - [Courses and lessons](#courses-and-lessons): a course is a weave, a unit a loom, a lesson a thread. New in 0.3.0.
 - [Written for people and for language models](#written-for-people-and-for-language-models): what makes the files easy for a model to write and for a program to check.
 - [FAQ](#faq) and [changelog](CHANGELOG.md).
@@ -52,7 +53,7 @@ my-notes/                        a fabric: everything you keep
                 └── hooks.md
 ```
 
-Looms nest to any depth. Older fabrics put threads under `looms/` and `strands/` folders (`weaves/programming/looms/javascript/strands/intro.md`); the format accepts both layouts.
+Looms nest to any depth. [Version 1 fabrics](#version-1-fabrics) describes the older layout.
 
 ## Levels, files and schemas
 
@@ -66,15 +67,7 @@ Looms nest to any depth. Older fabrics put threads under `looms/` and `strands/`
 
 A fabric may also hold `catalogue.yaml`, which files its weaves under subjects (`catalogue.schema.yaml`, type `Catalogue`).
 
-`fabric.yaml` declares `format: openquarry` and a `version`: version 1 fabrics use the earlier file names (`strand.schema.yaml` and the `looms/` and `strands/` folders), version 2 fabrics use the thread names. A fabric without the manifest is a version 1 fabric.
-
-### Stored names
-
-Some names are part of saved data, and the format keeps them as they are:
-
-- the frontmatter keys `relationships:` and `notes:`;
-- the level value `'strand'` in `KnowledgeNodeType`, which a thread's stored records carry;
-- the `looms/` and `strands/` folder names in version 1 fabrics.
+`fabric.yaml` declares `format: openquarry` and a format version. New fabrics use version 2.
 
 ## Threads
 
@@ -175,7 +168,7 @@ const { valid, errors } = validateThreadFrontmatter(parse(frontmatter))
 | `validateThreadFrontmatter`, `validateLoom`, `validateWeave`, `validateFabricManifest`, `validateCatalogue`, `validateBlocksIndex` | validators that return `{ valid, errors }` |
 | `ThreadFrontmatter`, `ThreadLink`, `ThreadLinkGroups`, `ThreadBlock`, `Loom`, `Weave`, `FabricManifest`, `Catalogue`, `CatalogueSubject`, `CatalogueEntry` | types for each file |
 | `LinkType`, `ContentType`, `DifficultyLevel`, `KnowledgeNodeType`, `SkillReference` | value types |
-| `threadSchema`, `loomSchema`, `weaveSchema`, `fabricSchema`, `catalogueSchema`, `blocksIndexSchema`, `strandSchema` | the JSON Schemas as objects |
+| `threadSchema`, `loomSchema`, `weaveSchema`, `fabricSchema`, `catalogueSchema`, `blocksIndexSchema` | the JSON Schemas as objects |
 
 `validateCatalogue` checks the record against its schema and then the rules a schema cannot hold: see [the catalogue](docs/courses.md#the-catalogue).
 
@@ -183,21 +176,22 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 ## Who uses it
 
+- [Quarry](https://quarry.space), a reader and editor for knowledge kept in the format.
+
 - [Quarry School](https://quarry.school), a site of free courses, maps each course to a weave of kind `course`, each unit to a loom of kind `unit` and each lesson to a thread. Its lessons are its own work under its own terms, and none of them is in this repository.
 - [Frame Codex](https://github.com/framerslab/codex), the corpus repository the schema files come from, keeps its weaves in this format.
 
-## Migrating from openstrand-sdk
+## Version 1 fabrics
 
-`@framers/openstrand-sdk` is the TypeScript client of the OpenStrand team server's API. The note format behind it is OpenQuarry, and its types and schemas live in this package:
+New content uses thread names. Version 1 fabrics retain `strand.schema.yaml`, the deprecated `StrandFrontmatter` type and `strandSchema` export, the stored `'strand'` level in `KnowledgeNodeType`, and `looms/` and `strands/` folders. All remain supported; this site update removes no API. A fabric without `fabric.yaml` is version 1.
 
-| In OpenStrand | In OpenQuarry |
-|---|---|
-| `strand.schema.yaml`, title `StrandFrontmatter` | `thread.schema.yaml`, title `ThreadFrontmatter`; `strand.schema.yaml` ships as an identical copy for one major version |
-| the `StrandFrontmatter` type | `ThreadFrontmatter`; `StrandFrontmatter` remains as a deprecated alias |
-| strand (a note) | thread; the stored level value stays `'strand'` |
-| `weave.yaml`, `loom.yaml`, `looms/`, `strands/` | unchanged, and read in both layouts |
+```text
+weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md
+```
 
-The team server's API client (`OpenStrandSDK` and its request and response types) is not part of this package.
+Version 2 uses `weaves/reading-a-map/the-map/scale-and-distance.md` with `thread.schema.yaml` and `ThreadFrontmatter`. The `relationships` and `notes` keys keep their names. The older schema URL remains available unchanged. The team server SDK is a separate package.
+
+See [the 1.0 removal proposal](docs/site-design/STRAND-REMOVAL.md) for the migration work required before removing compatibility names.
 
 ## The schema host
 
@@ -209,7 +203,7 @@ The schemas are served from https://openquarry.dev, built in CI by `scripts/buil
 | `https://openquarry.dev/schema/v1/<name>.yaml` | the YAML source, byte for byte the file in `schema/` (its SHA-256 is in `schema/SOURCE.json`) |
 | `https://openquarry.dev/schema/v1/index.json` | every schema with its addresses and hash, the corpus commit they came from, and this package's version |
 
-`<name>` is one of `blocks-index.schema`, `catalogue.schema`, `fabric.schema`, `loom.schema`, `strand.schema`, `thread.schema` and `weave.schema`. Every address answers with `Access-Control-Allow-Origin: *`, so a page on any origin can fetch a schema. `openquarry.io`, `www.openquarry.io` and `www.openquarry.dev` redirect to the same path on `openquarry.dev`; the root of the site goes to this repository. OpenQuarry is a Framers Lab project.
+`<name>` is one of `blocks-index.schema`, `catalogue.schema`, `fabric.schema`, `loom.schema`, `thread.schema` and `weave.schema`, plus the compatibility copy listed in Version 1 fabrics. Every address answers with `Access-Control-Allow-Origin: *`, so a page on any origin can fetch a schema. `openquarry.io`, `www.openquarry.io` and `www.openquarry.dev` redirect to the same path on `openquarry.dev`; the root serves the format’s landing page. OpenQuarry is a Framers Lab project.
 
 ## Keeping the schemas in step
 

@@ -33,6 +33,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Check the documented validator command
+        run: |
+          npm install --no-save . yaml
+          node scripts/check-validator-command.mjs
+
       - name: The files npm would publish
         run: npm pack --dry-run
 
@@ -64,3 +69,15 @@ jobs:
           name: site
           path: dist-site/
           retention-days: 30
+
+      - name: Browser checks and screenshots (CI only)
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          node scripts/check-site-browser.mjs
+
+      - name: Keep browser screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-screenshots
+          path: site-screenshots/

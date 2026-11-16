@@ -26,6 +26,8 @@ describe('the schema host', () => {
       expect(json.$id).toBe(`${ORIGIN}${SCHEMA_PATH}${name}.json`)
       const { $id, ...rest } = json
       expect(rest).toEqual(yaml.load(readFileSync(join(root, 'schema', file), 'utf8')))
+      const original = yaml.load(readFileSync(join(root, 'schema', file), 'utf8')) as Record<string, unknown>
+      expect(readFileSync(join(served, `${name}.json`), 'utf8')).toBe(JSON.stringify({ $schema: original.$schema, $id: `${ORIGIN}${SCHEMA_PATH}${name}.json`, ...original }, null, 2) + '\n')
       const copy = readFileSync(join(served, file), 'utf8')
       expect(createHash('sha256').update(copy).digest('hex')).toBe(source.files[file])
     }
@@ -46,11 +48,13 @@ describe('the schema host', () => {
     expect(idx).toEqual(index)
   })
 
-  it('opens the schemas to every origin and sends the root to the repository', () => {
+  it('opens the schemas to every origin and serves the root landing', () => {
     const headers = readFileSync(join(site, '_headers'), 'utf8')
     expect(headers).toMatch(/^\/schema\/\*\n {2}Access-Control-Allow-Origin: \*/m)
     const redirects = readFileSync(join(site, '_redirects'), 'utf8')
-    expect(redirects).toContain('/ https://github.com/framerslab/openquarry 302')
+    expect(redirects).not.toMatch(/^\/ /m)
+    expect(redirects).not.toContain('/schema/ /schema/v1/index.json')
+    expect(readFileSync(join(site, 'index.html'), 'utf8')).toContain('Notes and courses,')
     expect(redirects).toContain('/schema/v1 /schema/v1/index.json 302')
   })
 
@@ -66,5 +70,30 @@ describe('the schema host', () => {
     expect(www.headers.get('location')).toBe('https://openquarry.dev/schema/v1/thread.schema.json?x=1')
     const home = await call('https://openquarry.dev/schema/v1/index.json')
     expect(home.status).toBe(200)
+  })
+})
+
+
+describe('the public format site', () => {
+  it('writes all seven canonical pages, navigation and sitemap entries', () => {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral']) {
+      const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+      const url = `${ORIGIN}/${path ? path + '/' : ''}`
+      expect(html).toContain(`<link rel="canonical" href="${url}">`)
+      expect(html).toContain('application/ld+json')
+      expect(html).toContain('Skip to content')
+      expect(readFileSync(join(site, 'sitemap.xml'), 'utf8')).toContain(`<loc>${url}</loc>`)
+    }
+  })
+  it('uses the real example and labels unsupported reading depths as a proposal', () => {
+    expect(readFileSync(join(site, 'index.html'), 'utf8')).toContain('70c967bf-2dba-4399-aef1-671174eb904f')
+    const format = readFileSync(join(site, 'format/index.html'), 'utf8')
+    expect(format).toContain('Proposal only.')
+    expect(format).toContain('Version 1 fabrics')
+    for (const path of ['', 'courses', 'llm', 'schema', 'validate', 'spiral']) {
+      expect(readFileSync(join(site, path, 'index.html'), 'utf8')).not.toMatch(/strand\.schema|StrandFrontmatter|strands\//)
+    }
+    expect(readFileSync(join(site, 'fonts/Inter-OFL.txt'), 'utf8')).toContain('SIL OPEN FONT LICENSE')
+    expect(readFileSync(join(site, 'fonts/Newsreader-OFL.txt'), 'utf8')).toContain('SIL OPEN FONT LICENSE')
   })
 })
