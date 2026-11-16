@@ -85,6 +85,13 @@ describe('the public format site', () => {
       expect(readFileSync(join(site, 'sitemap.xml'), 'utf8')).toContain(`<loc>${url}</loc>`)
     }
   })
+  it('answers an unknown address with a not-found page, so a mistyped schema URL is not served the landing', () => {
+    const html = readFileSync(join(site, '404.html'), 'utf8')
+    expect(html).toContain('Page not found')
+    expect(html).toContain('<meta name="robots" content="noindex">')
+    expect(html).not.toContain('rel="canonical"')
+    expect(readFileSync(join(site, 'sitemap.xml'), 'utf8')).not.toContain('404')
+  })
   it('uses the real example and labels unsupported reading depths as a proposal', () => {
     expect(readFileSync(join(site, 'index.html'), 'utf8')).toContain('70c967bf-2dba-4399-aef1-671174eb904f')
     const format = readFileSync(join(site, 'format/index.html'), 'utf8')
