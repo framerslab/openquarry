@@ -38,6 +38,9 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
    // badges are one row too; on a narrow screen that row scrolls sideways.
    const keys=[...document.querySelectorAll('.actions .key')]
    if(new Set(keys.map(k=>Math.round(k.getBoundingClientRect().top))).size>1)errors.push('the keys under the heading wrap')
+   // The hero's keys are equal at every width; on a phone the outlined keys of any page are equal halves.
+   const equal=innerWidth<=760?keys:[...document.querySelectorAll('.hero .actions .key')]
+   if(new Set(equal.map(k=>Math.round(k.getBoundingClientRect().width))).size>1)errors.push('the outlined keys under the heading differ in width')
    for(const k of document.querySelectorAll('.actions > a'))if(k.scrollWidth>k.clientWidth+1||k.getBoundingClientRect().height>56)errors.push('a key does not fit its label')
    const badgeTops=[...document.querySelectorAll('.badges a')].map(a=>Math.round(a.getBoundingClientRect().top))
    if(new Set(badgeTops).size>1)errors.push('the badges wrap')
