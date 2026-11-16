@@ -21,7 +21,7 @@ function scalar(value) {
   let body = comment ? value.slice(0, comment.index) : value
   let out
   if (/^(true|false|null|~|-?\d+(\.\d+)?)$/.test(body.trim())) out = tok('lit', body)
-  else if (/^\[.*\]$|^\{.*\}$/.test(body.trim())) out = body.split(/([[\]{},])/).map((part) => (/^[[\]{},]$/.test(part) ? tok('pun', part) : part.trim() ? tok('str', part) : part)).join('')
+  else if (/^\[.*\]$|^\{.*\}$/.test(body.trim())) out = body.split(/([[\]{},])/).map((part) => (/^[[\]{},]$/.test(part) ? tok('pun', part) : part.trim() ? tok('str', part) : esc(part))).join('')
   else if (/^[|>][-+]?\d*$/.test(body.trim())) out = tok('pun', body)
   else out = tok('str', body)
   return out + (comment ? tok('com', comment[1]) : '')
@@ -118,7 +118,7 @@ function treeLines(text) {
   return text.split('\n').map((line) => {
     const m = /^(.*?\S)(\s{2,})(\S.*)$/.exec(line)
     const name = (s) => s.replace(/([├└│─]+)/g, '\u0000$1\u0001').split(/\u0000|\u0001/).map((part) => (/^[├└│─]+$/.test(part) ? tok('pun', part) : esc(part))).join('')
-    return m ? name(m[1]) + m[2] + tok('com', m[3]) : name(line)
+    return m ? name(m[1]) + esc(m[2]) + tok('com', m[3]) : name(line)
   }).join('\n')
 }
 
