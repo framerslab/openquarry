@@ -58,7 +58,7 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
  await page.waitForFunction(()=>document.querySelector('.check [data-copy]').textContent!=='Copy',null,{timeout:5000})
  if(await copy.textContent()!=='Copied')throw Error('The copy key did not copy: '+await copy.textContent())
  const copied=await page.evaluate(()=>navigator.clipboard.readText())
- if(copied!==await page.locator('.check code').textContent())throw Error('The clipboard does not hold the code')
+ if(copied!==await page.locator('.check pre code').textContent())throw Error('The clipboard does not hold the code')
  await page.locator('[data-theme-toggle]').click()
  await page.reload()
  if(await page.locator('html').getAttribute('data-theme')!==(theme==='dark'?'light':'dark'))throw Error('Theme did not persist')
