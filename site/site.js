@@ -38,3 +38,11 @@ for (const button of document.querySelectorAll('[data-copy]')) {
     button.timer = setTimeout(() => { button.textContent = 'Copy' }, 1800)
   })
 }
+
+// On a narrow screen the row of guides scrolls: bring the current guide into view.
+const current = document.querySelector('.docs-nav [aria-current=page]')
+if (current) {
+  const row = current.parentElement
+  const shift = current.getBoundingClientRect().left - row.getBoundingClientRect().left - (row.clientWidth - current.offsetWidth) / 2
+  if (row.scrollWidth > row.clientWidth) row.scrollLeft += shift
+}
