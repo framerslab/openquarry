@@ -76,8 +76,8 @@ describe('the schema host', () => {
 
 
 describe('the public format site', () => {
-  it('writes all eight canonical pages, navigation and sitemap entries', () => {
-    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'about']) {
+  it('writes all nine canonical pages, navigation and sitemap entries', () => {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       const url = `${ORIGIN}/${path ? path + '/' : ''}`
       expect(html).toContain(`<link rel="canonical" href="${url}">`)
@@ -98,7 +98,7 @@ describe('the public format site', () => {
     const format = readFileSync(join(site, 'format/index.html'), 'utf8')
     expect(format).toContain('Proposal only.')
     expect(format).toContain('Version 1 fabrics')
-    for (const path of ['', 'courses', 'llm', 'schema', 'validate', 'spiral']) {
+    for (const path of ['', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning']) {
       expect(readFileSync(join(site, path, 'index.html'), 'utf8')).not.toMatch(/strand\.schema|StrandFrontmatter|strands\//)
     }
     for (const font of ['HankenGrotesk', 'Fraunces', 'JetBrainsMono']) {
@@ -106,7 +106,7 @@ describe('the public format site', () => {
     }
   })
   it('carries the mark, the GitHub key, who makes it and who uses it on every page', () => {
-    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'about']) {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       for (const link of ['https://github.com/framerslab/openquarry', 'https://frame.dev', 'https://quarry.school', 'https://quarry.space']) {
         expect(html, `${path} links ${link}`).toContain(`href="${link}"`)
@@ -135,6 +135,61 @@ describe('the public format site', () => {
     expect(home).toContain('<a href="/about/">About OpenQuarry: who makes it and why</a>')
     const about = readFileSync(join(site, 'about', 'index.html'), 'utf8')
     expect(/<div class="actions">([\s\S]*?)<\/div>/.exec(about)?.[1]).toContain('<a class="key" href="https://frame.dev">')
+  })
+  it('names the stylesheet and the script by their content, so a new build is never drawn with an old cached stylesheet', () => {
+    for (const path of ['', 'learning', 'about']) {
+      const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+      for (const name of ['style.css', 'site.js']) {
+        const stamp = createHash('sha256').update(readFileSync(join(site, name))).digest('hex').slice(0, 10)
+        expect(html, `${path} names ${name} by its content`).toContain(`"/${name}?v=${stamp}"`)
+        expect(html).not.toContain(`"/${name}"`)
+      }
+    }
+  })
+  it('gives every page a menu that holds every link of the header, for the widths where the row cannot', () => {
+    for (const path of ['', 'format', 'learning', 'about']) {
+      const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+      const menu = /<details class="menu">([\s\S]*?)<\/details>/.exec(html)?.[1] ?? ''
+      expect(menu).toContain('<summary class="menu-key" aria-label="Menu">')
+      for (const href of ['/format/', '/learning/', '/schema/', '/about/', 'https://quarry.school', 'https://quarry.space', 'https://frame.dev', 'https://github.com/framerslab/openquarry']) {
+        expect(menu, `${path} menu links ${href}`).toContain(`<a href="${href}"`)
+      }
+      // The look switch is in the menu too: the narrowest phones have no room for it in the row.
+      expect(menu).toContain('data-theme-toggle')
+    }
+    const learning = readFileSync(join(site, 'learning', 'index.html'), 'utf8')
+    expect(learning).toContain('<a href="/learning/" aria-current="page">Learning science</a>')
+  })
+  it('gives each learning finding its source and names only fields the thread schema has', () => {
+    const page = readFileSync(join(site, 'learning', 'index.html'), 'utf8')
+    expect(page.match(/<section class="finding"/g)).toHaveLength(7)
+    for (const source of [
+      'https://doi.org/10.1177/1529100612453266',
+      'https://openlibrary.org/works/OL2976744W',
+      'https://doi.org/10.1037/0033-2909.132.3.354',
+      'https://doi.org/10.1111/j.1467-9280.2006.01693.x',
+      'https://doi.org/10.1007/s11251-007-9015-8',
+      'https://doi.org/10.1207/s1532690xci0201_3',
+      'https://doi.org/10.1207/s15516709cog1202_4',
+      'https://doi.org/10.1037/0022-0663.92.1.126',
+      'https://eric.ed.gov/?id=ED053419',
+    ]) {
+      expect(page, `cites ${source}`).toContain(`href="${source}"`)
+    }
+    const schema = JSON.parse(readFileSync(join(served, 'thread.schema.json'), 'utf8')) as {
+      properties: Record<string, { enum?: string[]; oneOf?: { enum?: string[]; items?: { properties: { type: { enum: string[] } } } }[] }>
+    }
+    for (const field of ['id', 'summary', 'contentType', 'difficulty', 'relationships', 'teaches', 'requires']) {
+      expect(schema.properties, `the thread schema has ${field}`).toHaveProperty(field)
+      expect(page).toContain(`<code>${field}</code>`)
+    }
+    for (const value of ['lesson', 'exercise', 'assessment']) expect(schema.properties.contentType.enum).toContain(value)
+    const linkTypes = schema.properties.relationships.oneOf?.find((o) => o.items)?.items?.properties.type.enum ?? []
+    for (const type of ['extends', 'applies', 'refines', 'prerequisite']) expect(linkTypes, `link type ${type}`).toContain(type)
+    // The format schedules nothing: the page says so and never claims a review field.
+    expect(page).toContain('The format does not schedule reviews.')
+    const home = readFileSync(join(site, 'index.html'), 'utf8')
+    expect(home).toContain('<a href="/learning/">The learning science behind the format</a>')
   })
   it('highlights code at build time, keeps its text exact and gives each block a copy key', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
