@@ -189,7 +189,7 @@ New content uses thread names. Version 1 fabrics retain `strand.schema.yaml`, th
 weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md
 ```
 
-Version 2 uses `weaves/reading-a-map/the-map/scale-and-distance.md` with `thread.schema.yaml` and `ThreadFrontmatter`. The `relationships` and `notes` keys keep their names. The older schema URL remains available unchanged. The team server SDK is a separate package.
+Version 2 uses `weaves/reading-a-map/the-map/scale-and-distance.md` with `thread.schema.yaml` and `ThreadFrontmatter`. The `relationships` and `notes` keys keep their names. The older schema URL, named `strand.schema` in the index, remains available unchanged. The team server SDK is a separate package.
 
 See [the 1.0 removal proposal](docs/site-design/STRAND-REMOVAL.md) for the migration work required before removing compatibility names.
 
