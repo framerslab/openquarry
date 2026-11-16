@@ -48,7 +48,23 @@ p,li{overflow-wrap:anywhere}
 .eyebrow{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:0 0 20px}
 .intro{font-size:23px;line-height:1.5;max-width:780px;margin:0}
 .lead{font-size:21px;line-height:1.55}
-.actions{display:flex;align-items:center;gap:14px 20px;flex-wrap:wrap;margin-block:30px}
+/* The keys under a heading: one row. On a phone the filled key takes a row of its own and the outlined keys share the next in equal halves. */
+.actions{display:flex;align-items:center;gap:12px;margin-block:30px 20px}
+.actions>a{flex:none}
+.actions .out{margin-left:0}
+/* The hero's three keys: one row of equal widths, each as wide as the widest label. */
+.hero .actions{display:grid;width:max-content;max-width:100%;grid-auto-flow:column;grid-auto-columns:1fr}
+.hero .actions>a{justify-content:center}
+/* The project's facts as badges: one row that scrolls sideways when it runs out of room. */
+.badges{display:flex;gap:8px;list-style:none;padding:0;margin:0 0 24px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.badges::-webkit-scrollbar{display:none}
+.badges li{flex:none;margin:0}
+.badges a{display:inline-flex;align-items:stretch;min-height:36px;border:1px solid var(--edge);border-radius:8px;overflow:hidden;background:var(--panel);font-size:15px;line-height:1;text-decoration:none}
+.badges a:hover{border-color:var(--accent)}
+.badges a:focus-visible{outline-offset:1px}
+.badges span,.badges strong{display:inline-flex;align-items:center;padding:0 10px}
+.badges span{color:var(--dim)}
+.badges strong{border-left:1px solid var(--line);background:var(--wash);font-weight:700}
 .button{display:inline-flex;align-items:center;min-height:48px;padding:0 22px;border-radius:10px;background:var(--accent-strong);color:var(--on-accent);font-weight:700;text-decoration:none}
 .button:hover{text-decoration:underline}
 .actions .key{min-height:48px}
@@ -137,6 +153,7 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .docs-nav{padding:4px 12px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent)}
  main{padding-inline:20px}
  .hero{padding:40px 0 32px}
+ .badges a{min-height:44px}
  .intro{font-size:20px}
  .specimen,.why{grid-template-columns:minmax(0,1fr);gap:28px}
  .why{gap:0}
@@ -153,5 +170,7 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .foot{grid-template-columns:1fr 1fr;padding:36px 20px 48px}
  .foot-brand{grid-column:1/-1}
 }
-@media(max-width:400px){.top{padding-inline:16px;column-gap:8px}main{padding-inline:16px}.brand{font-size:22px;gap:8px}.brand .mark{width:26px;height:26px}.gh-key{padding:0 11px}.gh-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
+@media(max-width:1023px){.actions .wider{display:none}}
+@media(max-width:760px){.badges{-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}.actions,.hero .actions{display:grid;width:auto;grid-auto-flow:row;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.actions .button{grid-column:1/-1}.actions>a{justify-content:center;min-width:0;padding-inline:10px}.actions .wider{display:none}}
+@media(max-width:400px){.actions .wide{display:none}.actions,.hero .actions{grid-template-columns:auto minmax(0,1fr)}.top{padding-inline:16px;column-gap:8px}main{padding-inline:16px}.brand{font-size:22px;gap:8px}.brand .mark{width:26px;height:26px}.gh-key{padding:0 11px}.gh-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
 @media(prefers-reduced-motion:no-preference){.hero{animation:arrive .35s ease-out}.card,.key,.gh-key,.button{transition:background-color .15s,border-color .15s}@keyframes arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}

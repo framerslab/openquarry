@@ -121,6 +121,21 @@ describe('the public format site', () => {
     expect(about).toContain('AboutPage')
     expect(about).toContain('Who makes it')
   })
+  it('gives the landing a GitHub key, a Quarry School key, the project badges and a card for Frame', () => {
+    const home = readFileSync(join(site, 'index.html'), 'utf8')
+    const actions = /<div class="actions">([\s\S]*?)<\/div>/.exec(home)?.[1] ?? ''
+    expect(actions).toContain('<a class="button" href="/format/">Read the format</a>')
+    expect(actions).toContain('<a class="key" href="https://github.com/framerslab/openquarry">')
+    expect(actions).toContain('<a class="key" href="https://quarry.school">')
+    // The version on the npm badge is the package's own, read at build time.
+    expect(home).toContain(`<a href="https://www.npmjs.com/package/@framers/openquarry"><span>npm</span><strong>${index.package.version}</strong></a>`)
+    expect(home).toContain('<span>licence</span><strong>MIT</strong>')
+    expect(home).toContain('<span>JSON Schema</span><strong>2020-12</strong>')
+    expect(home).toContain('<a class="card" href="https://frame.dev">')
+    expect(home).toContain('<a href="/about/">About OpenQuarry: who makes it and why</a>')
+    const about = readFileSync(join(site, 'about', 'index.html'), 'utf8')
+    expect(/<div class="actions">([\s\S]*?)<\/div>/.exec(about)?.[1]).toContain('<a class="key" href="https://frame.dev">')
+  })
   it('highlights code at build time, keeps its text exact and gives each block a copy key', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     expect(home).toContain('<span class="t-key">id</span><span class="t-pun">:</span> <span class="t-str">70c967bf-2dba-4399-aef1-671174eb904f</span>')

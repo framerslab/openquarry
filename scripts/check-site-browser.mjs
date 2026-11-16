@@ -34,6 +34,14 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
    // The brand, the GitHub key and the theme switch share the header's first row at every width.
    const firstRow=['.top .brand','.gh-key','[data-theme-toggle]'].map(s=>document.querySelector(s)).filter(e=>e&&!e.hidden).map(e=>{const r=e.getBoundingClientRect();return Math.round(r.top+r.height/2)})
    if(Math.max(...firstRow)-Math.min(...firstRow)>4)errors.push('header first row wraps')
+   // The keys under a heading never wrap: the outlined keys share one row and no key breaks or clips its label. The
+   // badges are one row too; on a narrow screen that row scrolls sideways.
+   const keys=[...document.querySelectorAll('.actions .key')]
+   if(new Set(keys.map(k=>Math.round(k.getBoundingClientRect().top))).size>1)errors.push('the keys under the heading wrap')
+   for(const k of document.querySelectorAll('.actions > a'))if(k.scrollWidth>k.clientWidth+1||k.getBoundingClientRect().height>56)errors.push('a key does not fit its label')
+   const badgeTops=[...document.querySelectorAll('.badges a')].map(a=>Math.round(a.getBoundingClientRect().top))
+   if(new Set(badgeTops).size>1)errors.push('the badges wrap')
+   if(location.pathname==='/'&&(!document.querySelector('.hero .actions a[href="https://quarry.school"]')||!document.querySelector('.hero .actions a[href="https://github.com/framerslab/openquarry"]')||badgeTops.length<3))errors.push('the landing lacks its GitHub key, its Quarry School key or its badges')
    for(const el of document.querySelectorAll('p, a, code, button, li, td')) if(parseFloat(getComputedStyle(el).fontSize)<14)errors.push('small type')
    const luminance=c=>{const v=c.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return v[0]*.2126+v[1]*.7152+v[2]*.0722}
    const s=getComputedStyle(document.body),a=luminance(s.color),b=luminance(s.backgroundColor)
