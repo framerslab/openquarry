@@ -21,7 +21,12 @@ const failure = (error) => `exit ${error.status}\n${error.stdout || ''}${error.s
 try {
   let spec = `${pkg.name}@${pkg.version}`
   let published = ''
-  try { published = JSON.parse(run('npm', ['view', spec, 'version', '--json']) || '""') } catch {}
+  // npm answers a version it has never published with no output, and a package it has never seen with E404. Any other
+  // failure (the registry down, the network, output that is not JSON) stops the check, so it never quietly checks this
+  // build in place of the published package.
+  try { published = JSON.parse(run('npm', ['view', spec, 'version', '--json']) || '""') } catch (error) {
+    if (!/\bE404\b/.test(`${error.stdout || ''}${error.stderr || ''}`)) throw Error(`npm view ${spec} failed: ${error.message}\n${failure(error)}`)
+  }
   if (published !== pkg.version) {
     run('npm', ['pack', root, '--silent', '--pack-destination', dir])
     spec = join(dir, readdirSync(dir).find((name) => name.endsWith('.tgz')))
