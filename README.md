@@ -9,6 +9,7 @@ OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A
 This package holds the format's JSON Schemas, TypeScript types for every file the format defines, and a validator built on [Ajv](https://ajv.js.org/).
 
 - [Read the format guide](https://openquarry.dev/format/), including current summaries and the proposed reading depths.
+- [The package](https://openquarry.dev/package/): install it with npm, pnpm or yarn, and an example for each export.
 - [The learning science behind the format](https://openquarry.dev/learning/): spiral courses, spaced review, recall practice and worked examples, each with its source and the field that carries it.
 - [Courses and lessons](#courses-and-lessons): a course is a weave, a unit a loom, a lesson a thread. New in 0.3.0.
 - [Written for people and for language models](#written-for-people-and-for-language-models): what makes the files easy for a model to write and for a program to check.
