@@ -18,22 +18,44 @@ const browser=await chromium.launch()
 for(const asset of ['icon.svg','favicon.ico','apple-touch-icon.png','icon-192.png','icon-512.png','manifest.webmanifest','og.png','site.js','robots.txt','sitemap.xml']) if(!existsSync(resolve(root,asset)))throw Error('Missing '+asset)
 mkdirSync('site-screenshots',{recursive:true})
 try {
-for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
+for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark']) {
  const page=await browser.newPage({viewport:{width,height:1000},colorScheme:theme})
- for(const route of ['','format/','courses/','llm/','schema/','validate/','spiral/','about/']) {
+ for(const route of ['','format/','courses/','llm/','schema/','validate/','spiral/','learning/','about/']) {
   const response=await page.goto('http://127.0.0.1:4173/'+route)
   if(response.status()!==200) throw Error('Missing '+route)
   await page.evaluate(()=>document.fonts.ready)
   const issues=await page.evaluate(()=>{
    const errors=[]
    if(document.documentElement.scrollWidth>innerWidth)errors.push('page overflow')
-   // Every row of links stays one row at every width: it scrolls sideways instead of wrapping.
+   // Every row of links stays one row at every width: it scrolls sideways instead of wrapping. Links a width folds
+   // into the menu are not in the row and are not measured.
    if(document.querySelectorAll('header nav[aria-label=Main] a').length<5)errors.push('the main navigation is missing')
-   for(const nav of document.querySelectorAll('nav')){const tops=[...nav.querySelectorAll('a')].map(a=>Math.round(a.getBoundingClientRect().top));if(new Set(tops).size>1)errors.push('navigation wraps: '+nav.getAttribute('aria-label'))}
+   for(const nav of document.querySelectorAll('nav:not(.menu-panel)')){const tops=[...nav.querySelectorAll('a')].filter(a=>a.getClientRects().length).map(a=>Math.round(a.getBoundingClientRect().top));if(new Set(tops).size>1)errors.push('navigation wraps: '+nav.getAttribute('aria-label'))}
    if(!document.querySelector('header a[href="https://github.com/framerslab/openquarry"]'))errors.push('no GitHub key in the header')
-   // The brand, the GitHub key and the theme switch share the header's first row at every width.
-   const firstRow=['.top .brand','.gh-key','[data-theme-toggle]'].map(s=>document.querySelector(s)).filter(e=>e&&!e.hidden).map(e=>{const r=e.getBoundingClientRect();return Math.round(r.top+r.height/2)})
-   if(Math.max(...firstRow)-Math.min(...firstRow)>4)errors.push('header first row wraps')
+   // The header is ONE row at every width: every control that shows sits on one centre line inside the page, and the
+   // row is no taller than its keys. Below 1160 px the menu key shows; below 960 px the row's own links are folded away.
+   const shows=s=>{const e=document.querySelector(s);return !!e&&e.getClientRects().length>0}
+   const row=[...document.querySelectorAll('.top>*')].flatMap(e=>e.matches('.menu')?[e.querySelector('.menu-key')]:[e]).filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect())
+   if(Math.max(...row.map(r=>r.top+r.height/2))-Math.min(...row.map(r=>r.top+r.height/2))>4)errors.push('the header is more than one row')
+   if(document.querySelector('.top').getBoundingClientRect().height>72)errors.push('the header is taller than one row')
+   if(row.some(r=>r.left<0||r.right>innerWidth+1))errors.push('a header control leaves the page')
+   for(let i=1;i<row.length;i++)if(row[i].left<row[i-1].right-1)errors.push('header controls overlap')
+   if(!shows('.top .brand')||!shows('.gh-key'))errors.push('the header lacks its mark or its GitHub key')
+   if(shows('.menu-key')!==(innerWidth<1160))errors.push('the menu key shows at the wrong width')
+   if(shows('.top .main-nav')!==(innerWidth>=960))errors.push('the header links show at the wrong width')
+   if(innerWidth>=1160&&!shows('.main-nav .used-by'))errors.push('a wide header lacks Used by')
+   if(!shows('.top>[data-theme-toggle]')&&!document.querySelector('.menu-panel [data-theme-toggle]'))errors.push('no look switch')
+   // The keys under a heading never wrap: the outlined keys share one row and no key breaks or clips its label. The
+   // badges are one row too; on a narrow screen that row scrolls sideways.
+   const keys=[...document.querySelectorAll('.actions .key')]
+   if(new Set(keys.map(k=>Math.round(k.getBoundingClientRect().top))).size>1)errors.push('the keys under the heading wrap')
+   // The hero's keys are equal at every width; on a phone the outlined keys of any page are equal halves.
+   const equal=innerWidth<=760?keys:[...document.querySelectorAll('.hero .actions .key')]
+   if(new Set(equal.map(k=>Math.round(k.getBoundingClientRect().width))).size>1)errors.push('the outlined keys under the heading differ in width')
+   for(const k of document.querySelectorAll('.actions > a'))if(k.scrollWidth>k.clientWidth+1||k.getBoundingClientRect().height>56)errors.push('a key does not fit its label')
+   const badgeTops=[...document.querySelectorAll('.badges a')].map(a=>Math.round(a.getBoundingClientRect().top))
+   if(new Set(badgeTops).size>1)errors.push('the badges wrap')
+   if(location.pathname==='/'&&(!document.querySelector('.hero .actions a[href="https://quarry.school"]')||!document.querySelector('.hero .actions a[href="https://github.com/framerslab/openquarry"]')||badgeTops.length<3))errors.push('the landing lacks its GitHub key, its Quarry School key or its badges')
    for(const el of document.querySelectorAll('p, a, code, button, li, td')) if(parseFloat(getComputedStyle(el).fontSize)<14)errors.push('small type')
    const luminance=c=>{const v=c.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return v[0]*.2126+v[1]*.7152+v[2]*.0722}
    const s=getComputedStyle(document.body),a=luminance(s.color),b=luminance(s.backgroundColor)
@@ -63,7 +85,18 @@ for(const width of [320,390,1440]) for(const theme of ['light','dark']) {
  if(await copy.textContent()!=='Copied')throw Error('The copy key did not copy: '+await copy.textContent())
  const copied=await page.evaluate(()=>navigator.clipboard.readText())
  if(copied!==await page.locator('.check pre code').textContent())throw Error('The clipboard does not hold the code')
- await page.locator('[data-theme-toggle]').click()
+ // The menu: it opens on its key, holds every link in one column inside the page, and Escape closes it.
+ if(width<1160){
+  await page.locator('.menu-key').click()
+  const panel=await page.evaluate(()=>{const p=document.querySelector('.menu-panel').getBoundingClientRect();const links=[...document.querySelectorAll('.menu-panel a')].map(a=>a.getBoundingClientRect());return {left:p.left,right:p.right,bottom:p.bottom,w:innerWidth,rows:links.filter(r=>r.height>=44).length,columns:new Set(links.map(r=>Math.round(r.left))).size}})
+  if(panel.left<0||panel.right>panel.w||panel.rows<8||panel.columns!==1)throw Error(`${width} ${theme}: the menu panel does not fit the page or lacks its links: ${JSON.stringify(panel)}`)
+  await page.screenshot({path:`site-screenshots/menu-${width}-${theme}.png`,animations:'disabled'})
+  await page.keyboard.press('Escape')
+  if(await page.locator('.menu').evaluate(m=>m.open))throw Error('Escape did not close the menu')
+ }
+ // The look switch: in the header, or in the menu on the narrowest phones.
+ if(width<=350){await page.locator('.menu-key').click();await page.locator('.menu-theme').click()}
+ else await page.locator('.top>[data-theme-toggle]').click()
  await page.reload()
  if(await page.locator('html').getAttribute('data-theme')!==(theme==='dark'?'light':'dark'))throw Error('Theme did not persist')
  await page.close()

@@ -1,16 +1,37 @@
-// The theme switch and the copy keys on code blocks. Both stay hidden until this script runs.
-const toggle = document.querySelector('[data-theme-toggle]')
-if (toggle) {
-  const isDark = () => document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches)
-  const label = () => toggle.setAttribute('aria-label', isDark() ? 'Switch to the light look' : 'Switch to the dark look')
+// The theme switch, the menu and the copy keys on code blocks. The switch and the copy keys stay hidden until this script runs.
+const toggles = [...document.querySelectorAll('[data-theme-toggle]')]
+const isDark = () => document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches)
+const label = () => {
+  const text = isDark() ? 'Switch to the light look' : 'Switch to the dark look'
+  for (const toggle of toggles) {
+    const words = toggle.querySelector('span')
+    if (words) words.textContent = text
+    else toggle.setAttribute('aria-label', text)
+  }
+}
+for (const toggle of toggles) {
   toggle.hidden = false
-  label()
   toggle.addEventListener('click', () => {
     const theme = isDark() ? 'light' : 'dark'
     document.documentElement.dataset.theme = theme
     try { localStorage.setItem('theme', theme) } catch {}
     label()
   })
+}
+label()
+
+// The menu opens without this script (it is a <details>). The script closes it on Escape, on a press outside it and when
+// the keyboard leaves it.
+const menu = document.querySelector('.menu')
+if (menu) {
+  const key = menu.querySelector('summary')
+  document.addEventListener('click', (event) => { if (menu.open && !menu.contains(event.target)) menu.open = false })
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !menu.open) return
+    menu.open = false
+    key.focus()
+  })
+  menu.addEventListener('focusout', (event) => { if (menu.open && event.relatedTarget && !menu.contains(event.relatedTarget)) menu.open = false })
 }
 
 const status = document.createElement('p')
