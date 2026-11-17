@@ -76,8 +76,8 @@ describe('the schema host', () => {
 
 
 describe('the public format site', () => {
-  it('writes all nine canonical pages, navigation and sitemap entries', () => {
-    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'about']) {
+  it('writes all ten canonical pages, navigation and sitemap entries', () => {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'package', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       const url = `${ORIGIN}/${path ? path + '/' : ''}`
       expect(html).toContain(`<link rel="canonical" href="${url}">`)
@@ -106,7 +106,7 @@ describe('the public format site', () => {
     }
   })
   it('carries the mark, the GitHub key, who makes it and who uses it on every page', () => {
-    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'about']) {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'package', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       for (const link of ['https://github.com/framerslab/openquarry', 'https://frame.dev', 'https://quarry.school', 'https://quarry.space']) {
         expect(html, `${path} links ${link}`).toContain(`href="${link}"`)
@@ -124,7 +124,8 @@ describe('the public format site', () => {
   it('gives the landing a GitHub key, a Quarry School key, the project badges and a card for Frame', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     const actions = /<div class="actions">([\s\S]*?)<\/div>/.exec(home)?.[1] ?? ''
-    expect(actions).toContain('<a class="button" href="/format/">Read the format</a>')
+    expect(actions).toContain('<a class="button" href="/format/"><span class="wide">Read the format</span>')
+    expect(actions).toContain('<a class="key" href="/package/">npm package</a>')
     expect(actions).toContain('<a class="key" href="https://github.com/framerslab/openquarry">')
     expect(actions).toContain('<a class="key" href="https://quarry.school">')
     // The version on the npm badge is the package's own, read at build time.
@@ -135,6 +136,26 @@ describe('the public format site', () => {
     expect(home).toContain('<a href="/about/">About OpenQuarry: who makes it and why</a>')
     const about = readFileSync(join(site, 'about', 'index.html'), 'utf8')
     expect(/<div class="actions">([\s\S]*?)<\/div>/.exec(about)?.[1]).toContain('<a class="key" href="https://frame.dev">')
+    expect(about).toContain('Quarry and Quarry School are products of Manic Agency LLC, built on Framers Lab\'s open code.')
+    expect(about).toContain('<a href="https://quarry.school/mission/">')
+  })
+  it('gives the package a page: the install lines, every export with an example, and its links', () => {
+    const home = readFileSync(join(site, 'index.html'), 'utf8')
+    const install = /<section class="install"[\s\S]*?<\/section>/.exec(home)?.[0] ?? ''
+    expect(install).toContain('<span class="t-key">npm</span> install @framers/openquarry')
+    expect(install).toContain('<a href="/package/">')
+    expect(install).toContain('data-copy')
+    const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
+    for (const line of ['npm install @framers/openquarry', 'pnpm add @framers/openquarry', 'yarn add @framers/openquarry']) {
+      expect(page).toContain(line.replace(/^(\S+)/, '<span class="t-key">$1</span>'))
+    }
+    expect(page.match(/data-copy/g)!.length).toBeGreaterThan(10)
+    expect(page).toContain(`<strong>${index.package.version}</strong>`)
+    expect(page).toContain('<strong>MIT</strong>')
+    for (const link of ['https://www.npmjs.com/package/@framers/openquarry', 'https://github.com/framerslab/openquarry', 'https://openquarry.dev/schema/v1/thread.schema.json', '/schema/v1/index.json', '/format/']) {
+      expect(page, `the package page links ${link}`).toContain(`href="${link}"`)
+    }
+    expect(page).toContain('aria-current="page">Package</a>')
   })
   it('names the stylesheet and the script by their content, so a new build is never drawn with an old cached stylesheet', () => {
     for (const path of ['', 'learning', 'about']) {
