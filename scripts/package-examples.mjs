@@ -13,7 +13,12 @@ export const quickExample = {
   lang: 'js',
   code: `import { validateWeave } from '@framers/openquarry'
 
-console.log(validateWeave({ slug: 'reading-a-map', title: 'Reading a map', kind: 'course' }))
+const result = validateWeave({
+  slug: 'reading-a-map',
+  title: 'Reading a map',
+  kind: 'course',
+})
+console.log(result)
 // { valid: true, errors: [] }`,
   output: '{ valid: true, errors: [] }',
 }
@@ -71,7 +76,12 @@ const result = validateCatalogue({
   title: 'Field skills',
   subjects: [{ id: 'navigation', title: 'Navigation', broader: [] }],
   entries: [
-    { slug: 'reading-a-map', home: 'outdoors', subjects: ['navigation'], requires: ['compass-basics'] },
+    {
+      slug: 'reading-a-map',
+      home: 'outdoors',
+      subjects: ['navigation'],
+      requires: ['compass-basics'],
+    },
   ],
 })
 for (const error of result.errors) console.log(error)`,
