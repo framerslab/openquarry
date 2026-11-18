@@ -136,7 +136,9 @@ describe('the public format site', () => {
     expect(home).toContain('<a href="/about/">About OpenQuarry: who makes it and why</a>')
     const about = readFileSync(join(site, 'about', 'index.html'), 'utf8')
     expect(/<div class="actions">([\s\S]*?)<\/div>/.exec(about)?.[1]).toContain('<a class="key" href="https://frame.dev">')
-    expect(about).toContain('Quarry and Quarry School are products of Manic Agency LLC, built on Framers Lab\'s open code.')
+    expect(about).toContain('It is a Framers Lab project.')
+    expect(about).not.toContain('Manic Agency')
+    expect(about).not.toContain('the team behind')
     expect(about).toContain('<a href="https://quarry.school/mission/">')
   })
   it('gives the package a page: the install lines, every export with an example, and its links', () => {
