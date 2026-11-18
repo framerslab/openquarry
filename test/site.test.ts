@@ -139,7 +139,7 @@ describe('the public format site', () => {
     expect(about).toContain('It is a Framers Lab project.')
     expect(about).not.toContain('Manic Agency')
     expect(about).not.toContain('the team behind')
-    expect(about).toContain('<a href="https://quarry.school/mission/">')
+    expect(about).not.toContain('Manic Agency LLC')
   })
   it('gives the package a page: the install lines, every export with an example, and its links', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
