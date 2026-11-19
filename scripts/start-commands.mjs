@@ -67,7 +67,4 @@ export const pinnedTo = (version, lines) => lines.replaceAll('npx openquarry ', 
  * The sentence gives readers no test of their own (such as a version number npm prints): anyone could publish a package
  * under a free name at any version, so the only signal is the note itself, which the release removes.
  */
-export const beforeRelease = {
-  version: '0.3.0',
-  text: 'The openquarry package is not on npm yet. This note goes when its first release, 0.3.0, is out. Until then, start with the degit commands below.',
-}
+export const beforeRelease = null
