@@ -28,8 +28,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 .main-nav a,.docs-nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:8px;font-size:16px;font-weight:500;text-decoration:none}
 .main-nav a:hover,.docs-nav a:hover{background:var(--wash)}
 .main-nav a[aria-current=page],.main-nav a.in-section{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.4em}
-.used-by{display:inline-flex;align-items:center;margin-left:8px;padding-left:12px;border-left:1px solid var(--line)}
-.used-label{font-size:15px;color:var(--dim);margin-right:2px}
 .gh-key,.key{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border:1px solid var(--edge);border-radius:10px;font-size:16px;font-weight:600;text-decoration:none;white-space:nowrap;background:var(--panel)}
 .gh-key:hover,.key:hover{border-color:var(--accent);background:var(--wash)}
 /* The header's GitHub key is the row's one filled key. */
@@ -199,8 +197,7 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
 .foot li{margin:0 0 8px}
 .foot p{max-width:340px;color:var(--dim);margin:14px 0 0}
 .foot p a{color:var(--ink)}
-@media(max-width:1279px){.menu{display:block}.main-nav .used-by{display:none}}
-@media(max-width:999px){.main-nav{display:none}.gh-key{margin-left:auto}}
+@media(max-width:999px){.main-nav{display:none}.menu{display:block}.gh-key{margin-left:auto}}
 @media(min-width:480px) and (max-width:999px){.menu-key{padding:0 14px}.menu-text{position:static;width:auto;height:auto;overflow:visible;clip:auto}}
 @media(max-width:479px){.gh-key{width:44px;padding:0;justify-content:center}.gh-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}
 @media(max-width:900px){

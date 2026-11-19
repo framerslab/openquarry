@@ -36,9 +36,10 @@ const inspect=()=>{
  if(row.some(r=>r.left<0||r.right>innerWidth+1))errors.push('a header control leaves the page')
  for(let i=1;i<row.length;i++)if(row[i].left<row[i-1].right-1)errors.push('header controls overlap')
  if(!shows('.top .brand')||!shows('.gh-key'))errors.push('the header lacks its mark or its GitHub key')
- if(shows('.menu-key')!==(innerWidth<1280))errors.push('the menu key shows at the wrong width')
+ if(shows('.menu-key')!==(innerWidth<1000))errors.push('the menu key shows at the wrong width')
+ if(shows('.menu-key')&&shows('.top .main-nav'))errors.push('the menu key and the header links show together')
  if(shows('.top .main-nav')!==(innerWidth>=1000))errors.push('the header links show at the wrong width')
- if(innerWidth>=1280&&!shows('.main-nav .used-by'))errors.push('a wide header lacks Used by')
+ {const row=[...document.querySelectorAll('.top > *')].filter(e=>!e.matches('.menu'));if(row.some(e=>/Used by/i.test(e.textContent)||[...e.querySelectorAll('a[href]')].some(a=>/quarry\.(school|space)/.test(a.href))))errors.push('the header holds Used by, which belongs in the footer')}
  // The row's links are all in view: none is cut off at the row's edge or scrolled out of it.
  const nav=document.querySelector('.top .main-nav')
  if(nav&&nav.getClientRects().length&&nav.scrollWidth>nav.clientWidth+1)errors.push('the header links are cut off')
@@ -147,8 +148,8 @@ for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark'])
  const startCopied=await page.evaluate(()=>navigator.clipboard.readText())
  if(startCopied!==await page.locator('.start pre code').first().textContent()||!startCopied.startsWith('npx openquarry init my-notes\n'))throw Error('The clipboard does not hold the Start a project commands: '+startCopied)
  await page.goto('http://127.0.0.1:4173/')
- // The menu: it opens on its key, holds every link in one column inside the page, and Escape closes it.
- if(width<1280){
+ // The menu: under 1000 px it opens on its key, holds every link in one column inside the page, and Escape closes it.
+ if(width<1000){
   await page.locator('.menu-key').click()
   const panel=await page.evaluate(()=>{const p=document.querySelector('.menu-panel').getBoundingClientRect();const links=[...document.querySelectorAll('.menu-panel a')].map(a=>a.getBoundingClientRect());return {left:p.left,right:p.right,bottom:p.bottom,w:innerWidth,rows:links.filter(r=>r.height>=44).length,columns:new Set(links.map(r=>Math.round(r.left))).size}})
   if(panel.left<0||panel.right>panel.w||panel.rows<9||panel.columns!==1)throw Error(`${width} ${theme}: the menu panel does not fit the page or lacks its links: ${JSON.stringify(panel)}`)
