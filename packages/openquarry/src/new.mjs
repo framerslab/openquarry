@@ -1,7 +1,7 @@
 // openquarry new: writes one note or lesson, a Markdown file with the five keys every thread needs. It writes no
 // licence: a person's notes and lessons carry the licence they state themselves.
 import { randomUUID } from 'node:crypto'
-import { closeSync, existsSync, openSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, openSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { stringify } from 'yaml'
 import { validateThreadFrontmatter } from '@framers/openquarry'
@@ -56,12 +56,20 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   // The folder made of the first `count` segments of the path.
   const top = (count) => segments.slice(0, count).join(sep) || sep
   // The top of the project is the innermost folder, the one named or one above it, that holds fabric.yaml or
-  // catalogue.yaml, the two files the check reads there; the check reads the weaves/ beside them. So a project kept inside
-  // another folder named weaves counts from its own top: the top itself, its weaves/ itself and any other weaves/ in it
-  // are refused, as are folders below weaves/notes/.drafts/weaves, since the check skips .drafts. With neither file in
-  // the path, the first weaves/ counts, so the note lands where a check from any folder above it reads it.
+  // catalogue.yaml as a file, the two files the check reads there; the check reads the weaves/ beside them. So a project
+  // kept inside another folder named weaves counts from its own top: the top itself, its weaves/ itself and any other
+  // weaves/ in it are refused, as are folders below weaves/notes/.drafts/weaves, since the check skips .drafts. A folder
+  // that only bears one of those names is no manifest. With neither file in the path, the first weaves/ counts, so the
+  // note lands where a check from any folder above it reads it.
+  const manifest = (path) => {
+    try {
+      return statSync(path).isFile()
+    } catch {
+      return false
+    }
+  }
   let count = segments.length
-  while (count > 0 && !['fabric.yaml', 'catalogue.yaml'].some((file) => existsSync(join(top(count), file)))) count -= 1
+  while (count > 0 && !['fabric.yaml', 'catalogue.yaml'].some((file) => manifest(join(top(count), file)))) count -= 1
   const weaves = count > 0 ? (segments[count] === 'weaves' ? count : -1) : segments.indexOf('weaves')
   if (weaves === -1 || weaves === segments.length - 1) {
     throw new Refusal(`${name} is not inside the project's weaves/ folder, where openquarry check looks for notes and lessons: name a folder with --in, such as --in weaves/notes/getting-started`)

@@ -11,13 +11,15 @@ import { entry } from './paths.mjs'
 
 // The text of a plain file, or undefined for anything else. O_NONBLOCK lets a pipe open at once instead of waiting for a
 // writer; a regular file reads as usual. A socket cannot be opened at all (ENXIO), and a link that leads nowhere
-// (ENOENT) or round in a loop (ELOOP) leads to no file: none of them is a plain file.
+// (ENOENT, or ENOTDIR when its path runs through a plain file) or round in a loop (ELOOP) leads to no file: none of
+// them is a plain file.
+const leadsNowhere = (error) => error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP'
 function readPlain(path) {
   let fd
   try {
     fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0))
   } catch (error) {
-    if (error.code === 'ENXIO' || error.code === 'ENOENT' || error.code === 'ELOOP') return undefined
+    if (error.code === 'ENXIO' || leadsNowhere(error)) return undefined
     throw error
   }
   try {
@@ -64,7 +66,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
       isWeavesFolder = statSync(join(root, 'weaves')).isDirectory()
     } catch (error) {
       // A link that leads nowhere, or round in a loop, is not a folder; any other answer is the file system's own.
-      if (error.code !== 'ENOENT' && error.code !== 'ELOOP') throw error
+      if (!leadsNowhere(error)) throw error
     }
     if (!isWeavesFolder) {
       const at = folder === undefined ? '' : `${folder.replace(/[/\\]+$/, '') || folder}/`
