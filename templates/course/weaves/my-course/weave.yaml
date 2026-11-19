@@ -1,0 +1,5 @@
+slug: my-course
+title: My course
+kind: course
+description: A course. Each folder under it is a unit, and each Markdown file a lesson, an exercise or an assessment.
+license: All rights reserved

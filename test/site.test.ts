@@ -7,6 +7,7 @@ import yaml from 'js-yaml'
 import { afterAll, describe, expect, it } from 'vitest'
 import { buildSite, schemaFiles, ORIGIN, SCHEMA_PATH } from '../scripts/build-site.mjs'
 import { highlight } from '../scripts/highlight.mjs'
+import { newId, startCommands, starters } from '../scripts/start-commands.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const out = mkdtempSync(join(tmpdir(), 'openquarry-site-'))
@@ -158,6 +159,25 @@ describe('the public format site', () => {
       expect(page, `the package page links ${link}`).toContain(`href="${link}"`)
     }
     expect(page).toContain('aria-current="page">Package</a>')
+  })
+  it('opens the package page with Start a project, each command with a copy key, and links to it from the landing and the format guide', () => {
+    const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
+    const start = /<section class="start"[\s\S]*?<\/section>/.exec(page)?.[0] ?? ''
+    // The first section of the page, before the install lines and the exports.
+    expect(page.indexOf('<h2 id="start">Start a project</h2>')).toBeGreaterThan(0)
+    expect(page.indexOf('<h2 id="start">')).toBeLessThan(page.indexOf('<h2 id="install">'))
+    const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
+    const blocks = [...start.matchAll(/<figure class="code">[\s\S]*?<\/figure>/g)].map((m) => m[0])
+    const commands = [...starters.map((s) => startCommands(s)), newId]
+    expect(blocks.map((b) => unescape(/<code class="language-bash">([\s\S]*?)<\/code>/.exec(b)?.[1] ?? ''))).toEqual(commands)
+    for (const b of blocks) expect(b).toContain('data-copy')
+    expect(start).toContain('<code>npm create openquarry</code> arrives with the next release.')
+    for (const link of ['https://github.com/framerslab/openquarry/tree/master/templates', 'https://github.com/framerslab/openquarry/tree/master/examples/reading-a-map', '/schema/', 'https://www.npmjs.com/package/@framers/openquarry', 'https://github.com/framerslab/openquarry']) {
+      expect(start, `Start a project links ${link}`).toContain(`href="${link}"`)
+    }
+    const home = readFileSync(join(site, 'index.html'), 'utf8')
+    expect(/<section class="install"[\s\S]*?<\/section>/.exec(home)?.[0]).toContain('<a href="/package/#start">Start a project</a>')
+    expect(readFileSync(join(site, 'format', 'index.html'), 'utf8')).toContain('<a href="/package/#start">start a project from a starter</a>')
   })
   it('names the stylesheet and the script by their content, so a new build is never drawn with an old cached stylesheet', () => {
     for (const path of ['', 'learning', 'about']) {
