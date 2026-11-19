@@ -312,6 +312,29 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
  }
  await context.close()
 }
+// The reader's own moves count. A wheel or swipe during a key's move: the next press starts from where the strip is,
+// not from where the key was taking it. A tab that holds the keyboard's focus is not scrolled away when the window
+// changes size.
+{
+ const context=await browser.newContext({viewport:{width:390,height:900},reducedMotion:'no-preference'})
+ const page=await context.newPage()
+ await open(page,'format/')
+ await press(page,'next')
+ // In one turn of the page: Next is pressed, the reader's wheel takes the strip to its end, Previous is pressed.
+ const swiped=await page.evaluate(()=>{const g=document.querySelector('.docs-nav'),s=g.querySelector('.docs-tabs');g.querySelector('[data-tabs-next]').click();s.dispatchEvent(new WheelEvent('wheel',{bubbles:true,deltaX:600}));s.scrollLeft=s.scrollWidth;const end=s.scrollLeft;g.querySelector('[data-tabs-prev]').click();return {end,view:s.clientWidth}})
+ await rest(page)
+ const after=(await row(page)).left
+ if(after>=swiped.end||swiped.end-after>swiped.view+1)throw Error(`After the reader's own scroll to the end (${swiped.end}), Previous took the strip to ${after}: more than one ${swiped.view} px view, or nowhere`)
+ await open(page,'schema/')
+ await page.locator('.docs-tabs a').first().focus()
+ await rest(page)
+ await page.setViewportSize({width:400,height:900})
+ await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))
+ await rest(page)
+ const held=await row(page)
+ if(!held.tabs[0].whole)throw Error(`The focused first guide was scrolled out of view when the window changed size: ${JSON.stringify(held.tabs[0])}`)
+ await context.close()
+}
 // Reduced motion: a press puts the strip in its new place with no animation, and the keys have no transition.
 {
  const context=await browser.newContext({viewport:{width:390,height:900},reducedMotion:'reduce'})
