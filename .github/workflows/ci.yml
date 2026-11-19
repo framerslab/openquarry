@@ -50,6 +50,28 @@ jobs:
       - name: The files npm would publish
         run: npm pack --dry-run
 
+  # The openquarry command (packages/openquarry): packed as npm would publish it, installed into an empty folder, and
+  # every documented command run from that install. Node 18 is the oldest version the command supports.
+  cli:
+    name: The openquarry command, from its packed tarball (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Pack the command, install the tarball and run every command
+        run: node scripts/check-cli.mjs
+
   start:
     name: Start a project (the documented commands, against npm)
     runs-on: ubuntu-latest

@@ -4,3 +4,5 @@ schema/** text eol=lf
 src/schemas.ts text eol=lf
 # The starters are copied by degit and compared with this checkout byte for byte in CI.
 templates/** text eol=lf
+# The command's files are published from a Linux runner; the bin's first line must end in LF.
+packages/openquarry/** text eol=lf

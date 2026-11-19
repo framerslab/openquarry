@@ -145,7 +145,7 @@ for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark'])
  await page.waitForFunction(()=>document.querySelector('.start [data-copy]').textContent!=='Copy',null,{timeout:5000})
  if(await startCopy.textContent()!=='Copied')throw Error('The Start a project copy key did not copy: '+await startCopy.textContent())
  const startCopied=await page.evaluate(()=>navigator.clipboard.readText())
- if(startCopied!==await page.locator('.start pre code').first().textContent()||!startCopied.startsWith('npx degit framerslab/openquarry/templates/'))throw Error('The clipboard does not hold the Start a project commands: '+startCopied)
+ if(startCopied!==await page.locator('.start pre code').first().textContent()||!startCopied.startsWith('npx openquarry init my-notes\n'))throw Error('The clipboard does not hold the Start a project commands: '+startCopied)
  await page.goto('http://127.0.0.1:4173/')
  // The menu: it opens on its key, holds every link in one column inside the page, and Escape closes it.
  if(width<1280){

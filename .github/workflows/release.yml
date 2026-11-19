@@ -1,8 +1,14 @@
 name: release
 
-# Publishes the package version in package.json to npm. Runs only by hand, never on a push.
+# Publishes to npm each package whose version in this commit npm does not serve yet: @framers/openquarry (the library,
+# at the repository root) and openquarry (the command, in packages/openquarry). Runs only by hand, never on a push.
 on:
   workflow_dispatch:
+
+# One release at a time, and a release that has started is never cancelled.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -10,9 +16,9 @@ permissions:
 
 jobs:
   publish:
-    name: Publish @framers/openquarry
+    name: Publish the versions npm does not have
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -36,7 +42,38 @@ jobs:
       - name: npm 11.20.0 for trusted publishing
         run: npm install -g npm@11.20.0 && npm --version
 
-      - name: Publish with provenance
-        run: npm publish --access public --provenance
+      # Fails when npm already serves both versions, and when the registry cannot be read.
+      - name: Which versions are new
+        id: plan
+        run: node scripts/release-plan.mjs
+
+      # Each new package is packed once. The files in this folder are the ones tested below and the ones published.
+      - name: Pack each new package once
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          if [ "${{ steps.plan.outputs.library }}" = "true" ]; then npm pack --pack-destination "$RUNNER_TEMP/release"; fi
+          if [ "${{ steps.plan.outputs.command }}" = "true" ]; then (cd packages/openquarry && npm pack --pack-destination "$RUNNER_TEMP/release"); fi
+          ls -l "$RUNNER_TEMP/release"
+
+      - name: The openquarry command, run from the tarball that will be published
+        if: steps.plan.outputs.command == 'true'
+        run: node scripts/check-cli.mjs --tarballs "$RUNNER_TEMP/release"
+
+      # The library has a trusted publisher bound to this workflow file. No token is given to this step, so a broken
+      # trusted publisher fails here and is never papered over by a token.
+      - name: Publish @framers/openquarry with provenance (trusted publisher)
+        if: steps.plan.outputs.library == 'true'
+        run: npm publish "$RUNNER_TEMP/release/framers-openquarry-${{ steps.plan.outputs.library_version }}.tgz" --access public --provenance
+
+      # openquarry depends on the library version just published.
+      - name: Wait until npm serves the new library version
+        if: steps.plan.outputs.library == 'true' && steps.plan.outputs.command == 'true'
+        run: node scripts/release-plan.mjs --wait
+
+      # A package must exist on npm before it can have a trusted publisher, so the command's first release is published
+      # with the token, in this step alone. Provenance still comes from this run's own identity (id-token: write).
+      - name: Publish openquarry with provenance
+        if: steps.plan.outputs.command == 'true'
+        run: npm publish "$RUNNER_TEMP/release/openquarry-${{ steps.plan.outputs.command_version }}.tgz" --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

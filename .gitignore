@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.tgz
 dist-site/
+
+# The starters bundled into the openquarry package when it is packed (packages/openquarry/scripts/bundle-templates.mjs).
+packages/openquarry/templates/
