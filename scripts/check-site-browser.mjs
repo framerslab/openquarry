@@ -216,6 +216,8 @@ const press=async(page,which,how='click')=>{
  return [before,await row(page)]
 }
 const fadeOf=s=>s.fades.map(f=>parseFloat(f)>0)
+// A pointer press in the middle of an inactive key (Playwright's own click waits for a key that is not aria-disabled).
+const poke=async(page,which)=>{const box=await page.locator(`[data-tabs-${which}]`).boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await page.waitForTimeout(250)}
 const picture=(page,name,height)=>page.screenshot({path:`site-screenshots/${name}.png`,clip:{x:0,y:0,width:page.viewportSize().width,height},animations:'disabled'})
 try {
 for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark']) {
@@ -244,7 +246,7 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
   if(!/gradient/.test(s.mask)||fadeOf(s).join()!=='false,true')throw Error(`${at}: at the start only the right edge fades: ${s.mask} ${s.fades}`)
   if(width===390)await picture(page,`guides-start-${width}-${theme}`,300)
   // A press on the inactive key moves nothing.
-  await page.locator('[data-tabs-prev]').click();await page.waitForTimeout(250)
+  await poke(page,'prev')
   if((await row(page)).left!==0)throw Error(`${at}: the inactive Previous key moved the strip`)
   // Next, press after press, to the end: each press moves the strip by no more than one view, and the tab the right
   // edge cut is then whole in view. The whole row takes no more presses than it has tabs.
@@ -263,7 +265,7 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
   }
   if(presses<1)throw Error(`${at}: Next was inactive at the start`)
   if(Math.abs(s.left-s.end)>1||!s.tabs[s.tabs.length-1].whole)throw Error(`${at}: at the end the last guide is not whole in view`)
-  await page.locator('[data-tabs-next]').click();await page.waitForTimeout(250)
+  await poke(page,'next')
   if(Math.abs((await row(page)).left-s.left)>1)throw Error(`${at}: the inactive Next key moved the strip`)
   // And back with Previous to the start.
   presses=0
