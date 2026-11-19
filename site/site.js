@@ -126,7 +126,6 @@ if (strip) {
   }
   strip.addEventListener('scroll', update, { passive: true })
   strip.addEventListener('scrollend', () => { goal = null })
-  addEventListener('resize', update)
   // The strip opens with the current guide's tab in the middle, set in place with no animation.
   const place = () => {
     update()
@@ -137,6 +136,9 @@ if (strip) {
     update()
   }
   place()
-  // The tabs change width when the site's font arrives.
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => (touched ? update() : place()))
+  // The room changes with the window, and the tabs' width when the site's font arrives. Until the reader has moved
+  // the strip, the current guide's tab is put back in view each time.
+  const fit = () => (touched ? update() : place())
+  addEventListener('resize', fit)
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit)
 }

@@ -88,8 +88,9 @@ p,li{overflow-wrap:anywhere}
 .hero .actions>a{justify-content:center}
 .hero .actions .short{display:none}
 /* The project's facts as badges: one row that fits the page at every width. On a phone each fact is a chip of two
-   lines, its label over its value, so three facts fit one row from 320 px. */
-.badges{display:flex;gap:8px;list-style:none;padding:0;margin:0 0 24px;white-space:nowrap}
+   lines, its label over its value, so three facts fit one row from 320 px. When a reader's own text size makes them
+   too wide for one row, they take a second row and the page keeps to its width. */
+.badges{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 24px;white-space:nowrap}
 .badges li{flex:none;margin:0}
 .badges a{display:inline-flex;align-items:stretch;min-height:36px;border:1px solid var(--edge);border-radius:8px;overflow:hidden;background:var(--panel);font-size:15px;line-height:1;text-decoration:none}
 .badges a:hover{border-color:var(--accent)}
