@@ -24,7 +24,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .top{--pad:max(40px,calc((100% - 1200px)/2));position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;padding:12px var(--pad);background:var(--bg);border-bottom:1px solid var(--line)}
 .brand{display:inline-flex;align-items:center;gap:10px;font:600 26px/1 Fraunces,Georgia,serif;letter-spacing:-.01em;text-decoration:none;white-space:nowrap;min-height:44px}
 .main-nav{display:flex;align-items:center;gap:2px;margin-left:auto;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
-.main-nav::-webkit-scrollbar,.docs-nav::-webkit-scrollbar{display:none}
+.main-nav::-webkit-scrollbar,.docs-tabs::-webkit-scrollbar{display:none}
 .main-nav a,.docs-nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:8px;font-size:16px;font-weight:500;text-decoration:none}
 .main-nav a:hover,.docs-nav a:hover{background:var(--wash)}
 .main-nav a[aria-current=page],.main-nav a.in-section{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.4em}
@@ -51,8 +51,22 @@ button{font:inherit;color:inherit;cursor:pointer}
 .menu-panel :focus-visible{outline-offset:-3px}
 .menu-label{margin:6px 0 0;padding:12px 12px 2px;border-top:1px solid var(--line);font-size:15px;font-weight:600;color:var(--dim)}
 .menu-theme{display:none}
-.docs-nav{display:flex;gap:4px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;padding:6px max(40px,calc((100% - 1200px)/2));border-bottom:1px solid var(--line)}
+/* The guides' row: one line at every width. Its tabs sit in a strip; when they do not fit, the strip scrolls sideways
+   and the script shows a previous and a next key at its ends and sets data-scroll on the row (none, start, middle or
+   end). An edge of the strip fades only when there are tabs beyond it. A key is inactive at its end: a bare chevron. */
+.docs-nav{display:flex;align-items:center;gap:4px;padding:6px max(40px,calc((100% - 1200px)/2));border-bottom:1px solid var(--line)}
+.docs-tabs{--fade-l:0px;--fade-r:0px;display:flex;flex:1;gap:4px;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none;scroll-padding-inline:28px}
+.docs-nav[data-scroll]:not([data-scroll=none]) .docs-tabs{-webkit-mask-image:linear-gradient(90deg,transparent,#000 var(--fade-l),#000 calc(100% - var(--fade-r)),transparent);mask-image:linear-gradient(90deg,transparent,#000 var(--fade-l),#000 calc(100% - var(--fade-r)),transparent)}
+.docs-nav[data-scroll=middle] .docs-tabs,.docs-nav[data-scroll=end] .docs-tabs{--fade-l:28px}
+.docs-nav[data-scroll=start] .docs-tabs,.docs-nav[data-scroll=middle] .docs-tabs{--fade-r:28px}
+.docs-tabs a{flex:none}
+.docs-tabs a:focus-visible{outline-offset:-3px}
 .docs-nav a[aria-current=page]{background:var(--wash);font-weight:700}
+.tab-arrow{display:inline-grid;place-items:center;flex:none;width:44px;height:44px;padding:0;border:1px solid var(--edge);border-radius:10px;background:var(--panel)}
+.tab-arrow:focus-visible{outline-offset:1px}
+.tab-arrow:active{background:var(--wash)}
+@media(hover:hover){.tab-arrow:hover{border-color:var(--accent);background:var(--wash)}}
+.tab-arrow[aria-disabled=true]{border-color:transparent;background:none;color:var(--dim);cursor:default}
 main{max-width:1280px;margin:auto;padding-inline:40px}
 /* Type */
 h1,h2,h3{font-family:var(--ui);line-height:1.1;letter-spacing:-.025em;text-wrap:balance}
@@ -73,9 +87,10 @@ p,li{overflow-wrap:anywhere}
 .hero .actions{display:grid;width:max-content;max-width:100%;grid-auto-flow:column;grid-auto-columns:1fr}
 .hero .actions>a{justify-content:center}
 .hero .actions .short{display:none}
-/* The project's facts as badges: one row that scrolls sideways when it runs out of room. */
-.badges{display:flex;gap:8px;list-style:none;padding:0;margin:0 0 24px;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
-.badges::-webkit-scrollbar{display:none}
+/* The project's facts as badges: one row that fits the page at every width. On a phone each fact is a chip of two
+   lines, its label over its value, so three facts fit one row from 320 px. When a reader's own text size makes them
+   too wide for one row, they take a second row and the page keeps to its width. */
+.badges{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 24px;white-space:nowrap}
 .badges li{flex:none;margin:0}
 .badges a{display:inline-flex;align-items:stretch;min-height:36px;border:1px solid var(--edge);border-radius:8px;overflow:hidden;background:var(--panel);font-size:15px;line-height:1;text-decoration:none}
 .badges a:hover{border-color:var(--accent)}
@@ -194,7 +209,8 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .finding{padding:18px}
  .finding h2{font-size:24px}
  .finding-cols{grid-template-columns:minmax(0,1fr)}
- .docs-nav{padding:4px 12px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent)}
+ .docs-nav{padding:4px 12px}
+ .docs-nav:not([data-scroll]) .docs-tabs{-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent)}
  main{padding-inline:20px}
  .hero{padding:40px 0 32px}
  .badges a{min-height:44px}
@@ -217,9 +233,10 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
 }
 @media(max-width:1279px){.hero .actions{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.hero .actions .button{grid-column:auto}}
 @media(max-width:1023px){.actions .wider{display:none}}
-@media(max-width:760px){.badges{-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}.actions,.hero .actions{display:grid;width:auto;grid-auto-flow:row;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.actions .button{grid-column:1/-1}.actions>a{justify-content:center;min-width:0;padding-inline:10px}.actions .wider{display:none}}
+@media(max-width:760px){.actions,.hero .actions{display:grid;width:auto;grid-auto-flow:row;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.actions .button{grid-column:1/-1}.actions>a{justify-content:center;min-width:0;padding-inline:10px}.actions .wider{display:none}}
+@media(max-width:560px){.badges a{flex-direction:column}.badges span,.badges strong{justify-content:center;min-height:24px}.badges strong{border-left:0;border-top:1px solid var(--line)}}
 @media(max-width:400px){.actions .wide{display:none}.hero .actions .short{display:inline}.actions>a{padding-inline:8px;gap:6px}.top{--pad:16px;gap:8px}main{padding-inline:16px}.brand{font-size:22px;gap:8px}.brand .mark{width:26px;height:26px}}
 /* The narrowest phones keep the two outlined keys in equal halves by dropping the outbound arrow, and the look switch
    moves from the header into the menu so the row still fits. */
 @media(max-width:350px){.actions .out{display:none}.top>.theme{display:none}.menu-theme{display:flex}}
-@media(prefers-reduced-motion:no-preference){.hero{animation:arrive .35s ease-out}.card,.key,.gh-key,.menu-key,.button{transition:background-color .15s,border-color .15s}@keyframes arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
+@media(prefers-reduced-motion:no-preference){.hero{animation:arrive .35s ease-out}.card,.key,.gh-key,.menu-key,.button{transition:background-color .15s,border-color .15s}.tab-arrow{transition:background-color .15s,border-color .15s,color .15s,transform .1s}.tab-arrow:active:not([aria-disabled=true]){transform:scale(.94)}@keyframes arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
