@@ -391,7 +391,10 @@ try {
   refuses(['new', 'note', 'A title', '--in', 'drafts/weaves/unit'], shelved, `openquarry new: drafts/weaves/unit ${outsideWeaves}`)
   rmSync(join(shelved, 'drafts'), { recursive: true })
   same(walk(shelved), ours, 'a project below weaves/shelf after the refused new commands')
-  same(run(bin, ['new', 'note', 'Shelved', '--in', 'weaves/notes/getting-started'], shelved).lines, ['wrote weaves/notes/getting-started/shelved.md', ''], 'new in a project below weaves/shelf')
+  // A folder that only bears a manifest's name inside weaves/ is not the top of a project: new still writes below it.
+  mkdirSync(join(shelved, 'weaves', 'notes', 'catalogue.yaml'))
+  same(run(bin, ['new', 'note', 'Shelved', '--in', 'weaves/notes/getting-started'], shelved).lines, ['wrote weaves/notes/getting-started/shelved.md', ''], 'new in a project below weaves/shelf, beside a folder named catalogue.yaml')
+  rmSync(join(shelved, 'weaves', 'notes', 'catalogue.yaml'), { recursive: true })
   // A new folder inside folders that do not exist yet is made.
   if (run(bin, ['init', 'deep/down/notes'], home).status !== 0 || !existsSync(join(home, 'deep', 'down', 'notes', 'fabric.yaml'))) fail('init did not make a nested folder')
   // The target is a file.
@@ -529,19 +532,25 @@ try {
   if (run(bin, ['init', 'broken-links'], home).status !== 0) fail('init broken-links failed')
   rmSync(join(brokenLinks, 'fabric.yaml'))
   symlinkSync(join(gone, 'fabric.yaml'), join(brokenLinks, 'fabric.yaml'))
-  const goneThread = 'weaves/notes/getting-started/gone.md'
-  symlinkSync(join(gone, 'gone.md'), join(brokenLinks, goneThread))
+  symlinkSync(join(gone, 'gone.md'), join(brokenLinks, 'weaves', 'notes', 'getting-started', 'gone.md'))
+  // A link whose path runs through a plain file as if it were a folder leads nowhere too.
+  const plainFile = join(work, 'plain-file')
+  writeFileSync(plainFile, 'x\n')
+  symlinkSync(join(plainFile, 'x.md'), join(brokenLinks, 'weaves', 'notes', 'getting-started', 'through-a-file.md'))
   {
-    const count = ours.filter((file) => /^fabric\.yaml$|^catalogue\.yaml$|^weaves\/.*(\.yaml|\.md)$/.test(file)).length + 1
+    const count = ours.filter((file) => /^fabric\.yaml$|^catalogue\.yaml$|^weaves\/.*(\.yaml|\.md)$/.test(file)).length + 2
     const result = run(bin, ['check', 'broken-links'], home)
     if (result.status !== 1) fail(`check exited ${result.status} for links that lead nowhere, expected 1`)
-    for (const line of ['not ok fabric.yaml', 'not ok weaves/notes/getting-started/gone.md', `2 of ${count} files invalid.`]) if (!result.lines.includes(line)) fail(`for links that lead nowhere, no line ${JSON.stringify(line)}`)
-    same(result.lines.filter((line) => line.startsWith('  ')), ['  / is not a plain file', '  / is not a plain file'], 'the problems of links that lead nowhere')
+    for (const line of ['not ok fabric.yaml', 'not ok weaves/notes/getting-started/gone.md', 'not ok weaves/notes/getting-started/through-a-file.md', `3 of ${count} files invalid.`]) if (!result.lines.includes(line)) fail(`for links that lead nowhere, no line ${JSON.stringify(line)}`)
+    same(result.lines.filter((line) => line.startsWith('  ')), Array(3).fill('  / is not a plain file'), 'the problems of links that lead nowhere')
   }
   const brokenWeaves = join(home, 'broken-weaves')
   mkdirSync(brokenWeaves)
   copyFileSync(join(root, notes.folder, 'fabric.yaml'), join(brokenWeaves, 'fabric.yaml'))
   symlinkSync(join(gone, 'weaves'), join(brokenWeaves, 'weaves'))
+  refuses(['check', 'broken-weaves'], home, 'openquarry check: broken-weaves/weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder')
+  rmSync(join(brokenWeaves, 'weaves'))
+  symlinkSync(join(plainFile, 'weaves'), join(brokenWeaves, 'weaves'))
   refuses(['check', 'broken-weaves'], home, 'openquarry check: broken-weaves/weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder')
   // The help shows even when the bundled templates cannot be read.
   chmodSync(join(installed, 'templates'), 0o000)
