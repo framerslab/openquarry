@@ -62,7 +62,7 @@ contentType: markdown
 
 - `id` is a new UUID. `contentType` is `markdown` for a note and `lesson` for a lesson.
 - The file is named after the slug: the title in lowercase letters, digits and hyphens. Pass `--slug` for another name, or when the title has no Latin letter or digit.
-- `--in` names the folder to write into; the default is the current folder. The folder is inside a `weaves/` folder, because that is where `check` looks for notes and lessons.
+- `--in` names the folder to write into; the default is the current folder. The folder must be inside a `weaves/` folder, because that is where `check` looks for notes and lessons.
 - A file that already exists is left as it is.
 
 `new` writes no `license` or `publishing` key. Your notes and lessons are yours: state their licence yourself in `publishing.license`.

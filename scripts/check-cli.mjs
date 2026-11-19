@@ -202,7 +202,7 @@ try {
     report('YAML that cannot be read', 1, [`not ok ${thread}`, invalid(files.length)])
     writeFileSync(threadPath, text.replaceAll('\n', '\r\n'))
     report('CRLF line ends', 0, [`ok ${thread}`])
-    writeFileSync(threadPath, `﻿${text}`)
+    writeFileSync(threadPath, `\ufeff${text}`)
     report('a byte-order mark', 0, [`ok ${thread}`])
     writeFileSync(threadPath, text)
     // A file whose name starts with a dot is checked; only folders that start with a dot, and node_modules, are skipped.
@@ -392,7 +392,7 @@ try {
   const dotdot = join(installed, 'templates', 'notes', '_dot_.')
   mkdirSync(dotdot)
   writeFileSync(join(dotdot, 'escaped.md'), 'outside\n')
-  refuses(['init', 'from-planted'], home, 'openquarry init: the notes template holds ../escaped.md, a path that leaves the folder: nothing written')
+  refuses(['init', 'from-planted'], home, 'openquarry init: the notes template holds .., a path that leaves the folder: nothing written')
   if (existsSync(join(home, 'from-planted')) || existsSync(join(home, 'escaped.md'))) fail('init wrote a path that leaves the target')
   rmSync(dotdot, { recursive: true })
   const dotgit = join(installed, 'templates', 'notes', '_dot_git')
