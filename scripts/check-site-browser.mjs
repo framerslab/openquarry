@@ -239,6 +239,13 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
    if(width<=390||width===768)await picture(page,`facts-package-${width}-${theme}`,Math.min(900,Math.ceil(await page.locator('.reading .actions').first().evaluate(e=>e.getBoundingClientRect().bottom))+24))
   }
   if(!route&&width<=390)await page.locator('.hero').screenshot({path:`site-screenshots/facts-landing-${width}-${theme}.png`,animations:'disabled'})
+  // A reader's text at 200 per cent (a browser's text-only zoom, set here on the facts themselves): the facts may
+  // take a second row, and the page keeps to its width with every fact inside it.
+  if(width===320&&(route===''||route==='package/')){
+   await page.addStyleTag({content:'.badges a{font-size:30px!important}'})
+   const big=await page.evaluate(()=>({page:document.documentElement.scrollWidth>innerWidth,cut:[...document.querySelectorAll('.badges li')].filter(li=>li.getBoundingClientRect().right>innerWidth+1||li.getBoundingClientRect().left<0).map(li=>li.textContent)}))
+   if(big.page||big.cut.length)throw Error(`${at} ${route}: with text at 200 per cent the facts leave the page: ${big.cut.join(' | ')}`)
+  }
  }
  // The first guide: the strip opens at its start, Previous is inactive, and only the right edge fades.
  await open(page,'format/')
@@ -345,6 +352,14 @@ for(const theme of ['light','dark']){
  const s=await row(page)
  if(s.over||s.prev.shown||s.next.shown||s.scroll!=='none'||fadeOf(s).join()!=='false,false')throw Error(`1280 ${theme}: a guides row that fits should show no arrow key and no fade: ${JSON.stringify(s)}`)
  await picture(page,`guides-1280-${theme}`,300)
+ // The window is made narrow with the strip untouched: the keys appear and the current guide's tab is whole in view.
+ await open(page,'llm/')
+ await page.setViewportSize({width:390,height:900})
+ await page.waitForFunction(()=>document.querySelector('.docs-nav').dataset.scroll!=='none',null,{timeout:5000})
+ await rest(page)
+ const narrow=await row(page)
+ if(!narrow.prev.shown||!narrow.next.shown||!narrow.tabs.find(t=>t.name==='Language models').whole)throw Error(`1280 to 390 ${theme}: after the window narrows the current guide's tab is not whole in view: ${JSON.stringify(narrow)}`)
+ await page.setViewportSize({width:1280,height:900})
  await open(page,'package/')
  await picture(page,`facts-package-1280-${theme}`,Math.min(900,Math.ceil(await page.locator('.reading .actions').first().evaluate(e=>e.getBoundingClientRect().bottom))+24))
  await context.close()
