@@ -214,7 +214,7 @@ describe('the public format site', () => {
       }
     }
   })
-  it('keeps the header to the site's own links and puts Used by, the blog and the changelog in the footer', () => {
+  it('keeps the header to its own links and puts Used by, the blog and the changelog in the footer', () => {
     for (const path of ['', 'format', 'learning', 'package', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       const header = (/<header class="top">([\s\S]*?)<\/header>/.exec(html)?.[1] ?? '').replace(/<details class="menu">[\s\S]*?<\/details>/, '')
