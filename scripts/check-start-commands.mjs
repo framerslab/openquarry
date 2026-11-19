@@ -3,7 +3,9 @@
 // copied starter must validate, the package must be the newest one on npm, and the check must refuse a broken file.
 //   node scripts/check-start-commands.mjs
 // The documented commands copy the starter from the default branch. On a pull request START_REF holds the pull
-// request's head commit, and the copy is pinned to it with degit's #ref, so the starters under review are the ones run.
+// request's head commit and START_REPO the repository it comes from (a fork included), the copy is pinned to that
+// commit with degit's #ref, and the job checks out the same commit, so the starters under review are the ones run and
+// compared.
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,6 +15,7 @@ import { newId, startCommands, starters } from './start-commands.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ref = process.env.START_REF || ''
+const from = (ref && process.env.START_REPO) || undefined
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // Runs a shell command, prints what it wrote, and returns its exit status and output.
@@ -34,13 +37,13 @@ function walk(dir, skip = () => false, base = dir) {
 
 const latest = spawnSync('npm', ['view', '@framers/openquarry', 'version'], { encoding: 'utf8' }).stdout.trim()
 if (!/^\d+\.\d+\.\d+/.test(latest)) throw Error(`npm view @framers/openquarry version gave ${JSON.stringify(latest)}`)
-console.log(`@framers/openquarry ${latest} is the newest version on npm${ref ? `; starters pinned to ${ref}` : ''}`)
+console.log(`@framers/openquarry ${latest} is the newest version on npm${ref ? `; starters pinned to ${from || 'this repository'}#${ref}` : ''}`)
 
 for (const starter of starters) {
   const dir = mkdtempSync(join(tmpdir(), `openquarry-start-${starter.id}-`))
   try {
     console.log(`\n=== ${starter.title}: ${starter.folder}`)
-    const run = sh(startCommands(starter, ref), dir)
+    const run = sh(startCommands(starter, ref, from), dir)
     if (run.status !== 0) throw Error(`${starter.id}: the documented commands failed`)
     const project = join(dir, starter.dest)
 
@@ -80,6 +83,11 @@ for (const starter of starters) {
     writeFileSync(threadPath, 'No frontmatter\n')
     refuses('a thread without frontmatter', [`not ok ${thread}`, '  / has no YAML frontmatter between two --- lines at the top'])
     writeFileSync(threadPath, text)
+    // A file whose name starts with a dot is checked too; only folders that start with a dot are skipped.
+    const hidden = thread.replace(/[^/]+\.md$/, '.draft.md')
+    writeFileSync(join(project, hidden), 'No frontmatter\n')
+    refuses('a hidden thread without frontmatter', [`not ok ${hidden}`, '  / has no YAML frontmatter between two --- lines at the top'])
+    rmSync(join(project, hidden))
 
     // The next thread: a copy with the same id is refused; with the id the documented command prints, it passes.
     const next = thread.replace(/[^/]+\.md$/, 'next.md')

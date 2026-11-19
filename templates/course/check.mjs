@@ -20,7 +20,7 @@ const shown = (path) => relative(root, path).split(sep).join('/')
 // Every file under a folder, in name order. Folders whose names start with a dot, and node_modules, are skipped.
 function walk(dir) {
   return readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => !entry.name.startsWith('.') && entry.name !== 'node_modules')
+    .filter((entry) => !entry.isDirectory() || (!entry.name.startsWith('.') && entry.name !== 'node_modules'))
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     .flatMap((entry) => (entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)]))
 }

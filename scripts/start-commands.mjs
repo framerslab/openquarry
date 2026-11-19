@@ -21,11 +21,12 @@ export const starters = [
   },
 ]
 
-/** The commands for a starter. `ref` pins the copy to a commit: CI on a pull request copies the pull request's own
- * head, since the documented source names the default branch. */
-export function startCommands(starter, ref) {
+/** The commands for a starter. `ref` pins the copy to a commit, and `from` names the repository that holds it: CI on a
+ * pull request copies the pull request's own head from the repository it comes from, a fork included, since the
+ * documented source names this repository's default branch. */
+export function startCommands(starter, ref, from = repository) {
   return [
-    `npx degit ${repository}/${starter.folder}${ref ? `#${ref}` : ''} ${starter.dest}`,
+    `npx degit ${from}/${starter.folder}${ref ? `#${ref}` : ''} ${starter.dest}`,
     `cd ${starter.dest}`,
     'npm install',
     'npm run check',

@@ -7,5 +7,5 @@ export interface Starter {
 }
 export declare const repository: string
 export declare const starters: Starter[]
-export declare function startCommands(starter: Starter, ref?: string): string
+export declare function startCommands(starter: Starter, ref?: string, from?: string): string
 export declare const newId: string
