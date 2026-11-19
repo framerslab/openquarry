@@ -203,6 +203,20 @@ describe('the public format site', () => {
       expect(validate).toContain('<code>npx openquarry check</code> validates every file of a project: <a href="/package/#start-check">Start a project</a> shows it.')
       expect(validate).not.toContain('not on npm yet')
     }
+    // Until the release, no paragraph on any page tells a reader to run the command before it says the package is not on
+    // npm yet: a reader can land on any section by its address, and the name is free for anyone to take until then.
+    if (beforeRelease) {
+      for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'package', 'about']) {
+        const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+        for (const paragraph of html.split('<p>').slice(1).map((text) => text.split('</p>')[0]).filter((text) => text.includes('npx openquarry'))) {
+          const note = paragraph.indexOf('not on npm yet')
+          expect(note, `${path || 'home'}: ${paragraph}`).toBeGreaterThan(-1)
+          expect(note, `${path || 'home'}: ${paragraph}`).toBeLessThan(paragraph.indexOf('npx openquarry'))
+        }
+      }
+      const commandLine = /<h2 id="command-line">[\s\S]*?<\/p>/.exec(readFileSync(join(site, 'package', 'index.html'), 'utf8'))?.[0] ?? ''
+      expect(commandLine).toContain('The <code>openquarry</code> package is not on npm yet. Once it is, <code>npx openquarry check</code> checks every file of a project: <a href="#start">Start a project</a> shows it.')
+    }
   })
   it('names the stylesheet and the script by their content, so a new build is never drawn with an old cached stylesheet', () => {
     for (const path of ['', 'learning', 'about']) {
