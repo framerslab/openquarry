@@ -36,9 +36,10 @@ const inspect=()=>{
  if(row.some(r=>r.left<0||r.right>innerWidth+1))errors.push('a header control leaves the page')
  for(let i=1;i<row.length;i++)if(row[i].left<row[i-1].right-1)errors.push('header controls overlap')
  if(!shows('.top .brand')||!shows('.gh-key'))errors.push('the header lacks its mark or its GitHub key')
- if(shows('.menu-key')!==(innerWidth<1280))errors.push('the menu key shows at the wrong width')
+ if(shows('.menu-key')!==(innerWidth<1000))errors.push('the menu key shows at the wrong width')
+ if(shows('.menu-key')&&shows('.top .main-nav'))errors.push('the menu key and the header links show together')
  if(shows('.top .main-nav')!==(innerWidth>=1000))errors.push('the header links show at the wrong width')
- if(innerWidth>=1280&&!shows('.main-nav .used-by'))errors.push('a wide header lacks Used by')
+ if(document.querySelector('.top .used-by'))errors.push('the header holds Used by, which belongs in the footer')
  // The row's links are all in view: none is cut off at the row's edge or scrolled out of it.
  const nav=document.querySelector('.top .main-nav')
  if(nav&&nav.getClientRects().length&&nav.scrollWidth>nav.clientWidth+1)errors.push('the header links are cut off')

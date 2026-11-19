@@ -214,6 +214,19 @@ describe('the public format site', () => {
       }
     }
   })
+  it('keeps the header to the site's own links and puts Used by, the blog and the changelog in the footer', () => {
+    for (const path of ['', 'format', 'learning', 'package', 'about']) {
+      const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+      const header = (/<header class="top">([\s\S]*?)<\/header>/.exec(html)?.[1] ?? '').replace(/<details class="menu">[\s\S]*?<\/details>/, '')
+      expect(header, `${path} header`).not.toContain('used-by')
+      expect(header, `${path} header`).not.toContain('href="https://quarry.school"')
+      const footer = /<footer class="foot">([\s\S]*?)<\/footer>/.exec(html)?.[1] ?? ''
+      expect(footer, `${path} footer`).toContain('<a href="https://frame.dev/blog/">Blog</a>')
+      expect(footer, `${path} footer`).toContain('<a href="https://github.com/framerslab/openquarry/blob/master/CHANGELOG.md">Changelog</a>')
+      expect(footer, `${path} footer`).toContain('<a href="https://quarry.school">Quarry School</a>')
+    }
+  })
+
   it('gives every page a menu that holds every link of the header, for the widths where the row cannot', () => {
     for (const path of ['', 'format', 'learning', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
