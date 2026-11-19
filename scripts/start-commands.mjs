@@ -1,6 +1,9 @@
-// The starters under templates/ and the commands that start a project from one: copy the folder with degit, install,
-// and check every file. The package page and the README show these commands; CI runs them in a fresh folder against
-// the package from npm (scripts/check-start-commands.mjs), and a test holds the README's copy to this one.
+// The starters under templates/ and the commands that start a project from one. The package page and the README show
+// these commands, and a test holds the README's copy to this one.
+// - With the openquarry command (packages/openquarry): init, check, new and id. CI packs the command, installs the
+//   tarball into an empty folder and runs these lines (scripts/check-cli.mjs).
+// - With degit: copy the folder, install, and check every file. CI runs these in a fresh folder against the package
+//   from npm (scripts/check-start-commands.mjs).
 
 export const repository = 'framerslab/openquarry'
 
@@ -35,3 +38,26 @@ export function startCommands(starter, ref, from = repository) {
 
 /** Prints a new id for a note or a lesson. */
 export const newId = 'node -e "console.log(crypto.randomUUID())"'
+
+/** The commands that start a project with the openquarry command: one line makes the folder, the next two check it. */
+export function initCommands(starter) {
+  return [`npx openquarry init ${starter.dest}${starter.id === 'notes' ? '' : ` --template ${starter.id}`}`, `cd ${starter.dest}`, checkCommand].join('\n')
+}
+
+/** Checks every file of the project in the current folder. */
+export const checkCommand = 'npx openquarry check'
+
+/** Adds a note or a lesson to a starter's first folder, by the starter's id. */
+export const newCommands = {
+  notes: 'npx openquarry new note "Scale and distance" --in weaves/notes/getting-started',
+  course: 'npx openquarry new lesson "Reading contour lines" --in weaves/my-course/first-unit',
+}
+
+/** Prints a new id with the openquarry command. */
+export const idCommand = 'npx openquarry id'
+
+/** Shown above the commands until the openquarry package is on npm: the release removes it once npm serves the package. */
+export const beforeRelease = {
+  version: '0.3.0',
+  text: 'The openquarry package is not on npm yet: 0.3.0 is its first release. Until `npm view openquarry version` prints 0.3.0, start with the degit commands below.',
+}
