@@ -45,7 +45,7 @@ const inspect=()=>{
  if(!shows('.top>[data-theme-toggle]')&&!document.querySelector('.menu-panel [data-theme-toggle]'))errors.push('no look switch')
  // The keys under a heading never wrap: the outlined keys share one row and no key breaks or clips its label. The
  // hero's four keys are one row from 1280 px and two rows of two below it, all of one width. The badges are one row
- // too; on a narrow screen that row scrolls sideways.
+ // too, and it fits the page at every width (checked below).
  const top=k=>Math.round(k.getBoundingClientRect().top)
  const keys=[...document.querySelectorAll('.actions .key')].filter(k=>!k.closest('.hero'))
  if(new Set(keys.map(top)).size>1)errors.push('the keys under the heading wrap')
@@ -60,6 +60,38 @@ const inspect=()=>{
  for(const k of document.querySelectorAll('.actions > a'))if(k.scrollWidth>k.clientWidth+1||k.getBoundingClientRect().height>56)errors.push('a key does not fit its label')
  const badgeTops=[...document.querySelectorAll('.badges a')].map(top)
  if(new Set(badgeTops).size>1)errors.push('the badges wrap')
+ // The facts row fits the page at every width: one row, nothing scrolled, faded or cut at its edge, each fact whole.
+ for(const facts of document.querySelectorAll('.badges')){
+  const box=facts.getBoundingClientRect(),style=getComputedStyle(facts),mask=style.maskImage||style.webkitMaskImage
+  if(facts.scrollWidth>facts.clientWidth+1)errors.push('the facts row scrolls sideways')
+  if(mask&&mask!=='none')errors.push('the facts row is faded at an edge')
+  for(const fact of facts.querySelectorAll('li')){const r=fact.getBoundingClientRect();if(r.left<box.left-1||r.right>box.right+1||r.right>innerWidth)errors.push('a fact is cut off: '+fact.textContent)}
+  for(const part of facts.querySelectorAll('span,strong'))if(part.scrollWidth>part.clientWidth+1)errors.push('a fact does not fit its chip: '+part.textContent)
+  if(innerWidth<=900)for(const a of facts.querySelectorAll('a'))if(a.getBoundingClientRect().height<44)errors.push('a fact is under 44 px tall')
+ }
+ // The guides' row: its tabs sit in a strip between a previous and a next key. The keys show only when the tabs do
+ // not fit; then each is a named button of 44 px or more inside the page, beside the strip and on its line.
+ const guides=document.querySelector('.docs-nav')
+ if(guides){
+  const strip=guides.querySelector('.docs-tabs'),arrows=[guides.querySelector('button[data-tabs-prev]'),guides.querySelector('button[data-tabs-next]')]
+  if(!strip||arrows.some(k=>!k))errors.push('the guides row lacks its strip or its two arrow keys')
+  else{
+   const over=strip.scrollWidth>strip.clientWidth+1,shown=arrows.filter(k=>k.getClientRects().length)
+   if(over&&shown.length!==2)errors.push('the guides scroll sideways with no arrow keys')
+   if(!over&&shown.length)errors.push('arrow keys show on a guides row that fits')
+   if(innerWidth<=480&&!over)errors.push('the guides fit a phone: the arrow keys are not exercised')
+   if(arrows[0].getAttribute('aria-label')!=='Previous guides'||arrows[1].getAttribute('aria-label')!=='Next guides')errors.push('an arrow key lacks its name')
+   if(arrows.some(k=>k.getAttribute('aria-controls')!==strip.id||!strip.id))errors.push('an arrow key does not name the strip it moves')
+   for(const k of shown){const r=k.getBoundingClientRect();if(r.width<44||r.height<44)errors.push('an arrow key is under 44 px');if(r.left<0||r.right>innerWidth)errors.push('an arrow key leaves the page')}
+   if(shown.length===2){
+    const s=strip.getBoundingClientRect(),[p,n]=shown.map(k=>k.getBoundingClientRect()),mid=r=>r.top+r.height/2
+    if(p.right>s.left+1||n.left<s.right-1)errors.push('an arrow key overlaps the tabs')
+    if(Math.abs(mid(p)-mid(s))>3||Math.abs(mid(n)-mid(s))>3)errors.push('the arrow keys are not on the line of the tabs')
+    if(s.width<150)errors.push('the arrow keys leave under 150 px for the tabs')
+   }
+   if(guides.getBoundingClientRect().height>64)errors.push('the guides row is taller than one line')
+  }
+ }
  if(location.pathname==='/'&&(!document.querySelector('.hero .actions a[href="https://quarry.school"]')||!document.querySelector('.hero .actions a[href="https://github.com/framerslab/openquarry"]')||!document.querySelector('.hero .actions a[href="/package/"]')||badgeTops.length<3))errors.push('the landing lacks its GitHub key, its Quarry School key, its package key or its badges')
  if(location.pathname==='/'&&!document.querySelector('.install a[href="/package/"]'))errors.push('the landing lacks the install section')
  for(const el of document.querySelectorAll('p, a, code, button, li, td')) if(parseFloat(getComputedStyle(el).fontSize)<14)errors.push('small type')
@@ -161,5 +193,155 @@ for(const width of [390,999,1000,1279,1280]) for(const theme of ['light','dark']
   catch(error){console.log(`The live site could not be captured at ${width} ${theme}: ${error.message}`)}
  }
  await page.close()
+}
+} catch(error){await browser.close();server.close();throw error}
+// The facts row and the guides' arrow keys on the real pages, at each phone width and one tablet width, in both
+// looks. The pictures are taken at 2x.
+const base='http://127.0.0.1:4173/'
+// Every scroll the page asks of the strip is recorded with the behaviour it asked for, then carried out.
+const record=()=>{window.__scrolls=[];const real=Element.prototype.scrollTo;Element.prototype.scrollTo=function(...args){if(this.classList&&this.classList.contains('docs-tabs'))window.__scrolls.push(String(args[0]&&args[0].behavior));return real.apply(this,args)}}
+const open=async(page,route)=>{const response=await page.goto(base+route);if(response.status()!==200)throw Error('Missing '+route);await page.evaluate(()=>document.fonts.ready);await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))}
+const row=page=>page.evaluate(()=>{
+ const g=document.querySelector('.docs-nav'),s=g.querySelector('.docs-tabs'),b=s.getBoundingClientRect(),style=getComputedStyle(s)
+ const key=q=>{const e=g.querySelector(q);return {shown:e.getClientRects().length>0,off:e.getAttribute('aria-disabled')==='true',focused:document.activeElement===e}}
+ return {left:s.scrollLeft,end:s.scrollWidth-s.clientWidth,view:s.clientWidth,over:s.scrollWidth>s.clientWidth+1,scroll:g.dataset.scroll,mask:style.maskImage||style.webkitMaskImage||'none',fades:[style.getPropertyValue('--fade-l').trim(),style.getPropertyValue('--fade-r').trim()],prev:key('[data-tabs-prev]'),next:key('[data-tabs-next]'),tabs:[...s.querySelectorAll('a')].map(a=>{const r=a.getBoundingClientRect();return {name:a.textContent,width:r.width,left:r.left-b.left,right:r.right-b.left,whole:r.left>=b.left-1&&r.right<=b.right+1}})}
+})
+// The strip has come to rest when its position has not changed for 200 ms.
+const rest=async page=>{let last=-1,same=0;for(let i=0;i<100&&same<4;i++){await page.waitForTimeout(50);const now=await page.evaluate(()=>document.querySelector('.docs-tabs').scrollLeft);same=now===last?same+1:0;last=now}if(same<4)throw Error('the strip never came to rest')}
+const press=async(page,which,how='click')=>{
+ const before=await row(page)
+ if(how==='keyboard'){await page.locator(`[data-tabs-${which}]`).focus();await page.keyboard.press('Enter')}else await page.locator(`[data-tabs-${which}]`).click()
+ await page.waitForFunction(left=>document.querySelector('.docs-tabs').scrollLeft!==left,before.left,{timeout:5000})
+ await rest(page)
+ return [before,await row(page)]
+}
+const fadeOf=s=>s.fades.map(f=>parseFloat(f)>0)
+const picture=(page,name,height)=>page.screenshot({path:`site-screenshots/${name}.png`,clip:{x:0,y:0,width:page.viewportSize().width,height},animations:'disabled'})
+try {
+for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark']) {
+ const at=`${width} ${theme}`
+ const context=await browser.newContext({viewport:{width,height:900},colorScheme:theme,reducedMotion:'no-preference',deviceScaleFactor:2})
+ const page=await context.newPage()
+ await page.addInitScript(record)
+ // The facts row on the landing and on the package page, and every other rule of a page at this width.
+ for(const route of ['','package/','format/','spiral/','schema/']){
+  await open(page,route)
+  const issues=await page.evaluate(inspect)
+  if(issues.length){await page.screenshot({path:`site-screenshots/failed-${width}-${theme}-${route.replace('/','')||'home'}.png`,fullPage:true,animations:'disabled'});throw Error(`${at} ${route}: ${issues.join(', ')}`)}
+  if(route==='package/'){
+   const facts=await page.locator('.badges li').allTextContents()
+   if(facts.length!==3||!/^npm/.test(facts[0])||!/^licence/.test(facts[1])||!/^node\d+ or later$/.test(facts[2]))throw Error(`${at}: the package facts are not npm, licence and node: ${facts.join(' | ')}`)
+   if(width<=390||width===768)await picture(page,`facts-package-${width}-${theme}`,560)
+  }
+  if(!route&&width<=390)await page.locator('.hero').screenshot({path:`site-screenshots/facts-landing-${width}-${theme}.png`,animations:'disabled'})
+ }
+ // The first guide: the strip opens at its start, Previous is inactive, and only the right edge fades.
+ await open(page,'format/')
+ let s=await row(page)
+ if(s.over){
+  if(!s.prev.shown||!s.next.shown)throw Error(`${at}: the guides overflow with no arrow keys`)
+  if(s.left!==0||!s.prev.off||s.next.off||s.scroll!=='start')throw Error(`${at}: the first guide should open at the start with Previous inactive: ${JSON.stringify(s)}`)
+  if(!/gradient/.test(s.mask)||fadeOf(s).join()!=='false,true')throw Error(`${at}: at the start only the right edge fades: ${s.mask} ${s.fades}`)
+  if(width===390)await picture(page,`guides-start-${width}-${theme}`,300)
+  // A press on the inactive key moves nothing.
+  await page.locator('[data-tabs-prev]').click();await page.waitForTimeout(250)
+  if((await row(page)).left!==0)throw Error(`${at}: the inactive Previous key moved the strip`)
+  // Next, press after press, to the end: each press moves the strip by no more than one view, and the tab the right
+  // edge cut is then whole in view. The whole row takes no more presses than it has tabs.
+  let presses=0
+  while(!s.next.off){
+   if(++presses>s.tabs.length)throw Error(`${at}: Next takes more presses than the row has tabs`)
+   const [before,after]=await press(page,'next',presses===1&&width===390?'keyboard':'click')
+   const moved=after.left-before.left,cut=before.tabs.find(t=>t.right>before.view+.5)
+   if(moved<=0||moved>before.view+1)throw Error(`${at}: Next moved the strip ${moved} px of a ${before.view} px view`)
+   if(cut&&cut.width<=after.view-60&&!after.tabs.find(t=>t.name===cut.name).whole)throw Error(`${at}: after Next the tab ${cut.name} is not whole in view`)
+   if(after.prev.off||!after.prev.shown)throw Error(`${at}: Previous is inactive away from the start`)
+   if(presses===1&&width===390&&!after.next.focused)throw Error(`${at}: the keyboard press took focus off Next`)
+   if(after.scroll!==(after.next.off?'end':'middle')||fadeOf(after).join()!==(after.next.off?'true,false':'true,true'))throw Error(`${at}: the fade does not follow the strip: ${after.scroll} ${after.fades}`)
+   if(presses===1&&!after.next.off&&(width===390||width===320))await picture(page,`guides-middle-${width}-${theme}`,300)
+   s=after
+  }
+  if(presses<1)throw Error(`${at}: Next was inactive at the start`)
+  if(Math.abs(s.left-s.end)>1||!s.tabs[s.tabs.length-1].whole)throw Error(`${at}: at the end the last guide is not whole in view`)
+  await page.locator('[data-tabs-next]').click();await page.waitForTimeout(250)
+  if(Math.abs((await row(page)).left-s.left)>1)throw Error(`${at}: the inactive Next key moved the strip`)
+  // And back with Previous to the start.
+  presses=0
+  while(!s.prev.off){
+   if(++presses>s.tabs.length)throw Error(`${at}: Previous takes more presses than the row has tabs`)
+   const [before,after]=await press(page,'prev')
+   const moved=before.left-after.left,cut=[...before.tabs].reverse().find(t=>t.left<-.5)
+   if(moved<=0||moved>before.view+1)throw Error(`${at}: Previous moved the strip ${moved} px of a ${before.view} px view`)
+   if(cut&&cut.width<=after.view-60&&!after.tabs.find(t=>t.name===cut.name).whole)throw Error(`${at}: after Previous the tab ${cut.name} is not whole in view`)
+   if(after.next.off)throw Error(`${at}: Next is inactive away from the end`)
+   s=after
+  }
+  if(s.left!==0||!s.tabs[0].whole||s.scroll!=='start')throw Error(`${at}: Previous did not bring the strip back to its start`)
+  // Every move was asked of the browser as a smooth scroll.
+  const asked=await page.evaluate(()=>window.__scrolls)
+  if(!asked.length||asked.some(b=>b!=='smooth'))throw Error(`${at}: the keys did not ask for a smooth scroll: ${asked}`)
+  if(await page.locator('[data-tabs-next]').evaluate(k=>getComputedStyle(k).transitionDuration.split(',').every(d=>parseFloat(d)===0)))throw Error(`${at}: the arrow keys have no hover or press transition`)
+  // A guide in the middle opens with its tab whole in view; the last guide opens at the end with Next inactive.
+  await open(page,'spiral/')
+  s=await row(page)
+  if(!s.tabs.find(t=>t.name==='Spiral learning').whole)throw Error(`${at}: the current guide's tab is not in view`)
+  await open(page,'schema/')
+  s=await row(page)
+  if(!s.tabs.find(t=>t.name==='Schemas').whole||!s.next.off||s.prev.off||s.scroll!=='end'||fadeOf(s).join()!=='true,false')throw Error(`${at}: the last guide should open at the end with Next inactive: ${JSON.stringify(s)}`)
+  if(width===390)await picture(page,`guides-end-${width}-${theme}`,300)
+  if(width===768&&theme==='light'){await open(page,'courses/');await picture(page,`guides-${width}-${theme}`,300)}
+ } else if(width<=480)throw Error(`${at}: the guides fit a phone, so the arrow keys were not exercised`)
+ // The live site at the same width, for the pictures of a change: never part of the check.
+ if(width===390){
+  for(const [route,name,height] of [['spiral/','live-guides',300],['package/','live-facts-package',560]]){
+   try {await page.goto('https://openquarry.dev/'+route,{timeout:30000});await page.evaluate(()=>document.fonts.ready);await picture(page,`${name}-${width}-${theme}`,height)}
+   catch(error){console.log(`The live ${route} could not be captured at ${at}: ${error.message}`)}
+  }
+ }
+ await context.close()
+}
+// Reduced motion: a press puts the strip in its new place with no animation, and the keys have no transition.
+{
+ const context=await browser.newContext({viewport:{width:390,height:900},reducedMotion:'reduce'})
+ const page=await context.newPage()
+ await page.addInitScript(record)
+ await open(page,'format/')
+ await page.locator('[data-tabs-next]').click()
+ await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))))
+ const first=(await row(page)).left
+ await rest(page)
+ const s=await row(page),asked=await page.evaluate(()=>window.__scrolls)
+ if(first<=0||s.left!==first)throw Error(`Reduced motion: the strip did not jump to its place at once (${first}, then ${s.left})`)
+ if(asked.length!==1||asked[0]==='smooth')throw Error(`Reduced motion: the key asked for an animated scroll: ${asked}`)
+ if(!(await page.locator('[data-tabs-next]').evaluate(k=>getComputedStyle(k).transitionDuration.split(',').every(d=>parseFloat(d)===0))))throw Error('Reduced motion: the arrow keys keep a transition')
+ await context.close()
+}
+// The script does not run: no arrow key shows, the strip scrolls sideways with a fade, and the keyboard reaches the
+// last guide.
+{
+ const context=await browser.newContext({viewport:{width:390,height:900}})
+ const page=await context.newPage()
+ await page.route('**/site.js*',route=>route.abort())
+ await page.goto(base+'format/');await page.evaluate(()=>document.fonts.ready)
+ const s=await row(page)
+ if(s.prev.shown||s.next.shown)throw Error('Without the script an arrow key shows')
+ if(!s.over||!/gradient/.test(s.mask))throw Error('Without the script the strip should scroll sideways with a faded edge')
+ if(await page.locator('.docs-tabs').evaluate(e=>getComputedStyle(e).overflowX)!=='auto')throw Error('Without the script the strip cannot be scrolled')
+ await page.locator('.docs-tabs a').last().focus()
+ await rest(page)
+ if(!(await row(page)).tabs.pop().whole)throw Error('Without the script the keyboard does not bring the last guide into view')
+ await context.close()
+}
+// A wide screen: the tabs fit, so no arrow key shows and nothing fades.
+for(const theme of ['light','dark']){
+ const context=await browser.newContext({viewport:{width:1280,height:900},colorScheme:theme,deviceScaleFactor:2})
+ const page=await context.newPage()
+ await open(page,'format/')
+ const s=await row(page)
+ if(s.over||s.prev.shown||s.next.shown||s.scroll!=='none'||fadeOf(s).join()!=='false,false')throw Error(`1280 ${theme}: a guides row that fits should show no arrow key and no fade: ${JSON.stringify(s)}`)
+ await picture(page,`guides-1280-${theme}`,300)
+ await open(page,'package/')
+ await picture(page,`facts-package-1280-${theme}`,560)
+ await context.close()
 }
 } finally {await browser.close();server.close()}
