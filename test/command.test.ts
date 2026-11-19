@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { packageOnNpm } from '../scripts/package-on-npm.mjs'
-import { checkCommand, idCommand, initCommands, newCommands, starters } from '../scripts/start-commands.mjs'
+import { beforeRelease, checkCommand, idCommand, initCommands, newCommands, pinnedTo, starters } from '../scripts/start-commands.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const read = (...path: string[]) => readFileSync(join(root, ...path), 'utf8')
@@ -53,6 +53,20 @@ describe('the openquarry package', () => {
       expect(readme, line).toContain(`${line}\n`)
     }
     expect(readme).toContain(initCommands(starters[0]))
+  })
+
+  it('runs against npm only on the version whose maintainers and provenance CI read, and gives readers no test a stranger could pass', () => {
+    // CI runs the documented lines against npm pinned to the version it has just read; a newer one published meanwhile
+    // is never what runs.
+    const lines = [...starters.map((starter) => initCommands(starter)), checkCommand, newCommands.notes, newCommands.course, idCommand].join('\n')
+    const count = lines.split('npx openquarry ').length - 1
+    const pinned = pinnedTo('0.3.0', lines)
+    expect(count).toBe(8)
+    expect(pinned.match(/npx openquarry\S*/g)).toEqual(Array(count).fill('npx openquarry@0.3.0'))
+    expect(pinned.replaceAll('npx openquarry@0.3.0 ', 'npx openquarry ')).toBe(lines)
+    // Before the release, the note above the commands names no check a reader could run (a version npm prints): anyone
+    // could publish under the free name at that version.
+    if (beforeRelease) expect(beforeRelease.text).not.toMatch(/npm view|prints/)
   })
 })
 

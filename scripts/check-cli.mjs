@@ -307,6 +307,10 @@ try {
     // A folder the check skips, and a link (the check follows none, and a link can lead out of the project).
     for (const folder of ['.drafts', 'node_modules']) {
       refuses(['new', kind, 'A title', '--in', `${loom}/${folder}`], project, `openquarry new: ${loom}/${folder} is in a folder openquarry check skips (${folder}): nothing written`)
+      // A second weaves/ inside that folder does not count: the project's own weaves/, beside its fabric.yaml, does.
+      mkdirSync(join(project, loom, folder, 'weaves', 'unit'), { recursive: true })
+      refuses(['new', kind, 'A title', '--in', `${loom}/${folder}/weaves/unit`], project, `openquarry new: ${loom}/${folder}/weaves/unit is in a folder openquarry check skips (${folder}): nothing written`)
+      same(walk(join(project, loom, folder)), ['skipped.md'], `${starter.id}: ${folder} after a refused new`)
       rmSync(join(project, loom, folder), { recursive: true })
     }
     const away = join(work, `away-${starter.id}`)
@@ -349,6 +353,16 @@ try {
   same(inside.lines.filter((line) => line.startsWith('wrote ')), course.map((file) => `wrote ${file}`), 'the lines of init in the current folder')
   if (inside.lines.some((line) => line.trim().startsWith('cd '))) fail('init in the current folder printed a cd line')
   same(walk(repo, (name) => name === '.git'), course, 'the files of init in the current folder')
+  // A folder whose name starts with a hyphen comes after --, and the printed cd puts ./ before it (cd - is the folder
+  // you were in before).
+  const dash = run(bin, ['init', '--', '-dash'], home)
+  if (dash.status !== 0 || !existsSync(join(home, '-dash', 'fabric.yaml'))) fail('init -- -dash failed')
+  if (!dash.lines.includes('  cd ./-dash') || dash.lines.includes('  cd -dash')) fail('init -- -dash did not print cd ./-dash')
+  // A project inside an outer folder named weaves, below a dot folder: the project's own weaves/ counts for new.
+  const nested = join(work, 'weaves', '.cache', 'nested')
+  mkdirSync(dirname(nested), { recursive: true })
+  if (run(bin, ['init', nested], home).status !== 0) fail('init into a folder below weaves/.cache failed')
+  same(run(bin, ['new', 'note', 'Nested', '--in', 'weaves/notes/getting-started'], nested).lines, ['wrote weaves/notes/getting-started/nested.md', ''], 'new in a project below weaves/.cache')
   // A new folder inside folders that do not exist yet is made.
   if (run(bin, ['init', 'deep/down/notes'], home).status !== 0 || !existsSync(join(home, 'deep', 'down', 'notes', 'fabric.yaml'))) fail('init did not make a nested folder')
   // The target is a file.
