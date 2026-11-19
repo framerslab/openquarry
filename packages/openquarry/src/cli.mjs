@@ -21,7 +21,14 @@ const options = {
 }
 
 function help() {
-  const templates = templateNames().join('|') || 'notes|course'
+  // The help never fails: when the bundled templates cannot be read, it names the two the package ships.
+  let names = []
+  try {
+    names = templateNames()
+  } catch {
+    // init reports the problem when it runs.
+  }
+  const templates = names.join('|') || 'notes|course'
   return `openquarry ${version}: start a folder of notes or a course in the OpenQuarry format, add notes and lessons, and check every file.
 
 Usage:
@@ -64,8 +71,11 @@ function parse(command, args) {
       const name = equals === -1 ? arg.slice(2) : arg.slice(2, equals)
       if (!Object.hasOwn(known, name)) throw new UsageError(`no option named --${name}`)
       if (known[name]) {
-        if (equals === -1 && index + 1 >= args.length) throw new UsageError(`--${name} needs a value`)
-        given[name] = equals === -1 ? args[(index += 1)] : arg.slice(equals + 1)
+        // A value is never empty, and a -- after the option ends the options instead of being its value.
+        const value = equals === -1 ? args[index + 1] : arg.slice(equals + 1)
+        if (value === undefined || value === '' || (equals === -1 && value === '--')) throw new UsageError(`--${name} needs a value`)
+        if (equals === -1) index += 1
+        given[name] = value
       } else {
         if (equals !== -1) throw new UsageError(`--${name} takes no value`)
         given[name] = true

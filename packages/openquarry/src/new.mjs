@@ -1,7 +1,7 @@
 // openquarry new: writes one note or lesson, a Markdown file with the five keys every thread needs. It writes no
 // licence: a person's notes and lessons carry the licence they state themselves.
 import { randomUUID } from 'node:crypto'
-import { existsSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, openSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { stringify } from 'yaml'
 import { validateThreadFrontmatter } from '@framers/openquarry'
@@ -53,26 +53,34 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   // The folder is one the check walks: below a weaves/ folder, through real folders only (the check follows no link
   // there, and a link can lead out of the project), none of them a dot folder or node_modules.
   const segments = dir.split(sep)
-  // The weaves/ folder the check starts from: the innermost one beside a fabric.yaml (the top of a project), or the last
-  // one in the path when no fabric.yaml is found. So in weaves/notes/.drafts/weaves/unit of a project, the project's own
-  // weaves/ counts, and .drafts, which its check skips, is refused.
+  // The weaves/ folder the check starts from. The top of a project holds fabric.yaml or catalogue.yaml beside weaves/,
+  // the two files the check reads there, and the innermost such weaves/ counts. With neither file in the path, the first
+  // weaves/ counts, so the note lands where a check from any folder above it reads it. So in
+  // weaves/notes/.drafts/weaves/unit, the project's own weaves/ counts, and .drafts, which its check skips, is refused.
   const found = segments.flatMap((segment, index) => (segment === 'weaves' ? [index] : []))
-  const project = found.filter((index) => index < segments.length - 1 && existsSync(join(segments.slice(0, index).join(sep) || sep, 'fabric.yaml')))
-  const weaves = project.length > 0 ? project[project.length - 1] : found.length > 0 ? found[found.length - 1] : -1
+  const top = (index) => segments.slice(0, index).join(sep) || sep
+  const project = found.filter((index) => index < segments.length - 1 && ['fabric.yaml', 'catalogue.yaml'].some((file) => existsSync(join(top(index), file))))
+  const weaves = project.length > 0 ? project[project.length - 1] : found.length > 0 ? found[0] : -1
   if (weaves === -1 || weaves === segments.length - 1) {
     throw new Refusal(`${name} is not inside a weaves/ folder, where openquarry check looks for notes and lessons: name a folder with --in, such as --in weaves/notes/getting-started`)
   }
   const typedSegments = here ? [] : typed.split(/[/\\]+/)
+  // The link, as the person typed it when the typed path reaches that far; its full path otherwise.
+  const linkShown = (index) => {
+    const below = segments.length - 1 - index
+    return typedSegments.length > below ? typedSegments.slice(0, typedSegments.length - below).join('/') : segments.slice(0, index + 1).join('/')
+  }
+  // weaves/ itself is a real folder: a link there would take the note out of the project.
+  if (entry(segments.slice(0, weaves + 1).join(sep))?.isSymbolicLink()) {
+    throw new Refusal(`${linkShown(weaves)} is a link: openquarry new writes only into real folders of the project, so nothing lands outside it`)
+  }
   for (let index = weaves + 1; index < segments.length; index += 1) {
     const segment = segments[index]
     if (segment.startsWith('.') || segment === 'node_modules') {
       throw new Refusal(`${name} is in a folder openquarry check skips (${segment}): nothing written`)
     }
     if (entry(segments.slice(0, index + 1).join(sep))?.isSymbolicLink()) {
-      // The link, as the person typed it when the typed path reaches that far; its full path otherwise.
-      const below = segments.length - 1 - index
-      const shown = typedSegments.length > below ? typedSegments.slice(0, typedSegments.length - below).join('/') : segments.slice(0, index + 1).join('/')
-      throw new Refusal(`${shown} is a link, and openquarry check follows no link below weaves/: nothing written`)
+      throw new Refusal(`${linkShown(index)} is a link, and openquarry check follows no link below weaves/: nothing written`)
     }
   }
 
@@ -87,12 +95,28 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   if (!same || !validateThreadFrontmatter(read).valid) throw new Refusal(`the title ${JSON.stringify(title)} cannot be written as YAML that reads back the same: nothing written`)
 
   const shown = here ? `${slug}.md` : `${typed}/${slug}.md`
+  const path = join(dir, `${slug}.md`)
+  let fd
   try {
     // wx: create the file or fail. A file that is there is never opened.
-    writeFileSync(join(dir, `${slug}.md`), text, { flag: 'wx' })
+    fd = openSync(path, 'wx')
   } catch (error) {
     if (error.code === 'EEXIST') throw new Refusal(`${shown} is already there: nothing written. Pass --slug for another file name.`)
     throw error
+  }
+  try {
+    writeFileSync(fd, text)
+    closeSync(fd)
+  } catch (error) {
+    // A write that began and failed (a full disk) leaves no half-written file, so the same command works again: this
+    // run created the file, so it removes it.
+    try {
+      closeSync(fd)
+    } catch {
+      // Already closed.
+    }
+    rmSync(path, { force: true })
+    throw new Refusal(`${shown} could not be written: ${String(error.message).split('\n')[0]}. Nothing was left in its place.`)
   }
   return [`wrote ${shown}`]
 }

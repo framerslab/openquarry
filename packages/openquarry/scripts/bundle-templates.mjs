@@ -10,11 +10,8 @@ const here = join(dirname(fileURLToPath(import.meta.url)), '..')
 const source = join(here, '..', '..', 'templates')
 const dest = join(here, 'templates')
 
-if (!existsSync(source)) {
-  // Packed again from an unpacked tarball: the starters are already here.
-  if (existsSync(dest)) process.exit(0)
-  throw Error(`No starters to bundle: ${source} is missing`)
-}
+// It runs from a checkout of the repository only: the published package does not carry this script.
+if (!existsSync(source)) throw Error(`No starters to bundle: ${source} is missing. Pack this package from a checkout of the repository.`)
 
 const stored = (segment) => {
   if (segment.startsWith('_dot_')) throw Error(`A starter holds ${segment}: a name that starts with _dot_ cannot be bundled`)

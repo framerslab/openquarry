@@ -64,9 +64,12 @@ try {
   const view = run('npm', ['view', `${library.name}@${library.version}`, 'version', '--json'], work)
   if (view.status !== 0 && !/\bE404\b/.test(view.output)) fail(`npm view ${library.name}@${library.version} failed`)
   const libraryOnNpm = (view.status === 0 && view.stdout.trim() ? JSON.parse(view.stdout) : '') === library.version
+  // From npm, the exact version is installed beside the command, so a newer patch on npm never stands in for it.
   if (existsSync(libraryTarball)) specs.push(libraryTarball)
-  else if (libraryOnNpm) console.log(`${library.name}@${library.version} comes from npm`)
-  else if (given) fail(`${library.name}@${library.version} is not on npm and ${tarballs} holds no tarball of it`)
+  else if (libraryOnNpm) {
+    specs.push(`${library.name}@${library.version}`)
+    console.log(`${library.name}@${library.version} comes from npm`)
+  } else if (given) fail(`${library.name}@${library.version} is not on npm and ${tarballs} holds no tarball of it`)
   else {
     console.log(`${library.name}@${library.version} is not on npm yet: installing, building and packing this checkout`)
     for (const args of [['install', '--no-audit', '--no-fund'], ['run', 'build'], ['pack', '--pack-destination', tarballs]]) {
@@ -109,7 +112,7 @@ try {
   // Which library the installed command resolved, and from where.
   const locked = JSON.parse(readFileSync(join(home, 'package-lock.json'), 'utf8')).packages['node_modules/@framers/openquarry']
   if (locked?.version !== library.version) fail(`The command resolved ${library.name} ${locked?.version}; this checkout holds ${library.version}`)
-  if (specs.length === 1 && !String(locked.resolved).startsWith('https://registry.npmjs.org/')) fail(`${library.name} did not come from npm: ${locked.resolved}`)
+  if (!specs.includes(libraryTarball) && !String(locked.resolved).startsWith('https://registry.npmjs.org/')) fail(`${library.name} did not come from npm: ${locked.resolved}`)
   console.log(`ok installed openquarry ${manifest.version} with ${library.name} ${locked.version} from ${locked.resolved}`)
 
   // 4. Version, help, and a wrong command line.

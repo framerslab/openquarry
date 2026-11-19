@@ -1,6 +1,6 @@
 // openquarry init: copies a bundled template into a folder, byte for byte. It copies files and nothing else: no code
 // from a template is run, nothing is installed, and no file that is already there is ever overwritten.
-import { lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Refusal, UsageError } from './errors.mjs'
@@ -63,6 +63,9 @@ export function init({ folder, template = 'notes', force = false, cwd = process.
 
   // Beneath the target, every folder on the way to a file is a real folder or is missing. A link or a file in that
   // place stops the command here, before the first write, so nothing is written through a link that leaves the target.
+  // This holds for the folders as they stand at this check. A folder that another process swaps for a link between the
+  // check and a write is not defended: Node opens files by path and has no call that opens one relative to a folder
+  // already checked. The target is the person's own folder on their own machine.
   const plan = files.map((file) => {
     const dest = join(target, ...file.segments)
     if (!beneath(target, dest)) throw new Refusal(`the ${template} template holds ${file.shown}, a path that leaves the folder: nothing written`)
@@ -87,28 +90,36 @@ export function init({ folder, template = 'notes', force = false, cwd = process.
       lines.push(`kept ${show(file.shown)} (already there)`)
       continue
     }
-    let made = false
+    let fd
     try {
+      // The template file is read before the destination is opened, so a failed read touches nothing in the target.
+      const data = readFileSync(file.from)
       mkdirSync(dirname(file.dest), { recursive: true })
-      // wx: create the file or fail. It never opens a file that is there and never writes through a link.
-      writeFileSync(file.dest, readFileSync(file.from), { flag: 'wx' })
-      made = true
+      // wx: create the file or fail. It never opens a file that is there and never writes through a link at that name.
+      fd = openSync(file.dest, 'wx')
+      writeFileSync(fd, data)
+      closeSync(fd)
+      fd = undefined
     } catch (error) {
-      // A write that began and failed (a full disk) leaves no half-written file: this run made it, so it removes it.
-      if (error.code !== 'EEXIST') {
+      // Only a file this run created is removed: a write that began and failed (a full disk) leaves no half-written
+      // file, and a path this run never opened, which another process may have made, is never touched.
+      if (fd !== undefined) {
+        try {
+          closeSync(fd)
+        } catch {
+          // Already closed.
+        }
         try {
           rmSync(file.dest, { force: true })
         } catch {
-          // Nothing was made at that path.
+          // Nothing more can be done; the error line below names the file.
         }
       }
       const reason = error.code === 'EEXIST' ? 'it appeared while the files were being written' : String(error.message).split('\n')[0]
       throw new Refusal(`${show(file.shown)} could not be written: ${reason}. ${written} of ${plan.length} files were written before it and are left in place; run the command again with --force to add the rest.`)
     }
-    if (made) {
-      written += 1
-      lines.push(`wrote ${show(file.shown)}`)
-    }
+    written += 1
+    lines.push(`wrote ${show(file.shown)}`)
   }
 
   const kept = plan.length - written

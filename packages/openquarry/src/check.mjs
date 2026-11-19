@@ -2,11 +2,28 @@
 // at the top, and under weaves/ each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two
 // threads may share an id. One line for each file; the result says whether any file is invalid.
 // The rules and the lines are those of the check.mjs script the starters carry, so a project reads the same either way.
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
 import { Refusal } from './errors.mjs'
 import { block, parse, unmarked } from './frontmatter.mjs'
+
+// The text of a plain file, or undefined for anything else. O_NONBLOCK lets a pipe open at once instead of waiting for a
+// writer; a regular file reads as usual. A socket cannot be opened at all (ENXIO), and is not a plain file either.
+function readPlain(path) {
+  let fd
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0))
+  } catch (error) {
+    if (error.code === 'ENXIO') return undefined
+    throw error
+  }
+  try {
+    return fstatSync(fd).isFile() ? unmarked(readFileSync(fd, 'utf8')) : undefined
+  } finally {
+    closeSync(fd)
+  }
+}
 
 // Every file under a folder, in name order. Folders whose names start with a dot, and node_modules, are skipped. A link
 // to a folder is not followed: it is listed as an entry, like a file.
@@ -37,6 +54,11 @@ export function check({ folder, cwd = process.cwd() } = {}) {
     if (existsSync(join(root, name))) files.push({ path: join(root, name), validate })
   }
   if (existsSync(join(root, 'weaves'))) {
+    // weaves/ is a folder, or a link to one, which the walk starts by reading.
+    if (!statSync(join(root, 'weaves')).isDirectory()) {
+      const at = folder === undefined ? '' : `${folder.replace(/[/\\]+$/, '') || folder}/`
+      throw new Refusal(`${at}weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder`)
+    }
     for (const path of walk(join(root, 'weaves'))) {
       const name = path.split(sep).pop()
       if (name === 'weave.yaml') files.push({ path, validate: validateWeave })
@@ -51,10 +73,12 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   for (const { path, validate, thread } of files) {
     let errors
     try {
-      // A pipe, a socket, a device or a link to a folder that is named like a file of the format is never opened.
-      if (!statSync(path).isFile()) errors = ['/ is not a plain file']
+      // Opened once, without waiting on a pipe, and read from that same handle only when it is a plain file: a pipe, a
+      // socket, a device or a folder named like a file of the format is reported and never read. A link to a plain file
+      // is read, as the starters' check.mjs reads it.
+      const text = readPlain(path)
+      if (text === undefined) errors = ['/ is not a plain file']
       else {
-        const text = unmarked(readFileSync(path, 'utf8'))
         const yaml = thread ? block(text) : text
         if (yaml === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
         else {
