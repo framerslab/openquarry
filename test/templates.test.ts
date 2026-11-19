@@ -107,6 +107,10 @@ describe('the starters', () => {
     if (beforeRelease) {
       expect(at(`> ${beforeRelease.text}\n`)).toBeGreaterThan(at('## Start a project'))
       expect(at(`> ${beforeRelease.text}\n`)).toBeLessThan(at('<!-- commands: init-notes -->'))
+      // The command's lines are in Start a project alone, under that sentence: nowhere above it, and nowhere from the
+      // degit lines on (the FAQ included), where a reader would meet them without it.
+      expect(readme.slice(0, at(`> ${beforeRelease.text}\n`))).not.toContain('npx openquarry')
+      expect(readme.slice(at('<!-- commands: notes -->'))).not.toContain('npx openquarry')
     } else expect(readme).not.toContain('not on npm yet')
   })
 })

@@ -23,6 +23,8 @@ const cli = JSON.parse(readFileSync(join(cliDir, 'package.json'), 'utf8'))
 const library = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const fail = (message) => { throw Error(message) }
+// What new says of a folder outside the project's weaves/ folder, after the folder's name.
+const outsideWeaves = "is not inside the project's weaves/ folder, where openquarry check looks for notes and lessons: name a folder with --in, such as --in weaves/notes/getting-started"
 
 // Runs a program, prints what it wrote, and returns its exit status and output.
 function run(command, args, cwd, env = {}) {
@@ -306,7 +308,6 @@ try {
     const ids = Object.values(read).map(([, id]) => id)
     if (new Set(ids).size !== ids.length || ids.length !== titles.length + 3) fail(`${starter.id}: ${ids.length} threads hold ${new Set(ids).size} ids`)
     // A folder outside weaves/, the weaves/ folder itself, and a folder that is not there.
-    const outsideWeaves = 'is not inside a weaves/ folder, where openquarry check looks for notes and lessons: name a folder with --in, such as --in weaves/notes/getting-started'
     refuses(['new', kind, 'A title'], project, `openquarry new: this folder ${outsideWeaves}`)
     refuses(['new', kind, 'A title', '--in', 'weaves'], project, `openquarry new: weaves ${outsideWeaves}`)
     refuses(['new', kind, 'A title', '--in', `${loom}/nowhere`], project, `openquarry new: ${loom}/nowhere is not a folder: make it first`)
@@ -379,6 +380,21 @@ try {
   mkdirSync(dirname(nested), { recursive: true })
   if (run(bin, ['init', nested], home).status !== 0) fail('init into a folder below weaves/.cache failed')
   same(run(bin, ['new', 'note', 'Nested', '--in', 'weaves/notes/getting-started'], nested).lines, ['wrote weaves/notes/getting-started/nested.md', ''], 'new in a project below weaves/.cache')
+  // The same project below plain folders: new from the project's top, into its weaves/ itself, or into a weaves/ that is
+  // not the one beside its fabric.yaml is refused, since the project's check reads only its own weaves/. Nothing is written.
+  const shelved = join(work, 'weaves', 'shelf', 'shelved')
+  mkdirSync(dirname(shelved), { recursive: true })
+  if (run(bin, ['init', shelved], home).status !== 0) fail('init into a folder below weaves/shelf failed')
+  mkdirSync(join(shelved, 'drafts', 'weaves', 'unit'), { recursive: true })
+  refuses(['new', 'note', 'A title'], shelved, `openquarry new: this folder ${outsideWeaves}`)
+  refuses(['new', 'note', 'A title', '--in', 'weaves'], shelved, `openquarry new: weaves ${outsideWeaves}`)
+  refuses(['new', 'note', 'A title', '--in', 'drafts/weaves/unit'], shelved, `openquarry new: drafts/weaves/unit ${outsideWeaves}`)
+  rmSync(join(shelved, 'drafts'), { recursive: true })
+  same(walk(shelved), ours, 'a project below weaves/shelf after the refused new commands')
+  // A folder that only bears a manifest's name inside weaves/ is not the top of a project: new still writes below it.
+  mkdirSync(join(shelved, 'weaves', 'notes', 'catalogue.yaml'))
+  same(run(bin, ['new', 'note', 'Shelved', '--in', 'weaves/notes/getting-started'], shelved).lines, ['wrote weaves/notes/getting-started/shelved.md', ''], 'new in a project below weaves/shelf, beside a folder named catalogue.yaml')
+  rmSync(join(shelved, 'weaves', 'notes', 'catalogue.yaml'), { recursive: true })
   // A new folder inside folders that do not exist yet is made.
   if (run(bin, ['init', 'deep/down/notes'], home).status !== 0 || !existsSync(join(home, 'deep', 'down', 'notes', 'fabric.yaml'))) fail('init did not make a nested folder')
   // The target is a file.
@@ -509,6 +525,33 @@ try {
   copyFileSync(join(root, notes.folder, 'fabric.yaml'), join(fileWeaves, 'fabric.yaml'))
   writeFileSync(join(fileWeaves, 'weaves'), 'x\n')
   refuses(['check', 'file-weaves'], home, 'openquarry check: file-weaves/weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder')
+  // A link that leads nowhere is never taken for a file that is not there: a fabric.yaml, or a thread below weaves/, so
+  // linked is reported as not a plain file, and a weaves/ so linked stops the check with one line.
+  const gone = join(work, 'gone')
+  const brokenLinks = join(home, 'broken-links')
+  if (run(bin, ['init', 'broken-links'], home).status !== 0) fail('init broken-links failed')
+  rmSync(join(brokenLinks, 'fabric.yaml'))
+  symlinkSync(join(gone, 'fabric.yaml'), join(brokenLinks, 'fabric.yaml'))
+  symlinkSync(join(gone, 'gone.md'), join(brokenLinks, 'weaves', 'notes', 'getting-started', 'gone.md'))
+  // A link whose path runs through a plain file as if it were a folder leads nowhere too.
+  const plainFile = join(work, 'plain-file')
+  writeFileSync(plainFile, 'x\n')
+  symlinkSync(join(plainFile, 'x.md'), join(brokenLinks, 'weaves', 'notes', 'getting-started', 'through-a-file.md'))
+  {
+    const count = ours.filter((file) => /^fabric\.yaml$|^catalogue\.yaml$|^weaves\/.*(\.yaml|\.md)$/.test(file)).length + 2
+    const result = run(bin, ['check', 'broken-links'], home)
+    if (result.status !== 1) fail(`check exited ${result.status} for links that lead nowhere, expected 1`)
+    for (const line of ['not ok fabric.yaml', 'not ok weaves/notes/getting-started/gone.md', 'not ok weaves/notes/getting-started/through-a-file.md', `3 of ${count} files invalid.`]) if (!result.lines.includes(line)) fail(`for links that lead nowhere, no line ${JSON.stringify(line)}`)
+    same(result.lines.filter((line) => line.startsWith('  ')), Array(3).fill('  / is not a plain file'), 'the problems of links that lead nowhere')
+  }
+  const brokenWeaves = join(home, 'broken-weaves')
+  mkdirSync(brokenWeaves)
+  copyFileSync(join(root, notes.folder, 'fabric.yaml'), join(brokenWeaves, 'fabric.yaml'))
+  symlinkSync(join(gone, 'weaves'), join(brokenWeaves, 'weaves'))
+  refuses(['check', 'broken-weaves'], home, 'openquarry check: broken-weaves/weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder')
+  rmSync(join(brokenWeaves, 'weaves'))
+  symlinkSync(join(plainFile, 'weaves'), join(brokenWeaves, 'weaves'))
+  refuses(['check', 'broken-weaves'], home, 'openquarry check: broken-weaves/weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder')
   // The help shows even when the bundled templates cannot be read.
   chmodSync(join(installed, 'templates'), 0o000)
   try {

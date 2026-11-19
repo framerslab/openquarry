@@ -315,7 +315,7 @@ Yes. A thread is Markdown with a YAML block on top, and the validator's error li
 
 ### How do I validate a file?
 
-From the command line, `npx openquarry check` validates every file of a project. In code, parse a file's YAML with your parser and call the validator of its kind: `validateThreadFrontmatter`, `validateLoom`, `validateWeave`, `validateFabricManifest` or `validateCatalogue`. Outside JavaScript, use any JSON Schema draft 2020-12 validator with the schemas from the host. Four of the catalogue's rules cannot be held by a schema, and such a reader checks them itself: [the catalogue](docs/courses.md#the-catalogue) lists them.
+From the command line, the `openquarry` package's `check` command validates every file of a project: [Start a project](#start-a-project) shows it. In code, parse a file's YAML with your parser and call the validator of its kind: `validateThreadFrontmatter`, `validateLoom`, `validateWeave`, `validateFabricManifest` or `validateCatalogue`. Outside JavaScript, use any JSON Schema draft 2020-12 validator with the schemas from the host. Four of the catalogue's rules cannot be held by a schema, and such a reader checks them itself: [the catalogue](docs/courses.md#the-catalogue) lists them.
 
 ### Where are the schemas?
 
