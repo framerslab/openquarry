@@ -2,20 +2,22 @@
 // at the top, and under weaves/ each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two
 // threads may share an id. One line for each file; the result says whether any file is invalid.
 // The rules and the lines are those of the check.mjs script the starters carry, so a project reads the same either way.
-import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { closeSync, constants, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
 import { Refusal } from './errors.mjs'
 import { block, parse, unmarked } from './frontmatter.mjs'
+import { entry } from './paths.mjs'
 
 // The text of a plain file, or undefined for anything else. O_NONBLOCK lets a pipe open at once instead of waiting for a
-// writer; a regular file reads as usual. A socket cannot be opened at all (ENXIO), and is not a plain file either.
+// writer; a regular file reads as usual. A socket cannot be opened at all (ENXIO), and a link that leads nowhere
+// (ENOENT) or round in a loop (ELOOP) leads to no file: none of them is a plain file.
 function readPlain(path) {
   let fd
   try {
     fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0))
   } catch (error) {
-    if (error.code === 'ENXIO') return undefined
+    if (error.code === 'ENXIO' || error.code === 'ENOENT' || error.code === 'ELOOP') return undefined
     throw error
   }
   try {
@@ -49,13 +51,22 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   if (!isFolder) throw new Refusal(`${folder ?? 'this folder'} is not a folder`)
   const shown = (path) => relative(root, path).split(sep).join('/')
 
+  // A name is there when anything is at it, a link that leads nowhere included: such a link is reported, never skipped
+  // as if the file were missing.
   const files = []
   for (const [name, validate] of [['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue]]) {
-    if (existsSync(join(root, name))) files.push({ path: join(root, name), validate })
+    if (entry(join(root, name))) files.push({ path: join(root, name), validate })
   }
-  if (existsSync(join(root, 'weaves'))) {
+  if (entry(join(root, 'weaves'))) {
     // weaves/ is a folder, or a link to one, which the walk starts by reading.
-    if (!statSync(join(root, 'weaves')).isDirectory()) {
+    let isWeavesFolder = false
+    try {
+      isWeavesFolder = statSync(join(root, 'weaves')).isDirectory()
+    } catch (error) {
+      // A link that leads nowhere, or round in a loop, is not a folder; any other answer is the file system's own.
+      if (error.code !== 'ENOENT' && error.code !== 'ELOOP') throw error
+    }
+    if (!isWeavesFolder) {
       const at = folder === undefined ? '' : `${folder.replace(/[/\\]+$/, '') || folder}/`
       throw new Refusal(`${at}weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder`)
     }
