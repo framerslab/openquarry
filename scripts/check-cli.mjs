@@ -194,6 +194,11 @@ try {
     report('the starter as it is', 0, [`${files.length} files checked, all valid.`])
     writeFileSync(threadPath, text.replace(/^version: .*\n/m, ''))
     report('a thread without its version', 1, [`not ok ${thread}`, "  / must have required property 'version'", invalid(files.length)])
+    if (starter.id === 'notes') {
+      // The report the package's README shows is this one, line for line.
+      const shownReport = /```text\n([\s\S]*?)\n```/.exec(readFileSync(join(installed, 'README.md'), 'utf8'))?.[1] ?? fail("The package's README shows no report")
+      same(run(bin, ['check'], project).stdout, `${shownReport}\n`, "the report the package's README shows")
+    }
     writeFileSync(threadPath, text.replace(/^contentType: .*$/m, 'contentType: lecture'))
     report('a contentType the schema does not list', 1, [`not ok ${thread}`, '  /contentType must be equal to one of the allowed values: "lesson", "reference", "exercise", "assessment", "project", "discussion", "resource", "markdown", "code", "data", "media"', invalid(files.length)])
     writeFileSync(threadPath, 'No frontmatter\n')

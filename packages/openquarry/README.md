@@ -75,13 +75,13 @@ npx openquarry check
 
 `check` validates `fabric.yaml` and `catalogue.yaml` at the top of the folder, and under `weaves/` every `weave.yaml`, every `loom.yaml` and the frontmatter of every Markdown file. Two threads may not share an `id`. Name a folder to check it from elsewhere: `openquarry check my-notes`.
 
-It prints one line for each file, and under a file that is invalid one line for each problem:
+It prints one line for each file, and under a file that is invalid one line for each problem. In a project made with `init`, after `version` is taken out of the first note:
 
 ```text
 ok fabric.yaml
-ok weaves/notes/getting-started/loom.yaml
-not ok weaves/notes/getting-started/scale-and-distance.md
+not ok weaves/notes/getting-started/first-note.md
   / must have required property 'version'
+ok weaves/notes/getting-started/loom.yaml
 ok weaves/notes/weave.yaml
 1 of 4 files invalid.
 ```
