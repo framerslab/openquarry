@@ -36,7 +36,7 @@ export function startCommands(starter, ref, from = repository) {
   ].join('\n')
 }
 
-/** Prints a new id for a note or a lesson. */
+/** Prints a new id for a note or a lesson with Node alone. The starters' READMEs show it, and the start job runs it. */
 export const newId = 'node -e "console.log(crypto.randomUUID())"'
 
 /** The commands that start a project with the openquarry command: one line makes the folder, the next two check it. */
@@ -56,7 +56,11 @@ export const newCommands = {
 /** Prints a new id with the openquarry command. */
 export const idCommand = 'npx openquarry id'
 
-/** Shown above the commands until the openquarry package is on npm: the release removes it once npm serves the package. */
+/**
+ * Shown above the openquarry commands, in the README and on the package page, until the openquarry package is on npm.
+ * After the release, set this to null and remove the sentence from the README: the tests hold both to this value, and
+ * CI's start job warns while the sentence is still shown after npm serves the package.
+ */
 export const beforeRelease = {
   version: '0.3.0',
   text: 'The openquarry package is not on npm yet: 0.3.0 is its first release. Until `npm view openquarry version` prints 0.3.0, start with the degit commands below.',

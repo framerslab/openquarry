@@ -13,4 +13,4 @@ export declare function initCommands(starter: Starter): string
 export declare const checkCommand: string
 export declare const newCommands: Record<string, string>
 export declare const idCommand: string
-export declare const beforeRelease: { version: string; text: string }
+export declare const beforeRelease: { version: string; text: string } | null

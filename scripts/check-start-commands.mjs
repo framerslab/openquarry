@@ -6,12 +6,17 @@
 // request's head commit and START_REPO the repository it comes from (a fork included), the copy is pinned to that
 // commit with degit's #ref, and the job checks out the same commit, so the starters under review are the ones run and
 // compared.
+// The openquarry command's lines (npx openquarry init, check, new, id) are proven from the packed tarball by the cli job
+// (scripts/check-cli.mjs). This job also runs them against npm, in a fresh folder with an empty npm cache, but only
+// once the registry shows that the openquarry package there is ours (scripts/package-on-npm.mjs) and is the version
+// this commit documents. A package of that name from anyone else stops the job, and nothing from it is run.
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { newId, startCommands, starters } from './start-commands.mjs'
+import { packageOnNpm } from './package-on-npm.mjs'
+import { beforeRelease, checkCommand, idCommand, initCommands, newCommands, newId, startCommands, starters } from './start-commands.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ref = process.env.START_REF || ''
@@ -19,8 +24,8 @@ const from = (ref && process.env.START_REPO) || undefined
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // Runs a shell command, prints what it wrote, and returns its exit status and output.
-function sh(command, cwd, options = '-euo pipefail') {
-  const result = spawnSync('bash', [...options.split(' '), '-c', command], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+function sh(command, cwd, options = '-euo pipefail', env = {}) {
+  const result = spawnSync('bash', [...options.split(' '), '-c', command], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env } })
   const output = `${result.stdout || ''}${result.stderr || ''}`
   console.log(`$ ${command.replaceAll('\n', '\n$ ')}\n${output.trimEnd()}\n(exit ${result.status})`)
   return { status: result.status, output }
@@ -105,3 +110,38 @@ for (const starter of starters) {
   }
 }
 console.log('\nok every starter: copied, installed from npm and checked')
+
+// The openquarry command, from npm. The same reading of the registry is first made of the library, which this
+// repository's release workflow has published since 0.2.0: it must come back as ours, so the reading itself is proven
+// on every run, before and after the command's first release.
+const libraryOnNpm = await packageOnNpm('@framers/openquarry')
+if (libraryOnNpm.version !== latest) throw Error(`The registry names @framers/openquarry ${libraryOnNpm.version} as newest; npm view said ${latest}`)
+console.log(`\nok @framers/openquarry ${latest} on npm is ours: our maintainers, and provenance from this repository's release workflow`)
+const command = JSON.parse(readFileSync(join(root, 'packages', 'openquarry', 'package.json'), 'utf8'))
+const commandOnNpm = await packageOnNpm('openquarry')
+if (commandOnNpm.version === undefined) {
+  console.log(`openquarry is not on npm yet: its documented commands are proven from the packed tarball by the cli job (scripts/check-cli.mjs)`)
+  if (!beforeRelease) throw Error('The docs no longer say that openquarry is not on npm yet, and npm has no such package: restore beforeRelease in scripts/start-commands.mjs until the release')
+} else if (commandOnNpm.version !== command.version) {
+  console.log(`npm serves openquarry ${commandOnNpm.version} (ours) and this commit documents ${command.version}: nothing was run from npm; the commands of this commit are proven from the packed tarball by the cli job`)
+} else {
+  // A person's first run: an empty folder, an empty npm cache, the documented lines as written.
+  const dir = mkdtempSync(join(tmpdir(), 'openquarry-npx-'))
+  const env = { npm_config_cache: join(dir, '.npm-cache'), npm_config_yes: 'true', npm_config_update_notifier: 'false' }
+  try {
+    for (const starter of starters) {
+      console.log(`\n=== ${starter.title}: openquarry ${command.version} from npm`)
+      const made = sh(initCommands(starter), dir, undefined, env)
+      if (made.status !== 0 || !/^\d+ files checked, all valid\.$/m.test(made.output)) throw Error(`${starter.id}: the documented commands failed against openquarry ${command.version} from npm`)
+      const added = sh(`${newCommands[starter.id]}\n${checkCommand}`, join(dir, starter.dest), undefined, env)
+      if (added.status !== 0 || !/^\d+ files checked, all valid\.$/m.test(added.output)) throw Error(`${starter.id}: ${newCommands[starter.id]} did not leave a valid project`)
+    }
+    const id = sh(idCommand, dir, undefined, env).output.trim().split('\n').pop()
+    if (!uuid.test(id)) throw Error(`${idCommand} printed ${JSON.stringify(id)}`)
+    console.log(`\nok openquarry ${command.version} from npm: init, check, new and id as documented`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+  // The sentence that says the package is not on npm yet has done its work: a warning until it is removed.
+  if (beforeRelease) console.log('::warning file=scripts/start-commands.mjs::openquarry is on npm: set beforeRelease to null and remove its sentence from the README')
+}

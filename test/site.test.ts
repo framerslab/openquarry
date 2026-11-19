@@ -7,7 +7,7 @@ import yaml from 'js-yaml'
 import { afterAll, describe, expect, it } from 'vitest'
 import { buildSite, schemaFiles, ORIGIN, SCHEMA_PATH } from '../scripts/build-site.mjs'
 import { highlight } from '../scripts/highlight.mjs'
-import { newId, startCommands, starters } from '../scripts/start-commands.mjs'
+import { beforeRelease, checkCommand, idCommand, initCommands, newCommands, startCommands, starters } from '../scripts/start-commands.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const out = mkdtempSync(join(tmpdir(), 'openquarry-site-'))
@@ -168,16 +168,33 @@ describe('the public format site', () => {
     expect(page.indexOf('<h2 id="start">')).toBeLessThan(page.indexOf('<h2 id="install">'))
     const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
     const blocks = [...start.matchAll(/<figure class="code">[\s\S]*?<\/figure>/g)].map((m) => m[0])
-    const commands = [...starters.map((s) => startCommands(s)), newId]
+    // The openquarry command leads: init for each starter, then check, new and id; the degit commands follow.
+    const commands = [...starters.map((s) => initCommands(s)), checkCommand, newCommands.notes, newCommands.course, idCommand, ...starters.map((s) => startCommands(s))]
     expect(blocks.map((b) => unescape(/<code class="language-bash">([\s\S]*?)<\/code>/.exec(b)?.[1] ?? ''))).toEqual(commands)
+    expect(commands[0].split('\n')[0]).toBe('npx openquarry init my-notes')
     for (const b of blocks) expect(b).toContain('data-copy')
-    expect(start).toContain('<code>npm create openquarry</code> arrives with the next release.')
-    for (const link of ['https://github.com/framerslab/openquarry/tree/master/templates', 'https://github.com/framerslab/openquarry/tree/master/examples/reading-a-map', '/schema/', 'https://www.npmjs.com/package/@framers/openquarry', 'https://github.com/framerslab/openquarry']) {
+    for (const id of ['start-notes', 'start-course', 'start-check', 'start-new', 'start-id', 'start-degit']) expect(start, id).toContain(`<h3 id="${id}">`)
+    // Until the openquarry package is on npm, one sentence says so before the first command. The release removes it.
+    if (beforeRelease) {
+      const note = start.indexOf('<div class="callout before-release">')
+      expect(note).toBeGreaterThan(start.indexOf('<h2 id="start">'))
+      expect(note).toBeLessThan(start.indexOf('<figure class="code">'))
+      expect(unescape(/<div class="callout before-release"><p>([\s\S]*?)<\/p><\/div>/.exec(start)?.[1] ?? '')).toBe(beforeRelease.text.replaceAll('`', ''))
+    } else expect(page).not.toContain('not on npm yet')
+    for (const link of ['https://www.npmjs.com/package/openquarry', 'https://github.com/framerslab/openquarry/tree/master/packages/openquarry#readme', 'https://github.com/framerslab/openquarry/tree/master/templates', 'https://github.com/framerslab/openquarry/tree/master/examples/reading-a-map', '/schema/', 'https://www.npmjs.com/package/@framers/openquarry', 'https://github.com/framerslab/openquarry']) {
       expect(start, `Start a project links ${link}`).toContain(`href="${link}"`)
     }
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     expect(/<section class="install"[\s\S]*?<\/section>/.exec(home)?.[0]).toContain('<a href="/package/#start">Start a project</a>')
     expect(readFileSync(join(site, 'format', 'index.html'), 'utf8')).toContain('<a href="/package/#start">start a project from a starter</a>')
+  })
+  it('says on every page that the openquarry package carries the command, and nowhere that a command is missing or to come', () => {
+    for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'package', 'about']) {
+      const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+      for (const gone of ['npm create', 'no standalone CLI', 'no command-line tool']) expect(html, `${path || 'home'}: ${gone}`).not.toContain(gone)
+    }
+    expect(readFileSync(join(site, 'package', 'index.html'), 'utf8')).toContain('The command line is the <code>openquarry</code> package: <a href="#start">Start a project</a> shows it.')
+    expect(readFileSync(join(site, 'validate', 'index.html'), 'utf8')).toContain('<code>npx openquarry check</code> validates every file of a project: <a href="/package/#start-check">Start a project</a> shows it.')
   })
   it('names the stylesheet and the script by their content, so a new build is never drawn with an old cached stylesheet', () => {
     for (const path of ['', 'learning', 'about']) {

@@ -1,6 +1,7 @@
 // The starters under templates/: each is a fabric with its manifest, one weave, one loom and one thread, every file valid
 // under this build, with the same check script and the same dependencies. The README shows the commands that start a
-// project from them exactly as scripts/start-commands.mjs writes them; CI runs those commands against the package from
+// project from them exactly as scripts/start-commands.mjs writes them: the openquarry command's lines first, which CI
+// runs from the packed tarball (scripts/check-cli.mjs), then the degit lines, which CI runs against the package from
 // npm (scripts/check-start-commands.mjs).
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 import { validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '../src/index.js'
-import { newId, startCommands, starters } from '../scripts/start-commands.mjs'
+import { beforeRelease, checkCommand, idCommand, initCommands, newCommands, newId, startCommands, starters } from '../scripts/start-commands.mjs'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const read = (...path: string[]) => readFileSync(join(root, ...path), 'utf8')
@@ -81,12 +82,31 @@ describe('the starters', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  it('are started in the README with the commands the package page shows and CI runs', () => {
+  it('are started in the README with the commands the package page shows and CI runs, the openquarry command first', () => {
     const readme = read('README.md')
     const block = (name: string) => new RegExp(`<!-- commands: ${name} -->\\n\`\`\`bash\\n([\\s\\S]*?)\\n\`\`\``).exec(readme)?.[1]
-    for (const starter of starters) expect(block(starter.id), starter.id).toBe(startCommands(starter))
-    expect(block('id')).toBe(newId)
-    expect(readme.indexOf('## Start a project')).toBeLessThan(readme.indexOf('## A fabric on disk'))
-    expect(readme).toContain('`npm create openquarry` arrives with the next release.')
+    for (const starter of starters) {
+      expect(block(`init-${starter.id}`), `init ${starter.id}`).toBe(initCommands(starter))
+      expect(block(`new-${starter.id}`), `new ${starter.id}`).toBe(newCommands[starter.id])
+      expect(block(starter.id), `degit ${starter.id}`).toBe(startCommands(starter))
+    }
+    expect(block('check')).toBe(checkCommand)
+    expect(block('id')).toBe(idCommand)
+    expect(initCommands(starters[0]).split('\n')[0]).toBe('npx openquarry init my-notes')
+    expect(initCommands(starters[1]).split('\n')[0]).toBe('npx openquarry init my-course --template course')
+    // The section opens the README's guide, and the command's lines come before the degit ones.
+    const at = (text: string) => readme.indexOf(text)
+    expect(at('## Start a project')).toBeGreaterThan(0)
+    expect(at('## Start a project')).toBeLessThan(at('## A fabric on disk'))
+    expect(at('<!-- commands: init-notes -->')).toBeGreaterThan(at('## Start a project'))
+    for (const name of ['init-course', 'check', 'new-notes', 'new-course', 'id']) expect(at(`<!-- commands: ${name} -->`), name).toBeLessThan(at('<!-- commands: notes -->'))
+    expect(readme).not.toContain('npm create')
+    // The starters' own READMEs keep the line that prints an id with Node alone; CI's start job runs it.
+    for (const starter of starters) expect(read(starter.folder, 'README.md')).toContain(newId)
+    // Until the openquarry package is on npm, one sentence says so before the first command. The release removes it.
+    if (beforeRelease) {
+      expect(at(`> ${beforeRelease.text}\n`)).toBeGreaterThan(at('## Start a project'))
+      expect(at(`> ${beforeRelease.text}\n`)).toBeLessThan(at('<!-- commands: init-notes -->'))
+    } else expect(readme).not.toContain('not on npm yet')
   })
 })
