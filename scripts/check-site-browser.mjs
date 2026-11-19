@@ -39,7 +39,7 @@ const inspect=()=>{
  if(shows('.menu-key')!==(innerWidth<1000))errors.push('the menu key shows at the wrong width')
  if(shows('.menu-key')&&shows('.top .main-nav'))errors.push('the menu key and the header links show together')
  if(shows('.top .main-nav')!==(innerWidth>=1000))errors.push('the header links show at the wrong width')
- if(document.querySelector('.top .used-by'))errors.push('the header holds Used by, which belongs in the footer')
+ {const row=[...document.querySelectorAll('.top > *')].filter(e=>!e.matches('.menu'));if(row.some(e=>/Used by/i.test(e.textContent)||[...e.querySelectorAll('a[href]')].some(a=>/quarry\.(school|space)/.test(a.href))))errors.push('the header holds Used by, which belongs in the footer')}
  // The row's links are all in view: none is cut off at the row's edge or scrolled out of it.
  const nav=document.querySelector('.top .main-nav')
  if(nav&&nav.getClientRects().length&&nav.scrollWidth>nav.clientWidth+1)errors.push('the header links are cut off')
