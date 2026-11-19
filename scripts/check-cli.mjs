@@ -10,7 +10,7 @@
 //   node scripts/check-cli.mjs --tarballs <folder>
 // tests the tarballs already in that folder and packs nothing: the release publishes the exact files it tested.
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative, resolve, sep } from 'node:path'
@@ -281,6 +281,10 @@ try {
     usage(['new', kind, 'Two\nlines'], 'openquarry new: the title must be one line with no control character', here)
     usage(['new', kind, '   '], 'openquarry new: a title is missing: openquarry new note "A title"', here)
     usage(['new', kind, 'Two', 'titles'], 'openquarry new: one title, in quotes when it has spaces: got 2', here)
+    // An option's value is never empty, and a -- after an option that takes a value is not its value.
+    usage(['new', kind, 'A title', '--in='], 'openquarry new: --in needs a value', here)
+    usage(['new', kind, 'A title', '--in', '--'], 'openquarry new: --in needs a value', here)
+    usage(['new', kind, 'A title', '--slug='], 'openquarry new: --slug needs a value', here)
     // The titles come back from the YAML as they went in, as text, with the five keys and nothing more; every id is its own.
     const parsed = run('node', ['--input-type=module', '-e', `
       import { readFileSync, readdirSync } from 'node:fs'
@@ -311,6 +315,15 @@ try {
       mkdirSync(join(project, loom, folder, 'weaves', 'unit'), { recursive: true })
       refuses(['new', kind, 'A title', '--in', `${loom}/${folder}/weaves/unit`], project, `openquarry new: ${loom}/${folder}/weaves/unit is in a folder openquarry check skips (${folder}): nothing written`)
       same(walk(join(project, loom, folder)), ['skipped.md'], `${starter.id}: ${folder} after a refused new`)
+      // The same with no fabric.yaml: the top's catalogue.yaml marks the project, and with neither file the first
+      // weaves/ in the path counts.
+      renameSync(join(project, 'fabric.yaml'), join(project, 'fabric.yaml.off'))
+      writeFileSync(join(project, 'catalogue.yaml'), 'subjects: []\n')
+      refuses(['new', kind, 'A title', '--in', `${loom}/${folder}/weaves/unit`], project, `openquarry new: ${loom}/${folder}/weaves/unit is in a folder openquarry check skips (${folder}): nothing written`)
+      rmSync(join(project, 'catalogue.yaml'))
+      refuses(['new', kind, 'A title', '--in', `${loom}/${folder}/weaves/unit`], project, `openquarry new: ${loom}/${folder}/weaves/unit is in a folder openquarry check skips (${folder}): nothing written`)
+      renameSync(join(project, 'fabric.yaml.off'), join(project, 'fabric.yaml'))
+      same(walk(join(project, loom, folder)), ['skipped.md'], `${starter.id}: ${folder} after a refused new with no fabric.yaml`)
       rmSync(join(project, loom, folder), { recursive: true })
     }
     const away = join(work, `away-${starter.id}`)
@@ -369,9 +382,13 @@ try {
   writeFileSync(join(home, 'a-file'), 'x\n')
   refuses(['init', 'a-file'], home, 'openquarry init: a-file is a file, not a folder: nothing written')
   // A template name is one of the bundled names, never a path.
-  for (const name of ['../notes', '/etc', 'templates/notes', 'nope', '']) {
+  for (const name of ['../notes', '/etc', 'templates/notes', 'nope']) {
     usage(['init', 'escape', '--template', name], `openquarry init: no template named ${JSON.stringify(name)}: the templates are notes, course`)
     if (existsSync(join(home, 'escape'))) fail(`init made a folder for the template ${JSON.stringify(name)}`)
+  }
+  for (const args of [['--template', ''], ['--template='], ['--template', '--']]) {
+    usage(['init', 'escape', ...args], 'openquarry init: --template needs a value')
+    if (existsSync(join(home, 'escape'))) fail(`init made a folder for ${args.join(' ')}`)
   }
   usage(['init', 'a', 'b'], 'openquarry init: one folder at most, got 2')
   // A link in the target that leads out of it: refused before any write, with --force too, and nothing lands outside.
@@ -472,6 +489,88 @@ try {
   const none = run(bin, ['check', 'empty'], home)
   if (none.status !== 1 || !none.lines.includes('No OpenQuarry files found: expected fabric.yaml or a weaves/ folder here.')) fail('check of an empty folder did not say so')
   refuses(['check', 'not-there'], home, 'openquarry check: not-there is not a folder')
+
+  console.log('\n=== links, a weaves/ that is a file, unreadable templates, and writes that fail')
+  // A project whose weaves/ is a link to a folder outside it: new writes nothing through it.
+  const linkedProject = join(home, 'linked-project')
+  const elsewhere = join(work, 'elsewhere')
+  mkdirSync(join(elsewhere, 'notes'), { recursive: true })
+  mkdirSync(linkedProject)
+  copyFileSync(join(root, notes.folder, 'fabric.yaml'), join(linkedProject, 'fabric.yaml'))
+  symlinkSync(elsewhere, join(linkedProject, 'weaves'))
+  refuses(['new', 'note', 'A title', '--in', 'weaves/notes'], linkedProject, 'openquarry new: weaves is a link: openquarry new writes only into real folders of the project, so nothing lands outside it')
+  same(walk(elsewhere), [], 'the folder a linked weaves/ leads to')
+  // A weaves/ that is a file: one line that says so.
+  const fileWeaves = join(home, 'file-weaves')
+  mkdirSync(fileWeaves)
+  copyFileSync(join(root, notes.folder, 'fabric.yaml'), join(fileWeaves, 'fabric.yaml'))
+  writeFileSync(join(fileWeaves, 'weaves'), 'x\n')
+  refuses(['check', 'file-weaves'], home, 'openquarry check: file-weaves/weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder')
+  // The help shows even when the bundled templates cannot be read.
+  chmodSync(join(installed, 'templates'), 0o000)
+  try {
+    const unreadable = run(bin, ['--help'], home)
+    if (unreadable.status !== 0 || !unreadable.stdout.includes('openquarry init [folder] [--template notes|course] [--force]') || unreadable.stderr !== '') fail('--help failed when the templates could not be read')
+  } finally {
+    chmodSync(join(installed, 'templates'), 0o755)
+  }
+  // A template file that cannot be read while another process makes that file in the target first: init stops, and
+  // the other process's file is left as it is.
+  const raced = join(work, 'raced.cjs')
+  const theirs = join(home, 'raced', 'fabric.yaml')
+  writeFileSync(raced, `
+    const fs = require('node:fs')
+    const path = require('node:path')
+    const read = fs.readFileSync
+    fs.readFileSync = function (file, ...rest) {
+      if (String(file).endsWith(path.join('templates', 'notes', 'fabric.yaml'))) {
+        fs.mkdirSync(path.dirname(${JSON.stringify(theirs)}), { recursive: true })
+        fs.writeFileSync(${JSON.stringify(theirs)}, 'theirs\\n')
+        const error = new Error('EACCES: permission denied, open ' + JSON.stringify(String(file)))
+        error.code = 'EACCES'
+        throw error
+      }
+      return read.call(this, file, ...rest)
+    }
+    require('node:module').syncBuiltinESMExports()
+  `)
+  const racedRun = run('node', ['--require', raced, join(installed, 'bin', 'openquarry.mjs'), 'init', 'raced'], home)
+  if (racedRun.status !== 1 || !racedRun.stderr.startsWith('openquarry init: raced/fabric.yaml could not be written: EACCES')) fail('init did not stop on a template file it could not read')
+  same(readFileSync(theirs, 'utf8'), 'theirs\n', "another process's file in the target after a failed read")
+  // A write that fails part way (a full disk): the file it was writing is removed, and the same command run again
+  // writes it. For new, and for init, whose second run with --force adds the files that are missing.
+  const fullDisk = join(work, 'full-disk.cjs')
+  writeFileSync(fullDisk, `
+    const fs = require('node:fs')
+    const write = fs.writeFileSync
+    let count = 0
+    fs.writeFileSync = function (file, data, ...rest) {
+      const ours = typeof file === 'number' || (rest[0] && rest[0].flag === 'wx')
+      if (ours && ++count === Number(process.env.OPENQUARRY_FAIL_AT)) {
+        write.call(this, file, Buffer.from(typeof data === 'string' ? data : data).subarray(0, 5), ...rest)
+        const error = new Error('ENOSPC: no space left on device, write')
+        error.code = 'ENOSPC'
+        throw error
+      }
+      return write.call(this, file, data, ...rest)
+    }
+    require('node:module').syncBuiltinESMExports()
+  `)
+  const failing = (args, cwd, at) => run('node', ['--require', fullDisk, join(installed, 'bin', 'openquarry.mjs'), ...args], cwd, { OPENQUARRY_FAIL_AT: String(at) })
+  const disk = join(home, 'disk')
+  const diskInit = failing(['init', 'disk'], home, 3)
+  const third = ours[2]
+  if (diskInit.status !== 1 || !diskInit.stderr.startsWith(`openquarry init: disk/${third} could not be written: ENOSPC`) || !diskInit.stderr.includes('2 of ')) fail('init did not stop on a full disk with its count')
+  if (existsSync(join(disk, third))) fail(`init left a half-written ${third}`)
+  if (run(bin, ['init', 'disk', '--force'], home).status !== 0) fail('init --force after a full disk failed')
+  same(walk(disk), ours, 'the files of init --force after a full disk')
+  for (const file of ours) if (!readFileSync(join(root, notes.folder, file)).equals(readFileSync(join(disk, file)))) fail(`after a full disk: ${file} differs from the starter`)
+  const diskNew = failing(['new', 'note', 'Full disk', '--in', 'weaves/notes/getting-started'], disk, 1)
+  if (diskNew.status !== 1 || !diskNew.stderr.startsWith('openquarry new: ')) fail('new did not stop on a full disk')
+  if (existsSync(join(disk, 'weaves', 'notes', 'getting-started', 'full-disk.md'))) fail('new left a half-written full-disk.md')
+  same(run(bin, ['new', 'note', 'Full disk', '--in', 'weaves/notes/getting-started'], disk).lines, ['wrote weaves/notes/getting-started/full-disk.md', ''], 'new after a full disk')
+  if (run(bin, ['check'], disk).status !== 0) fail('check after a full disk failed')
+  console.log('ok a linked weaves/, a weaves/ file, unreadable templates, a failed read and a full disk')
 
   // 9. id: the documented line prints a UUID, a new one each time.
   const one = sh(idCommand, home).stdout

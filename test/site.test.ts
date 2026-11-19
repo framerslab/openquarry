@@ -194,7 +194,15 @@ describe('the public format site', () => {
       for (const gone of ['npm create', 'no standalone CLI', 'no command-line tool']) expect(html, `${path || 'home'}: ${gone}`).not.toContain(gone)
     }
     expect(readFileSync(join(site, 'package', 'index.html'), 'utf8')).toContain('The command line is the <code>openquarry</code> package: <a href="#start">Start a project</a> shows it.')
-    expect(readFileSync(join(site, 'validate', 'index.html'), 'utf8')).toContain('<code>npx openquarry check</code> validates every file of a project: <a href="/package/#start-check">Start a project</a> shows it.')
+    // Until the release, the Validate page says the package is not on npm yet before it names the command.
+    const validate = readFileSync(join(site, 'validate', 'index.html'), 'utf8')
+    if (beforeRelease) {
+      expect(validate).toContain('<p>The <code>openquarry</code> package is not on npm yet. Once it is, <code>npx openquarry check</code> validates every file of a project: <a href="/package/#start">Start a project</a> shows it.')
+      expect(validate.indexOf('not on npm yet')).toBeLessThan(validate.indexOf('npx openquarry check'))
+    } else {
+      expect(validate).toContain('<code>npx openquarry check</code> validates every file of a project: <a href="/package/#start-check">Start a project</a> shows it.')
+      expect(validate).not.toContain('not on npm yet')
+    }
   })
   it('names the stylesheet and the script by their content, so a new build is never drawn with an old cached stylesheet', () => {
     for (const path of ['', 'learning', 'about']) {
