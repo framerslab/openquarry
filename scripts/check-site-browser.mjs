@@ -67,7 +67,8 @@ const inspect=()=>{
   if(mask&&mask!=='none')errors.push('the facts row is faded at an edge')
   for(const fact of facts.querySelectorAll('li')){const r=fact.getBoundingClientRect();if(r.left<box.left-1||r.right>box.right+1||r.right>innerWidth)errors.push('a fact is cut off: '+fact.textContent)}
   for(const part of facts.querySelectorAll('span,strong'))if(part.scrollWidth>part.clientWidth+1)errors.push('a fact does not fit its chip: '+part.textContent)
-  if(innerWidth<=900)for(const a of facts.querySelectorAll('a'))if(a.getBoundingClientRect().height<44)errors.push('a fact is under 44 px tall')
+  // A box measured while the hero's arrival animation moves it can read a hair under its height, so the sizes round.
+  if(innerWidth<=900)for(const a of facts.querySelectorAll('a'))if(Math.round(a.getBoundingClientRect().height)<44)errors.push('a fact is under 44 px tall')
  }
  // The guides' row: its tabs sit in a strip between a previous and a next key. The keys show only when the tabs do
  // not fit; then each is a named button of 44 px or more inside the page, beside the strip and on its line.
@@ -82,7 +83,7 @@ const inspect=()=>{
    if(innerWidth<=480&&!over)errors.push('the guides fit a phone: the arrow keys are not exercised')
    if(arrows[0].getAttribute('aria-label')!=='Previous guides'||arrows[1].getAttribute('aria-label')!=='Next guides')errors.push('an arrow key lacks its name')
    if(arrows.some(k=>k.getAttribute('aria-controls')!==strip.id||!strip.id))errors.push('an arrow key does not name the strip it moves')
-   for(const k of shown){const r=k.getBoundingClientRect();if(r.width<44||r.height<44)errors.push('an arrow key is under 44 px');if(r.left<0||r.right>innerWidth)errors.push('an arrow key leaves the page')}
+   for(const k of shown){const r=k.getBoundingClientRect();if(Math.round(r.width)<44||Math.round(r.height)<44)errors.push('an arrow key is under 44 px');if(r.left<0||r.right>innerWidth)errors.push('an arrow key leaves the page')}
    if(shown.length===2){
     const s=strip.getBoundingClientRect(),[p,n]=shown.map(k=>k.getBoundingClientRect()),mid=r=>r.top+r.height/2
     if(p.right>s.left+1||n.left<s.right-1)errors.push('an arrow key overlaps the tabs')
@@ -218,7 +219,8 @@ const press=async(page,which,how='click')=>{
 const fadeOf=s=>s.fades.map(f=>parseFloat(f)>0)
 // A pointer press in the middle of an inactive key (Playwright's own click waits for a key that is not aria-disabled).
 const poke=async(page,which)=>{const box=await page.locator(`[data-tabs-${which}]`).boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await page.waitForTimeout(250)}
-const picture=(page,name,height)=>page.screenshot({path:`site-screenshots/${name}.png`,clip:{x:0,y:0,width:page.viewportSize().width,height},animations:'disabled'})
+// A picture is taken with the pointer off the keys, so none is drawn in its hover look.
+const picture=async(page,name,height)=>{await page.mouse.move(page.viewportSize().width/2,height-10);return page.screenshot({path:`site-screenshots/${name}.png`,clip:{x:0,y:0,width:page.viewportSize().width,height},animations:'disabled'})}
 try {
 for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark']) {
  const at=`${width} ${theme}`
