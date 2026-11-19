@@ -176,13 +176,13 @@ for(const width of [390,999,1000,1279,1280]) for(const theme of ['light','dark']
  }
  // The parts a change to Start a project touches, from this build and, where they exist there, from the live site.
  if(width===390||width===1280){
-  const parts=[['package/','.start','start'],['package/','.top','package-top'],['','.install','install'],['format/','p.start-link','format-link']]
+  const parts=[['package/','.start','start'],['package/','.top','package-top'],['','.install','install'],['format/','p.start-link','format-link'],['package/','#command-line + p','command-line']]
   for(const [route,selector,name] of parts){
    await page.goto('http://127.0.0.1:4173/'+route);await page.evaluate(()=>document.fonts.ready)
    if(name==='package-top')await page.screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})
    else await page.locator(selector).first().screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})
   }
-  for(const [route,selector,name] of [['package/',null,'live-package-top'],['','.install','live-install']]){
+  for(const [route,selector,name] of [['package/',null,'live-package-top'],['','.install','live-install'],['package/','#command-line + p','live-command-line']]){
    try {await page.goto('https://openquarry.dev/'+route,{timeout:30000});await page.evaluate(()=>document.fonts.ready);if(selector)await page.locator(selector).first().screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled',timeout:10000});else await page.screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})}
    catch(error){console.log(`The live ${route||'landing'} could not be captured at ${width} ${theme}: ${error.message}`)}
   }
