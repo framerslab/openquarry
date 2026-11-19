@@ -220,7 +220,7 @@ const fadeOf=s=>s.fades.map(f=>parseFloat(f)>0)
 // A pointer press in the middle of an inactive key (Playwright's own click waits for a key that is not aria-disabled).
 const poke=async(page,which)=>{const box=await page.locator(`[data-tabs-${which}]`).boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);await page.waitForTimeout(250)}
 // A picture is taken with the pointer off the keys, so none is drawn in its hover look.
-const picture=async(page,name,height)=>{await page.mouse.move(page.viewportSize().width/2,height-10);return page.screenshot({path:`site-screenshots/${name}.png`,clip:{x:0,y:0,width:page.viewportSize().width,height},animations:'disabled'})}
+const picture=async(page,name,height)=>{await page.mouse.move(1,1);return page.screenshot({path:`site-screenshots/${name}.png`,clip:{x:0,y:0,width:page.viewportSize().width,height},animations:'disabled'})}
 try {
 for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark']) {
  const at=`${width} ${theme}`
