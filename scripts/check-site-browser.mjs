@@ -148,8 +148,8 @@ for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark'])
  const startCopied=await page.evaluate(()=>navigator.clipboard.readText())
  if(startCopied!==await page.locator('.start pre code').first().textContent()||!startCopied.startsWith('npx openquarry init my-notes\n'))throw Error('The clipboard does not hold the Start a project commands: '+startCopied)
  await page.goto('http://127.0.0.1:4173/')
- // The menu: it opens on its key, holds every link in one column inside the page, and Escape closes it.
- if(width<1280){
+ // The menu: under 1000 px it opens on its key, holds every link in one column inside the page, and Escape closes it.
+ if(width<1000){
   await page.locator('.menu-key').click()
   const panel=await page.evaluate(()=>{const p=document.querySelector('.menu-panel').getBoundingClientRect();const links=[...document.querySelectorAll('.menu-panel a')].map(a=>a.getBoundingClientRect());return {left:p.left,right:p.right,bottom:p.bottom,w:innerWidth,rows:links.filter(r=>r.height>=44).length,columns:new Set(links.map(r=>Math.round(r.left))).size}})
   if(panel.left<0||panel.right>panel.w||panel.rows<9||panel.columns!==1)throw Error(`${width} ${theme}: the menu panel does not fit the page or lacks its links: ${JSON.stringify(panel)}`)
