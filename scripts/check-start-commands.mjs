@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { packageOnNpm } from './package-on-npm.mjs'
-import { beforeRelease, checkCommand, idCommand, initCommands, newCommands, newId, startCommands, starters } from './start-commands.mjs'
+import { beforeRelease, checkCommand, idCommand, initCommands, newCommands, newId, pinnedTo, startCommands, starters } from './start-commands.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const ref = process.env.START_REF || ''
@@ -125,18 +125,21 @@ if (commandOnNpm.version === undefined) {
 } else if (commandOnNpm.version !== command.version) {
   console.log(`npm serves openquarry ${commandOnNpm.version} (ours) and this commit documents ${command.version}: nothing was run from npm; the commands of this commit are proven from the packed tarball by the cli job`)
 } else {
-  // A person's first run: an empty folder, an empty npm cache, the documented lines as written.
+  // A person's first run: an empty folder, an empty npm cache, the documented lines as written, each pinned to the
+  // version whose maintainers and provenance were just read. A published version never changes, so a newer one
+  // published while this runs is never what runs here.
   const dir = mkdtempSync(join(tmpdir(), 'openquarry-npx-'))
   const env = { npm_config_cache: join(dir, '.npm-cache'), npm_config_yes: 'true', npm_config_update_notifier: 'false' }
+  const pinned = (lines) => pinnedTo(commandOnNpm.version, lines)
   try {
     for (const starter of starters) {
       console.log(`\n=== ${starter.title}: openquarry ${command.version} from npm`)
-      const made = sh(initCommands(starter), dir, undefined, env)
+      const made = sh(pinned(initCommands(starter)), dir, undefined, env)
       if (made.status !== 0 || !/^\d+ files checked, all valid\.$/m.test(made.output)) throw Error(`${starter.id}: the documented commands failed against openquarry ${command.version} from npm`)
-      const added = sh(`${newCommands[starter.id]}\n${checkCommand}`, join(dir, starter.dest), undefined, env)
+      const added = sh(pinned(`${newCommands[starter.id]}\n${checkCommand}`), join(dir, starter.dest), undefined, env)
       if (added.status !== 0 || !/^\d+ files checked, all valid\.$/m.test(added.output)) throw Error(`${starter.id}: ${newCommands[starter.id]} did not leave a valid project`)
     }
-    const id = sh(idCommand, dir, undefined, env).output.trim().split('\n').pop()
+    const id = sh(pinned(idCommand), dir, undefined, env).output.trim().split('\n').pop()
     if (!uuid.test(id)) throw Error(`${idCommand} printed ${JSON.stringify(id)}`)
     console.log(`\nok openquarry ${command.version} from npm: init, check, new and id as documented`)
   } finally {

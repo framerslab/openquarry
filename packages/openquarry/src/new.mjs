@@ -1,7 +1,7 @@
 // openquarry new: writes one note or lesson, a Markdown file with the five keys every thread needs. It writes no
 // licence: a person's notes and lessons carry the licence they state themselves.
 import { randomUUID } from 'node:crypto'
-import { statSync, writeFileSync } from 'node:fs'
+import { existsSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { stringify } from 'yaml'
 import { validateThreadFrontmatter } from '@framers/openquarry'
@@ -53,7 +53,12 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   // The folder is one the check walks: below a weaves/ folder, through real folders only (the check follows no link
   // there, and a link can lead out of the project), none of them a dot folder or node_modules.
   const segments = dir.split(sep)
-  const weaves = segments.lastIndexOf('weaves')
+  // The weaves/ folder the check starts from: the innermost one beside a fabric.yaml (the top of a project), or the last
+  // one in the path when no fabric.yaml is found. So in weaves/notes/.drafts/weaves/unit of a project, the project's own
+  // weaves/ counts, and .drafts, which its check skips, is refused.
+  const found = segments.flatMap((segment, index) => (segment === 'weaves' ? [index] : []))
+  const project = found.filter((index) => index < segments.length - 1 && existsSync(join(segments.slice(0, index).join(sep) || sep, 'fabric.yaml')))
+  const weaves = project.length > 0 ? project[project.length - 1] : found.length > 0 ? found[found.length - 1] : -1
   if (weaves === -1 || weaves === segments.length - 1) {
     throw new Refusal(`${name} is not inside a weaves/ folder, where openquarry check looks for notes and lessons: name a folder with --in, such as --in weaves/notes/getting-started`)
   }

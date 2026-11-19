@@ -56,12 +56,18 @@ export const newCommands = {
 /** Prints a new id with the openquarry command. */
 export const idCommand = 'npx openquarry id'
 
+/** The documented lines with each `npx openquarry` pinned to one version. CI runs them so against npm, on the version whose
+ * maintainers and provenance it has just read: a published version never changes. */
+export const pinnedTo = (version, lines) => lines.replaceAll('npx openquarry ', `npx openquarry@${version} `)
+
 /**
  * Shown above the openquarry commands, in the README and on the package page, until the openquarry package is on npm.
  * After the release, set this to null and remove the sentence from the README: the tests hold both to this value, and
  * CI's start job warns while the sentence is still shown after npm serves the package.
+ * The sentence gives readers no test of their own (such as a version number npm prints): anyone could publish a package
+ * under a free name at any version, so the only signal is the note itself, which the release removes.
  */
 export const beforeRelease = {
   version: '0.3.0',
-  text: 'The openquarry package is not on npm yet: 0.3.0 is its first release. Until `npm view openquarry version` prints 0.3.0, start with the degit commands below.',
+  text: 'The openquarry package is not on npm yet. This note goes when its first release, 0.3.0, is out. Until then, start with the degit commands below.',
 }

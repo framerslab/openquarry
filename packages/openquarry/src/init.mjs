@@ -19,8 +19,12 @@ export function templateNames(dir = bundled) {
   return names.sort((a, b) => (a === 'notes' ? -1 : b === 'notes' ? 1 : a < b ? -1 : a > b ? 1 : 0))
 }
 
-// A folder's name as a shell takes it: quoted when it holds anything but letters, digits and . _ / -
-const shell = (text) => (/^[A-Za-z0-9._/-]+$/.test(text) ? text : `'${text.replaceAll("'", "'\\''")}'`)
+// A folder's name as a shell takes it: quoted when it holds anything but letters, digits and . _ / -, and after ./ when
+// it starts with a hyphen, so `cd` never reads it as an option (`cd -` is the previous folder).
+const shell = (text) => {
+  const path = text.startsWith('-') ? `./${text}` : text
+  return /^[A-Za-z0-9._/-]+$/.test(path) ? path : `'${path.replaceAll("'", "'\\''")}'`
+}
 
 /**
  * Copies the template into the folder and returns the lines to print.

@@ -10,7 +10,7 @@ OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A
 
 One command starts a folder of notes or a course, and one checks every file in it. Both come from the [`openquarry`](https://www.npmjs.com/package/openquarry) package.
 
-> The openquarry package is not on npm yet: 0.3.0 is its first release. Until `npm view openquarry version` prints 0.3.0, start with the degit commands below.
+> The openquarry package is not on npm yet. This note goes when its first release, 0.3.0, is out. Until then, start with the degit commands below.
 
 Notes, a knowledge base with a first note:
 
