@@ -6,6 +6,43 @@
 
 OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A note or a lesson is one Markdown file with YAML frontmatter. Folders group the files into looms, and looms into weaves: a weave is a knowledge base or a course. The files are plain text that a person can read and a language model can write, and JSON Schemas say what each file may hold.
 
+## Start a project
+
+Copy a starter, install it and check every file. Each starter is a fabric with its manifest, one weave, one loom and one thread, with a `check` script that validates every file with this package.
+
+Notes, a knowledge base with a first note:
+
+<!-- commands: notes -->
+```bash
+npx degit framerslab/openquarry/templates/notes my-notes
+cd my-notes
+npm install
+npm run check
+```
+
+A course, with a unit and a first lesson:
+
+<!-- commands: course -->
+```bash
+npx degit framerslab/openquarry/templates/course my-course
+cd my-course
+npm install
+npm run check
+```
+
+`npm run check` prints a line for each file and exits with 1 when one is invalid, so the same command can run in your CI. Each new note or lesson needs its own `id`; this command prints one:
+
+<!-- commands: id -->
+```bash
+node -e "console.log(crypto.randomUUID())"
+```
+
+The commands need Node 20 or later. `npx degit` copies the starter's folder from GitHub without its history. `npm create openquarry` arrives with the next release.
+
+Links: [the starters on GitHub](https://github.com/framerslab/openquarry/tree/master/templates), [the example course](examples/reading-a-map), [the schemas](https://openquarry.dev/schema/), [@framers/openquarry on npm](https://www.npmjs.com/package/@framers/openquarry), [the source on GitHub](https://github.com/framerslab/openquarry) and [Start a project on the package page](https://openquarry.dev/package/#start).
+
+## The package
+
 This package holds the format's JSON Schemas, TypeScript types for every file the format defines, and a validator built on [Ajv](https://ajv.js.org/).
 
 - [Read the format guide](https://openquarry.dev/format/), including current summaries and the proposed reading depths.

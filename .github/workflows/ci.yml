@@ -50,6 +50,26 @@ jobs:
       - name: The files npm would publish
         run: npm pack --dry-run
 
+  start:
+    name: Start a project (the documented commands, against npm)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # Each starter is copied with npx degit into a fresh folder outside the checkout, installed from npm and checked.
+      # On a pull request the copy is pinned to the pull request's head commit; on master the commands run as written.
+      - name: Copy, install and check each starter
+        env:
+          START_REF: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-start-commands.mjs
+
   site:
     name: The schema host (openquarry.dev)
     runs-on: ubuntu-latest

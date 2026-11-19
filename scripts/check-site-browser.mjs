@@ -105,6 +105,15 @@ for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark'])
   const copied=await page.evaluate(()=>navigator.clipboard.readText())
   if(copied!==await page.locator(`${block} pre code`).textContent())throw Error('The clipboard does not hold the code of '+block)
  }
+ // The first command block of Start a project on the package page copies the commands, line for line.
+ await page.goto('http://127.0.0.1:4173/package/')
+ const startCopy=page.locator('.start [data-copy]').first()
+ await startCopy.click()
+ await page.waitForFunction(()=>document.querySelector('.start [data-copy]').textContent!=='Copy',null,{timeout:5000})
+ if(await startCopy.textContent()!=='Copied')throw Error('The Start a project copy key did not copy: '+await startCopy.textContent())
+ const startCopied=await page.evaluate(()=>navigator.clipboard.readText())
+ if(startCopied!==await page.locator('.start pre code').first().textContent()||!startCopied.startsWith('npx degit framerslab/openquarry/templates/'))throw Error('The clipboard does not hold the Start a project commands: '+startCopied)
+ await page.goto('http://127.0.0.1:4173/')
  // The menu: it opens on its key, holds every link in one column inside the page, and Escape closes it.
  if(width<1280){
   await page.locator('.menu-key').click()
@@ -131,6 +140,19 @@ for(const width of [390,999,1000,1279,1280]) for(const theme of ['light','dark']
   const issues=await page.evaluate(inspect)
   if(issues.length){await page.screenshot({path:`site-screenshots/failed-${width}-${theme}-${route.replace('/','')||'home'}.png`,fullPage:true,animations:'disabled'});throw Error(`${width} ${theme} ${route}: ${issues.join(', ')}`)}
   if(width===390||width===1280)await page.screenshot({path:`site-screenshots/${route?'package':'hero'}-${width}-${theme}.png`,fullPage:!!route,animations:'disabled'})
+ }
+ // The parts a change to Start a project touches, from this build and, where they exist there, from the live site.
+ if(width===390||width===1280){
+  const parts=[['package/','.start','start'],['package/','.top','package-top'],['','.install','install'],['format/','p.start-link','format-link']]
+  for(const [route,selector,name] of parts){
+   await page.goto('http://127.0.0.1:4173/'+route);await page.evaluate(()=>document.fonts.ready)
+   if(name==='package-top')await page.screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})
+   else await page.locator(selector).first().screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})
+  }
+  for(const [route,selector,name] of [['package/',null,'live-package-top'],['','.install','live-install']]){
+   try {await page.goto('https://openquarry.dev/'+route,{timeout:30000});await page.evaluate(()=>document.fonts.ready);if(selector)await page.locator(selector).first().screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled',timeout:10000});else await page.screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})}
+   catch(error){console.log(`The live ${route||'landing'} could not be captured at ${width} ${theme}: ${error.message}`)}
+  }
  }
  // The live site's first screen at the same widths, so a change's pictures show before and after. The live site is
  // not this build: a failure to reach it is logged and never fails the check.

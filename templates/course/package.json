@@ -1,0 +1,17 @@
+{
+  "name": "my-course",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A course kept as OpenQuarry files: Markdown lessons with YAML frontmatter.",
+  "type": "module",
+  "scripts": {
+    "check": "node check.mjs"
+  },
+  "devDependencies": {
+    "@framers/openquarry": "^0.3.0",
+    "yaml": "^2.8.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
