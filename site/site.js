@@ -91,9 +91,10 @@ if (strip) {
   // Where a press is taking the strip while its scroll is still running, so a second press goes on from there.
   let goal = null
   let settled
-  // Once the reader has moved the strip, it is never put back under them.
+  // Once the reader has moved the strip, or the keyboard's focus has entered it, it is never put back under them, and
+  // the next press starts from where the strip is.
   let touched = false
-  for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) strip.addEventListener(type, () => { touched = true }, { passive: true })
+  for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown', 'focusin']) strip.addEventListener(type, () => { touched = true; goal = null }, { passive: true })
   const move = (direction) => {
     touched = true
     const box = strip.getBoundingClientRect()
