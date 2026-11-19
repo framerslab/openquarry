@@ -55,7 +55,7 @@ button{font:inherit;color:inherit;cursor:pointer}
    and the script shows a previous and a next key at its ends and sets data-scroll on the row (none, start, middle or
    end). An edge of the strip fades only when there are tabs beyond it. A key is inactive at its end: a bare chevron. */
 .docs-nav{display:flex;align-items:center;gap:4px;padding:6px max(40px,calc((100% - 1200px)/2));border-bottom:1px solid var(--line)}
-.docs-tabs{--fade-l:0px;--fade-r:0px;display:flex;flex:1;gap:4px;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.docs-tabs{--fade-l:0px;--fade-r:0px;display:flex;flex:1;gap:4px;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none;scroll-padding-inline:28px}
 .docs-nav[data-scroll]:not([data-scroll=none]) .docs-tabs{-webkit-mask-image:linear-gradient(90deg,transparent,#000 var(--fade-l),#000 calc(100% - var(--fade-r)),transparent);mask-image:linear-gradient(90deg,transparent,#000 var(--fade-l),#000 calc(100% - var(--fade-r)),transparent)}
 .docs-nav[data-scroll=middle] .docs-tabs,.docs-nav[data-scroll=end] .docs-tabs{--fade-l:28px}
 .docs-nav[data-scroll=start] .docs-tabs,.docs-nav[data-scroll=middle] .docs-tabs{--fade-r:28px}

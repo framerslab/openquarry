@@ -235,7 +235,8 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
   if(route==='package/'){
    const facts=await page.locator('.badges li').allTextContents()
    if(facts.length!==3||!/^npm/.test(facts[0])||!/^licence/.test(facts[1])||!/^node\d+ or later$/.test(facts[2]))throw Error(`${at}: the package facts are not npm, licence and node: ${facts.join(' | ')}`)
-   if(width<=390||width===768)await picture(page,`facts-package-${width}-${theme}`,560)
+   // The picture runs from the top of the page to just under the keys below the facts.
+   if(width<=390||width===768)await picture(page,`facts-package-${width}-${theme}`,Math.min(900,Math.ceil(await page.locator('.reading .actions').first().evaluate(e=>e.getBoundingClientRect().bottom))+24))
   }
   if(!route&&width<=390)await page.locator('.hero').screenshot({path:`site-screenshots/facts-landing-${width}-${theme}.png`,animations:'disabled'})
  }
@@ -297,7 +298,7 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
  } else if(width<=480)throw Error(`${at}: the guides fit a phone, so the arrow keys were not exercised`)
  // The live site at the same width, for the pictures of a change: never part of the check.
  if(width===390){
-  for(const [route,name,height] of [['spiral/','live-guides',300],['package/','live-facts-package',560]]){
+  for(const [route,name,height] of [['spiral/','live-guides',300],['package/','live-facts-package',700]]){
    try {await page.goto('https://openquarry.dev/'+route,{timeout:30000});await page.evaluate(()=>document.fonts.ready);await picture(page,`${name}-${width}-${theme}`,height)}
    catch(error){console.log(`The live ${route} could not be captured at ${at}: ${error.message}`)}
   }
@@ -345,7 +346,7 @@ for(const theme of ['light','dark']){
  if(s.over||s.prev.shown||s.next.shown||s.scroll!=='none'||fadeOf(s).join()!=='false,false')throw Error(`1280 ${theme}: a guides row that fits should show no arrow key and no fade: ${JSON.stringify(s)}`)
  await picture(page,`guides-1280-${theme}`,300)
  await open(page,'package/')
- await picture(page,`facts-package-1280-${theme}`,560)
+ await picture(page,`facts-package-1280-${theme}`,Math.min(900,Math.ceil(await page.locator('.reading .actions').first().evaluate(e=>e.getBoundingClientRect().bottom))+24))
  await context.close()
 }
 } finally {await browser.close();server.close()}

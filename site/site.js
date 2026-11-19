@@ -91,7 +91,11 @@ if (strip) {
   // Where a press is taking the strip while its scroll is still running, so a second press goes on from there.
   let goal = null
   let settled
+  // Once the reader has moved the strip, it is never put back under them.
+  let touched = false
+  for (const type of ['pointerdown', 'touchstart', 'wheel', 'keydown']) strip.addEventListener(type, () => { touched = true }, { passive: true })
   const move = (direction) => {
+    touched = true
     const box = strip.getBoundingClientRect()
     const from = goal ?? strip.scrollLeft
     const width = strip.clientWidth
@@ -134,5 +138,5 @@ if (strip) {
   }
   place()
   // The tabs change width when the site's font arrives.
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(place)
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => (touched ? update() : place()))
 }
