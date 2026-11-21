@@ -192,7 +192,7 @@ describe('the public format site', () => {
     const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
     const commandsIn = (html: string) => [...html.matchAll(/<figure class="code">[\s\S]*?<\/figure>/g)].map((m) => unescape(/<code class="language-bash">([\s\S]*?)<\/code>/.exec(m[0])?.[1] ?? ''))
     const home = readFileSync(join(site, 'index.html'), 'utf8')
-    const start = /<section class="install start-home"[\s\S]*?<\/section>/.exec(home)?.[0] ?? ''
+    const start = /<section class="start-home"[\s\S]*?<\/section>/.exec(home)?.[0] ?? ''
     expect(start).toContain('<h2 id="start-home-h">')
     expect(commandsIn(start)).toEqual(starters.map((s) => initCommands(s)))
     expect(commandsIn(start)[0].split('\n')[0]).toBe('npx openquarry init my-notes')
@@ -201,8 +201,8 @@ describe('the public format site', () => {
       expect(start, `the landing's start section links ${link}`).toContain(`href="${link}"`)
     }
     // Right under the hero, before the install lines.
-    expect(home.indexOf('<section class="install start-home"')).toBeGreaterThan(home.indexOf('<section class="hero"'))
-    expect(home.indexOf('<section class="install start-home"')).toBeLessThan(home.indexOf('<section class="install"'))
+    expect(home.indexOf('<section class="start-home"')).toBeGreaterThan(home.indexOf('<section class="hero"'))
+    expect(home.indexOf('<section class="start-home"')).toBeLessThan(home.indexOf('<section class="install"'))
     const courses = readFileSync(join(site, 'courses', 'index.html'), 'utf8')
     const startCourse = /<div class="start-course">[\s\S]*?<\/div>/.exec(courses)?.[0] ?? ''
     expect(commandsIn(startCourse)).toEqual([initCommands(starters.find((s) => s.id === 'course')!)])
