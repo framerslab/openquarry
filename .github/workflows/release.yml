@@ -112,6 +112,13 @@ jobs:
           TAG: cli-v${{ steps.plan.outputs.command_version }}
         run: git tag "$TAG" "$GITHUB_SHA" && git push origin "refs/tags/$TAG"
 
+      # The site reads npm's newest library version when it builds, and npm can take a minute to serve a version it has
+      # just accepted: wait for it first, or the rebuild names the version before (21 Nov 2026: 0.3.1 published, the badge
+      # kept 0.3.0). release-plan.mjs --wait asks every 10 seconds for 5 minutes at most.
+      - name: Wait until npm serves the new library version, for the site
+        if: steps.plan.outputs.library == 'true'
+        run: node scripts/release-plan.mjs --wait
+
       # openquarry.dev shows the newest library version from npm: a fresh ci run on master builds and deploys it.
       - name: Rebuild openquarry.dev
         if: steps.plan.outputs.library == 'true'
