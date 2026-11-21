@@ -119,6 +119,10 @@ const result = validateThreadFrontmatter({ slug: 'scale-and-distance', title: 'S
 
 The schema files stay in the library: `@framers/openquarry/schema/thread.schema.yaml`. [The package page](https://openquarry.dev/package/) lists every export with an example.
 
+## Releases
+
+Each version is published from [framerslab/openquarry](https://github.com/framerslab/openquarry) by its `release` workflow through npm trusted publishing, with a provenance statement that links the version on npm to the commit and the run that built it. [The changelog](https://github.com/framerslab/openquarry/blob/master/packages/openquarry/CHANGELOG.md) lists what each version changed.
+
 ## Links
 
 - [Start a project](https://openquarry.dev/package/#start) and [the format guide](https://openquarry.dev/format/) on openquarry.dev
