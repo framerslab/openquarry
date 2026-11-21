@@ -275,7 +275,7 @@ Version 2 uses `weaves/reading-a-map/the-map/scale-and-distance.md` with `thread
 
 ## The schema host
 
-The schemas are served from https://openquarry.dev, built in CI by `scripts/build-site.mjs` from the files this package ships:
+The schemas are served from https://openquarry.dev, built in CI by `scripts/build-site.mjs` from the files this package ships. Every green push to master deploys it: the `ci` workflow's `Deploy openquarry.dev` job uploads the build to the host and checks that `index.json` names the commit.
 
 | Address | What it is |
 |---|---|
@@ -284,6 +284,10 @@ The schemas are served from https://openquarry.dev, built in CI by `scripts/buil
 | `https://openquarry.dev/schema/v1/index.json` | every schema with its addresses and hash, the corpus commit they came from, and this package's version |
 
 `<name>` is one of `blocks-index.schema`, `catalogue.schema`, `fabric.schema`, `loom.schema`, `thread.schema` and `weave.schema`, plus the compatibility copy listed in Version 1 fabrics. Every address answers with `Access-Control-Allow-Origin: *`, so a page on any origin can fetch a schema. `openquarry.io`, `www.openquarry.io` and `www.openquarry.dev` redirect to the same path on `openquarry.dev`; the root serves the format’s landing page. OpenQuarry is a Framers Lab project.
+
+## Releases
+
+Every day at 10:41 UTC the `release` workflow publishes each package whose shipped files changed on master since its last release. It takes the next patch version after the one npm serves (or a higher version raised by hand in `package.json`), runs the type check, the tests and the command from its packed tarball, publishes with provenance and tags the commit `lib-v<version>` or `cli-v<version>`. A day with no change publishes nothing. The repository's `package.json` versions stay as they are: npm and the tags record each release. The workflow can also be run by hand from the Actions tab.
 
 ## Keeping the schemas in step
 
