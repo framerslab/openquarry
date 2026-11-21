@@ -158,6 +158,9 @@ pre code{font-size:15px}
 .install p{margin:0}
 .install div .code{margin:20px 0 16px}
 .install>.code{margin:0}
+.start-home .start-codes .code{margin:0 0 16px}
+.start-home p+p,.start-home .callout+p{margin-top:12px}
+.start-course{margin:0 0 32px}
 /* The package page: the install blocks one under another, and the exports as lists. */
 .installs .code{margin:12px 0}
 .exports{padding-left:1.2em}
