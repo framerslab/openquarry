@@ -98,13 +98,12 @@ jobs:
         if: steps.plan.outputs.library == 'true' && steps.plan.outputs.command == 'true'
         run: node scripts/release-plan.mjs --wait
 
-      # A package must exist on npm before it can have a trusted publisher, so the command's first release is published
-      # with the token, in this step alone. Provenance still comes from this run's own identity (id-token: write).
-      - name: Publish openquarry with provenance
+      # The command has its own trusted publisher bound to this workflow file (set on npmjs.com on 21 November 2026, after
+      # its first release went out with the token). No token is given to this step either, so a broken trusted
+      # publisher fails here and is never papered over by a token.
+      - name: Publish openquarry with provenance (trusted publisher)
         if: steps.plan.outputs.command == 'true'
         run: npm publish "$RUNNER_TEMP/release/openquarry-${{ steps.plan.outputs.command_version }}.tgz" --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Tag the command release
         if: steps.plan.outputs.command == 'true'
