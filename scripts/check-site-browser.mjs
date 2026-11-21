@@ -139,6 +139,13 @@ for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark'])
   const copied=await page.evaluate(()=>navigator.clipboard.readText())
   if(copied!==await page.locator(`${block} pre code`).textContent())throw Error('The clipboard does not hold the code of '+block)
  }
+ // The landing's Start a project section: its first copy key copies the notes starter's commands, line for line.
+ const homeCopy=page.locator('.start-home [data-copy]').first()
+ await homeCopy.click()
+ await page.waitForFunction(()=>document.querySelector('.start-home [data-copy]').textContent!=='Copy',null,{timeout:5000})
+ if(await homeCopy.textContent()!=='Copied')throw Error('The landing start copy key did not copy: '+await homeCopy.textContent())
+ const homeCopied=await page.evaluate(()=>navigator.clipboard.readText())
+ if(homeCopied!==await page.locator('.start-home pre code').first().textContent()||!homeCopied.startsWith('npx openquarry init my-notes\n'))throw Error('The clipboard does not hold the landing start commands: '+homeCopied)
  // The first command block of Start a project on the package page copies the commands, line for line.
  await page.goto('http://127.0.0.1:4173/package/')
  const startCopy=page.locator('.start [data-copy]').first()
