@@ -114,7 +114,10 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      # The version badge and index.json name npm's newest library version (scripts/build-site.mjs, siteVersion).
       - name: Build the host
+        env:
+          OPENQUARRY_SITE_NPM_VERSION: '1'
         run: npm run site
 
       - name: The files the host serves
@@ -142,11 +145,12 @@ jobs:
           if-no-files-found: ignore
 
   # Every green push to master goes live: the site artifact this run built is uploaded to the Cloudflare Pages project
-  # behind openquarry.dev (openquarry-schema), then the host is read until it serves this commit. A pull request and a
-  # dispatched run deploy nothing. The token can edit Pages projects on the one account and nothing else.
+  # behind openquarry.dev (openquarry-schema), then the host is read until it serves this commit. A run dispatched on
+  # master deploys too (the release workflow starts one after a library release, so the version badge follows npm);
+  # a pull request deploys nothing. The token can edit Pages projects on the one account and nothing else.
   deploy-site:
     name: Deploy openquarry.dev
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: [test, cli, start, site]
     runs-on: ubuntu-latest
     timeout-minutes: 10
