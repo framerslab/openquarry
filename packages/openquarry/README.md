@@ -121,7 +121,7 @@ The schema files stay in the library: `@framers/openquarry/schema/thread.schema.
 
 ## Releases
 
-Each version is published from [framerslab/openquarry](https://github.com/framerslab/openquarry) by its `release` workflow through npm trusted publishing, with a provenance statement that links the version on npm to the commit and the run that built it. [The changelog](https://github.com/framerslab/openquarry/blob/master/packages/openquarry/CHANGELOG.md) lists what each version changed.
+Each version is published from [framerslab/openquarry](https://github.com/framerslab/openquarry) by its `release` workflow, with a provenance statement that links the version on npm to the commit and the run that built it. Versions after 0.3.0 publish through npm trusted publishing. 0.3.0, the first, went out with a token, because npm adds a trusted publisher only to a package that already exists. [The changelog](https://github.com/framerslab/openquarry/blob/master/packages/openquarry/CHANGELOG.md) lists what each version changed.
 
 ## Links
 
