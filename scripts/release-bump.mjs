@@ -3,7 +3,8 @@
 //   node scripts/release-bump.mjs   finds each package's last release by its tag (lib-v<version> for
 //                                   @framers/openquarry, cli-v<version> for openquarry), lists the files of the
 //                                   package that changed since that commit, and for each changed package writes the
-//                                   version it takes into its package.json in this checkout only. Writes
+//                                   version it takes into its package.json, and a section for that version at the
+//                                   top of its CHANGELOG.md, in this checkout only. Writes
 //                                   release=true|false, library=true|false and command=true|false to $GITHUB_OUTPUT.
 // The version is the next patch after the newest version npm serves, unless the repository's package.json holds a
 // higher one (a minor or major raised by hand), which is taken as it is. Nothing is committed: npm and the tags record
@@ -46,7 +47,51 @@ export function newestTag(tags, prefix) {
   return releases.at(-1) ?? null
 }
 
+/** A changelog line for one commit on master's first-parent line: a merged pull request by its title and number,
+ * any other commit by its subject. */
+export function changelogLine(subject, body) {
+  const merge = /^Merge pull request #(\d+) from /.exec(subject)
+  if (!merge) return `- ${subject}`
+  const title = body.split('\n').map((line) => line.trim()).find(Boolean)
+  return `- ${title || subject} (#${merge[1]})`
+}
+
+/** The changelog section for a release: the version as the heading (the docs test reads the first heading as the
+ * version), the day it was published when that is known (null leaves the day out), and the lines of the changes it
+ * carries (null when no earlier release tag bounds them, so they are not listed). */
+export function changelogSection(version, day, lines) {
+  const when = day ? `Released on ${day} by the daily release.` : 'Released by the daily release.'
+  if (lines === null) return `## ${version}\n\n${when} Its changes are not listed here: no earlier release tag marks where they begin.\n\n`
+  return `## ${version}\n\n${when} What changed in the files this package ships:\n\n${(lines.length ? lines : ['- Maintenance.']).join('\n')}\n\n`
+}
+
+/** The release tag just below a version among a package's tags, or null. */
+export function tagBefore(tags, prefix, version) {
+  return newestTag(tags.filter((t) => t.startsWith(prefix) && /^\d+\.\d+\.\d+$/.test(t.slice(prefix.length)) && compareVersions(t.slice(prefix.length), version) < 0), prefix)
+}
+
+/** Puts a section above the first release heading of a changelog, below its introduction. */
+export function withSection(changelog, section) {
+  const at = changelog.search(/^## /m)
+  return at < 0 ? `${changelog.trimEnd()}\n\n${section}` : changelog.slice(0, at) + section + changelog.slice(at)
+}
+
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+
+/** A day as the changelog writes it: 21 November 2026, in UTC. */
+export function formatDay(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+}
+
+/** npm's publication time of each version of a package, or {} for a package it never saw. */
+function npmTimes(name) {
+  try {
+    return JSON.parse(execFileSync('npm', ['view', name, 'time', '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))
+  } catch (error) {
+    if (/\bE404\b/.test(`${error.stdout || ''}${error.stderr || ''}`)) return {}
+    throw Error(`npm view ${name} time failed: ${error.message}`)
+  }
+}
 
 /** The version npm marks latest, or null for a package it never saw. Any other failure stops the release. */
 function npmLatest(name) {
@@ -77,6 +122,32 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`${manifest.name}: ${changed.length} file(s) changed since ${tag} (${changed.slice(0, 5).join(', ')}${changed.length > 5 ? ', ...' : ''}); publishing ${version}`)
     manifest.version = version
     writeFileSync(file, JSON.stringify(manifest, null, 2) + '\n')
+    // The repository's CHANGELOG.md holds the hand-written releases; the daily releases are never committed. So the
+    // published changelog gets a section for every release tag newer than the file's newest heading, then one for
+    // this version: each with the changes, by merged pull request on master's first-parent line, that touched the
+    // package between the release before it and itself.
+    const changelog = join(root, p.dir, 'CHANGELOG.md')
+    const text = readFileSync(changelog, 'utf8')
+    const written = /^## (\d+\.\d+\.\d+)/m.exec(text)?.[1]
+    const linesBetween = (from, to) => git('log', '--first-parent', '--format=%s%x1f%b%x1e', `${from}..${to}`, '--', ...p.paths)
+      .split('\x1e').map((r) => r.trim()).filter(Boolean)
+      .map((record) => { const [subject, body = ''] = record.split('\x1f'); return changelogLine(subject.trim(), body) })
+    // The day npm published each earlier version (its `time` record), never the commit's date: a release can be
+    // published days after its commit. A version npm has no time for keeps no day.
+    const published = npmTimes(manifest.name)
+    const dayOf = (v) => (published[v] ? formatDay(published[v]) : null)
+    const released = tags.filter((t) => t.startsWith(p.tag) && /^\d+\.\d+\.\d+$/.test(t.slice(p.tag.length)) && (!written || compareVersions(t.slice(p.tag.length), written) > 0))
+      .sort((a, b) => compareVersions(a.slice(p.tag.length), b.slice(p.tag.length)))
+    let sections = ''
+    for (const t of released) {
+      const v = t.slice(p.tag.length)
+      const before = tagBefore(tags, p.tag, v)
+      sections = changelogSection(v, dayOf(v), before ? linesBetween(before, t) : null) + sections
+    }
+    const lines = linesBetween(tag, 'HEAD')
+    sections = changelogSection(version, formatDay(new Date().toISOString()), lines) + sections
+    writeFileSync(changelog, withSection(text, sections))
+    console.log(`${manifest.name}: CHANGELOG.md opens with ${version} (${lines.length} change(s)${released.length ? `, and ${released.length} earlier daily release(s)` : ''})`)
   }
   const release = out.library || out.command
   if (!release) console.log('Nothing to release today.')
