@@ -275,7 +275,7 @@ Version 2 uses `weaves/reading-a-map/the-map/scale-and-distance.md` with `thread
 
 ## The schema host
 
-The schemas are served from https://openquarry.dev, built in CI by `scripts/build-site.mjs` from the files this package ships:
+The schemas are served from https://openquarry.dev, built in CI by `scripts/build-site.mjs` from the files this package ships. Every green push to master deploys it: the `ci` workflow's `Deploy openquarry.dev` job uploads the build to the host and checks that `index.json` names the commit.
 
 | Address | What it is |
 |---|---|
