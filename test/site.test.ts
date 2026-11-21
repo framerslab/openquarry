@@ -188,6 +188,26 @@ describe('the public format site', () => {
     expect(/<section class="install"[\s\S]*?<\/section>/.exec(home)?.[0]).toContain('<a href="/package/#start">Start a project</a>')
     expect(readFileSync(join(site, 'format', 'index.html'), 'utf8')).toContain('<a href="/package/#start">start a project from a starter</a>')
   })
+  it('shows the start commands on the landing, above the install lines, and at the top of the Courses guide', () => {
+    const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
+    const commandsIn = (html: string) => [...html.matchAll(/<figure class="code">[\s\S]*?<\/figure>/g)].map((m) => unescape(/<code class="language-bash">([\s\S]*?)<\/code>/.exec(m[0])?.[1] ?? ''))
+    const home = readFileSync(join(site, 'index.html'), 'utf8')
+    const start = /<section class="install start-home"[\s\S]*?<\/section>/.exec(home)?.[0] ?? ''
+    expect(start).toContain('<h2 id="start-home-h">')
+    expect(commandsIn(start)).toEqual(starters.map((s) => initCommands(s)))
+    expect(commandsIn(start)[0].split('\n')[0]).toBe('npx openquarry init my-notes')
+    expect(start.match(/data-copy/g)?.length).toBe(starters.length)
+    for (const link of ['/package/#start', '/package/#start-degit', 'https://github.com/framerslab/openquarry/tree/master/templates', 'https://www.npmjs.com/package/openquarry']) {
+      expect(start, `the landing's start section links ${link}`).toContain(`href="${link}"`)
+    }
+    // Right under the hero, before the install lines.
+    expect(home.indexOf('<section class="install start-home"')).toBeGreaterThan(home.indexOf('<section class="hero"'))
+    expect(home.indexOf('<section class="install start-home"')).toBeLessThan(home.indexOf('<section class="install"'))
+    const courses = readFileSync(join(site, 'courses', 'index.html'), 'utf8')
+    const startCourse = /<div class="start-course">[\s\S]*?<\/div>/.exec(courses)?.[0] ?? ''
+    expect(commandsIn(startCourse)).toEqual([initCommands(starters.find((s) => s.id === 'course')!)])
+    expect(startCourse).toContain('href="/package/#start"')
+  })
   it('says on every page that the openquarry package carries the command, and nowhere that a command is missing or to come', () => {
     for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'package', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
