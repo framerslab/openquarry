@@ -2,6 +2,7 @@
 // YAML sources byte for byte, an index, and the host's headers, redirects and middleware. CI builds it as the `site`
 // artifact; the deploy uploads dist-site/site with dist-site/functions beside it.
 //   node scripts/build-site.mjs [out dir]        (default dist-site/)
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -46,6 +47,19 @@ export async function onRequest(context) {
 }
 `
 
+// The version the site names: npm's newest when the build asks for it (CI sets OPENQUARRY_SITE_NPM_VERSION=1, since the
+// daily release publishes a new version without a commit), otherwise the repository's package.json. An npm that does not
+// answer leaves the repository's version.
+export function siteVersion(pkg) {
+  if (process.env.OPENQUARRY_SITE_NPM_VERSION !== '1') return pkg.version
+  try {
+    const latest = JSON.parse(execFileSync('npm', ['view', pkg.name, 'dist-tags.latest', '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000 }))
+    return typeof latest === 'string' && /^\d+\.\d+\.\d+$/.test(latest) ? latest : pkg.version
+  } catch {
+    return pkg.version
+  }
+}
+
 export function schemaFiles() {
   return readdirSync(join(root, 'schema')).filter((file) => file.endsWith('.schema.yaml')).sort()
 }
@@ -80,7 +94,7 @@ export function buildSite(out = join(root, 'dist-site')) {
     format: 'openquarry',
     schemas,
     source: { repository: source.repository, commit: source.commit, path: source.path },
-    package: { name: pkg.name, version: pkg.version, npm: NPM },
+    package: { name: pkg.name, version: siteVersion(pkg), npm: NPM },
     repository: REPOSITORY,
     builtFrom: process.env.GITHUB_SHA || 'local',
   }
