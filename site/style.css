@@ -158,6 +158,13 @@ pre code{font-size:15px}
 .install p{margin:0}
 .install div .code{margin:20px 0 16px}
 .install>.code{margin:0}
+.start-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:40px;align-items:start;margin:8px 0 56px}
+.start-home h2{margin:0 0 14px}
+.start-home .eyebrow{margin-bottom:12px}
+.start-home p{margin:0}
+.start-home .start-codes .code{margin:0 0 16px}
+.start-home p+p,.start-home .callout+p{margin-top:12px}
+.start-course{margin:0 0 32px}
 /* The package page: the install blocks one under another, and the exports as lists. */
 .installs .code{margin:12px 0}
 .exports{padding-left:1.2em}
@@ -212,7 +219,7 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .hero{padding:40px 0 32px}
  .badges a{min-height:44px}
  .intro{font-size:20px}
- .specimen,.why,.install{grid-template-columns:minmax(0,1fr);gap:28px}
+ .specimen,.why,.install,.start-home{grid-template-columns:minmax(0,1fr);gap:28px}
  .install{margin-bottom:48px}
  .why{gap:0}
  .why-text{display:contents}
