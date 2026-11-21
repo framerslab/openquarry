@@ -15,6 +15,10 @@ export declare function newestTag(tags: string[], prefix: string): string | null
 /** A changelog line for one commit: a merged pull request by its title and number, any other commit by its subject. */
 export declare function changelogLine(subject: string, body: string): string
 /** The changelog section for a release. */
-export declare function changelogSection(version: string, day: string, lines: string[]): string
+export declare function changelogSection(version: string, day: string | null, lines: string[] | null): string
 /** Puts a section above the first release heading of a changelog. */
 export declare function withSection(changelog: string, section: string): string
+/** The release tag just below a version among a package's tags, or null. */
+export declare function tagBefore(tags: string[], prefix: string, version: string): string | null
+/** A day as the changelog writes it, in UTC. */
+export declare function formatDay(iso: string): string
