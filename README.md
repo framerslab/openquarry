@@ -285,6 +285,10 @@ The schemas are served from https://openquarry.dev, built in CI by `scripts/buil
 
 `<name>` is one of `blocks-index.schema`, `catalogue.schema`, `fabric.schema`, `loom.schema`, `thread.schema` and `weave.schema`, plus the compatibility copy listed in Version 1 fabrics. Every address answers with `Access-Control-Allow-Origin: *`, so a page on any origin can fetch a schema. `openquarry.io`, `www.openquarry.io` and `www.openquarry.dev` redirect to the same path on `openquarry.dev`; the root serves the format’s landing page. OpenQuarry is a Framers Lab project.
 
+## Releases
+
+Every day at 10:41 UTC the `release` workflow publishes each package whose shipped files changed on master since its last release. It takes the next patch version after the one npm serves (or a higher version raised by hand in `package.json`), runs the type check, the tests and the command from its packed tarball, publishes with provenance and tags the commit `lib-v<version>` or `cli-v<version>`. A day with no change publishes nothing. The repository's `package.json` versions stay as they are: npm and the tags record each release. The workflow can also be run by hand from the Actions tab.
+
 ## Keeping the schemas in step
 
 The schema files come from the Frame Codex corpus repository, and a change to a schema is made there first. `schema/SOURCE.json` records the commit they were copied from and each file's SHA-256, and the tests fail when a file drifts from that record or from the generated `src/schemas.ts`. To take newer schemas: `node scripts/sync-schema.mjs <path to the corpus checkout>`.
