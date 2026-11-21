@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changelogLine, changelogSection, compareVersions, newestTag, nextVersion, withSection } from '../scripts/release-bump.mjs'
+import { changelogLine, changelogSection, compareVersions, formatDay, newestTag, nextVersion, tagBefore, withSection } from '../scripts/release-bump.mjs'
 
 describe('the daily release version', () => {
   it('takes the next patch after the newest version npm serves', () => {
@@ -42,5 +42,24 @@ describe('the changelog section of a release', () => {
     expect(changelog.indexOf('## 0.3.1')).toBeLessThan(changelog.indexOf('## 0.3.0'))
     expect(changelog).toContain('Every release, newest first.\n\n## 0.3.1\n\nReleased on 21 November 2026')
     expect(changelogSection('0.3.2', '22 November 2026', [])).toContain('- Maintenance.')
+  })
+})
+
+describe('the sections of earlier daily releases', () => {
+  it('bounds each one by the release tag just below it, whatever the hand-written changelog holds', () => {
+    const tags = ['lib-v0.3.0', 'lib-v0.3.1', 'lib-v0.3.2', 'cli-v0.3.5', 'v0.3.0']
+    expect(tagBefore(tags, 'lib-v', '0.3.2')).toBe('lib-v0.3.1')
+    expect(tagBefore(tags, 'lib-v', '0.3.1')).toBe('lib-v0.3.0')
+    expect(tagBefore(tags, 'lib-v', '0.3.0')).toBeNull()
+  })
+  it('lists no changes, and says so, when no earlier tag bounds them, instead of calling them maintenance', () => {
+    const section = changelogSection('0.3.1', null, null)
+    expect(section).not.toContain('Maintenance')
+    expect(section).toContain('Its changes are not listed here')
+    expect(/^## (.+)$/m.exec(section)?.[1]).toBe('0.3.1')
+  })
+  it('leaves the day out when npm has no publication time, and writes the day npm gives otherwise', () => {
+    expect(changelogSection('0.3.1', null, ['- One (#1)'])).toContain('Released by the daily release.')
+    expect(formatDay('2026-11-22T10:41:07.000Z')).toBe('22 November 2026')
   })
 })
