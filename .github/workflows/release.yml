@@ -112,16 +112,25 @@ jobs:
           TAG: cli-v${{ steps.plan.outputs.command_version }}
         run: git tag "$TAG" "$GITHUB_SHA" && git push origin "refs/tags/$TAG"
 
-      # The site reads npm's newest library version when it builds, and npm can take a minute to serve a version it has
-      # just accepted: wait for it first, or the rebuild names the version before (21 Nov 2026: 0.3.1 published, the badge
-      # kept 0.3.0). release-plan.mjs --wait asks every 10 seconds for 5 minutes at most.
-      - name: Wait until npm serves the new library version, for the site
+      # The site reads npm's `latest` tag for the library when it builds (scripts/build-site.mjs, siteVersion), and npm can
+      # take a minute to move the tag to a version it has just accepted: wait for the tag itself, or the rebuild names the
+      # version before (21 Nov 2026: 0.3.1 published, the badge kept 0.3.0). Asks every 10 seconds, 5 minutes at most.
+      - name: Wait until npm's latest tag names the new library version, for the site
         if: steps.plan.outputs.library == 'true'
-        run: node scripts/release-plan.mjs --wait
+        env:
+          VERSION: ${{ steps.plan.outputs.library_version }}
+        run: |
+          for i in $(seq 1 30); do
+            latest=$(npm view @framers/openquarry dist-tags.latest 2>/dev/null || true)
+            if [ "$latest" = "$VERSION" ]; then echo "npm's latest is $VERSION"; exit 0; fi
+            echo "npm's latest is ${latest:-unreadable}, waiting for $VERSION"; sleep 10
+          done
+          echo "npm's latest tag never named $VERSION within 5 minutes" >&2; exit 1
 
-      # openquarry.dev shows the newest library version from npm: a fresh ci run on master builds and deploys it.
+      # openquarry.dev shows the newest library version from npm: a fresh ci run on master builds and deploys it. It runs
+      # after a library release even when the wait above failed (the run still ends red), so the site is never left behind.
       - name: Rebuild openquarry.dev
-        if: steps.plan.outputs.library == 'true'
+        if: ${{ !cancelled() && steps.plan.outputs.library == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run ci.yml --ref master
