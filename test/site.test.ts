@@ -126,7 +126,7 @@ describe('the public format site', () => {
     for (const [path, region] of [
       ['', /<section class="hero">([\s\S]*?)<\/section>/],
       ['format', /<h2>One real file<\/h2>([\s\S]*?)<h2 id="version-1-fabrics">/],
-      ['courses', /<article class="reading">([\s\S]*?)<\/article>/],
+      ['courses', /<h2 id="the-example">The example<\/h2>([\s\S]*?)<h2 id="the-course-a-weave-of-kind-course">/],
     ] as const) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       const body = region.exec(html)?.[1] ?? ''
