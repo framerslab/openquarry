@@ -1,7 +1,7 @@
 // openquarry check: validates every OpenQuarry file in a folder with @framers/openquarry. fabric.yaml and catalogue.yaml
 // at the top, and under weaves/ each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two
-// threads may share an id. One line for each file; the result says whether any file is invalid.
-// The rules and the lines are those of the check.mjs script the starters carry, so a project reads the same either way.
+// threads may share an id. The report names valid and invalid files, with an advisory for a version 1 thread path.
+// For a starter project the report matches the check.mjs script it carries.
 import { closeSync, constants, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
@@ -14,6 +14,7 @@ import { entry } from './paths.mjs'
 // (ENOENT, or ENOTDIR when its path runs through a plain file) or round in a loop (ELOOP) leads to no file: none of
 // them is a plain file.
 const leadsNowhere = (error) => error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP'
+const legacyThreadPath = /^weaves\/[^/]+\/(?:looms\/[^/]+\/)*strands\/[^/]*\.md$/
 function readPlain(path) {
   let fd
   try {
@@ -59,6 +60,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   for (const [name, validate] of [['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue]]) {
     if (entry(join(root, name))) files.push({ path: join(root, name), validate })
   }
+  let legacyLayout = !files.some(({ validate }) => validate === validateFabricManifest)
   if (entry(join(root, 'weaves'))) {
     // weaves/ is a folder, or a link to one, which the walk starts by reading.
     let isWeavesFolder = false
@@ -97,6 +99,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
         else {
           const value = parse(yaml)
           errors = validate(value).errors
+          if (validate === validateFabricManifest && errors.length === 0) legacyLayout = value.version === 1
           if (thread && errors.length === 0) {
             const other = ids.get(value.id)
             if (other) errors = [`/id is already the id of ${shown(other)}: give this file its own id`]
@@ -107,10 +110,15 @@ export function check({ folder, cwd = process.cwd() } = {}) {
     } catch (error) {
       errors = [`/ cannot be read as YAML: ${String(error.message).split('\n')[0]}`]
     }
-    if (errors.length === 0) lines.push(`ok ${shown(path)}`)
-    else {
+    const relativePath = shown(path)
+    if (errors.length === 0) {
+      lines.push(`ok ${relativePath}`)
+      if (thread && legacyLayout && legacyThreadPath.test(relativePath)) {
+        lines.push('  warning: Version 1 thread layout. Use version 2 for new fabrics.')
+      }
+    } else {
       invalid += 1
-      lines.push(`not ok ${shown(path)}`)
+      lines.push(`not ok ${relativePath}`)
       for (const error of errors) lines.push(`  ${error}`)
     }
   }

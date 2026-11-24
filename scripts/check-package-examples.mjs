@@ -44,6 +44,7 @@ try {
     const name = example.id || 'landing'
     writeFileSync(join(dir, example.file), example.code + '\n')
     const args = [example.file]
+    if (example.fixture) args.push(join(root, example.fixture))
     if (example.lang === 'ts') {
       try { tsc(example.file) } catch (error) { throw Error(`${name}: the TypeScript example does not type-check\n${failure(error)}`) }
       args.unshift('--experimental-strip-types', '--no-warnings')

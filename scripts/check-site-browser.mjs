@@ -195,6 +195,17 @@ for(const width of [390,999,1000,1279,1280]) for(const theme of ['light','dark']
    if(name==='package-top')await page.screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})
    else await page.locator(selector).first().screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})
   }
+  await page.goto('http://127.0.0.1:4173/format/')
+  await page.evaluate(()=>document.fonts.ready)
+  const compatibility=page.locator('#version-1-fabrics')
+  await compatibility.screenshot({path:`site-screenshots/compatibility-closed-${width}-${theme}.png`,animations:'disabled'})
+  await compatibility.locator('summary').click()
+  await compatibility.screenshot({path:`site-screenshots/compatibility-open-${width}-${theme}.png`,animations:'disabled'})
+  await page.goto('http://127.0.0.1:4173/package/')
+  await page.evaluate(()=>document.fonts.ready)
+  for(const name of ['compatibility-exports','blocks-index']){
+   await page.locator(`[aria-labelledby="${name}"]`).screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})
+  }
   for(const [route,selector,name] of [['package/',null,'live-package-top'],['','.install','live-install'],['package/','#command-line + p','live-command-line']]){
    try {await page.goto('https://openquarry.dev/'+route,{timeout:30000});await page.evaluate(()=>document.fonts.ready);if(selector)await page.locator(selector).first().screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled',timeout:10000});else await page.screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})}
    catch(error){console.log(`The live ${route||'landing'} could not be captured at ${width} ${theme}: ${error.message}`)}

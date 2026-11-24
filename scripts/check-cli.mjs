@@ -341,6 +341,30 @@ try {
     console.log(`ok ${starter.id}: new writes a valid ${kind} with its own id and no licence`)
   }
 
+  const legacyProject = join(home, 'legacy-layout')
+  const legacyPath = 'weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md'
+  mkdirSync(dirname(join(legacyProject, legacyPath)), { recursive: true })
+  copyFileSync(join(root, 'examples', 'reading-a-map', 'weaves', 'reading-a-map', 'the-map', 'scale-and-distance.md'), join(legacyProject, legacyPath))
+  const legacyWarning = '  warning: Version 1 thread layout. Use version 2 for new fabrics.'
+  for (const version of [undefined, 1, 2]) {
+    if (version) writeFileSync(join(legacyProject, 'fabric.yaml'), `format: openquarry\nversion: ${version}\n`)
+    const result = run(bin, ['check'], legacyProject)
+    same(result.status, 0, `legacy thread path with fabric version ${version ?? 'implicit 1'}`)
+    same(result.lines.filter((line) => line.includes('warning:')), version === 2 ? [] : [legacyWarning], `thread layout warning for fabric version ${version ?? 'implicit 1'}`)
+    const accepted = result.lines.indexOf(`ok ${legacyPath}`)
+    if (accepted === -1) fail(`the check did not read ${legacyPath}`)
+    if (version !== 2) same(result.lines[accepted + 1], legacyWarning, `warning follows ${legacyPath}`)
+    const starterReports = starters.map((starter) => {
+      for (const name of ['check.mjs', 'package.json']) {
+        copyFileSync(join(installed, 'templates', starter.id, name), join(legacyProject, name))
+      }
+      const report = run('npm', ['run', '--silent', 'check'], legacyProject)
+      return { starter: starter.id, status: report.status, stdout: report.stdout }
+    })
+    same(starterReports, starters.map(({ id }) => ({ starter: id, status: result.status, stdout: result.stdout })),
+      `starter checks for ${legacyPath} with fabric version ${version ?? 'implicit 1'}`)
+  }
+
   // 8. init: what it refuses, and what --force does.
   console.log('\n=== init: refusals')
   const notes = starters.find((starter) => starter.id === 'notes')

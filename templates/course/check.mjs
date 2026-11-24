@@ -1,6 +1,6 @@
 // Checks every OpenQuarry file in this folder with @framers/openquarry: fabric.yaml and catalogue.yaml at the top, and
 // under weaves/ each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two threads may share an
-// id. It prints one line for each file and exits with 1 when any file is invalid.
+// id. It reports each file, warns about the version 1 thread layout and exits with 1 when any file is invalid.
 //   npm run check
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -16,6 +16,7 @@ import {
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const shown = (path) => relative(root, path).split(sep).join('/')
+const legacyThreadPath = /^weaves\/[^/]+\/(?:looms\/[^/]+\/)*strands\/[^/]*\.md$/
 
 // Every file under a folder, in name order. Folders whose names start with a dot, and node_modules, are skipped.
 function walk(dir) {
@@ -32,6 +33,7 @@ const files = []
 for (const [name, validate] of [['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue]]) {
   if (existsSync(join(root, name))) files.push({ path: join(root, name), validate })
 }
+let legacyLayout = !files.some(({ validate }) => validate === validateFabricManifest)
 if (existsSync(join(root, 'weaves'))) {
   for (const path of walk(join(root, 'weaves'))) {
     const name = path.split(sep).pop()
@@ -52,6 +54,7 @@ for (const { path, validate, thread } of files) {
     else {
       const value = parse(yaml)
       errors = validate(value).errors
+      if (validate === validateFabricManifest && errors.length === 0) legacyLayout = value.version === 1
       if (thread && errors.length === 0) {
         const other = ids.get(value.id)
         if (other) errors = [`/id is already the id of ${shown(other)}: give this file its own id`]
@@ -61,10 +64,15 @@ for (const { path, validate, thread } of files) {
   } catch (error) {
     errors = [`/ cannot be read as YAML: ${String(error.message).split('\n')[0]}`]
   }
-  if (errors.length === 0) console.log(`ok ${shown(path)}`)
-  else {
+  const relativePath = shown(path)
+  if (errors.length === 0) {
+    console.log(`ok ${relativePath}`)
+    if (thread && legacyLayout && legacyThreadPath.test(relativePath)) {
+      console.log('  warning: Version 1 thread layout. Use version 2 for new fabrics.')
+    }
+  } else {
     invalid += 1
-    console.log(`not ok ${shown(path)}`)
+    console.log(`not ok ${relativePath}`)
     for (const error of errors) console.log(`  ${error}`)
   }
 }

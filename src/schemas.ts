@@ -441,6 +441,7 @@ export const loomSchema: Record<string, unknown> = {
   }
 }
 
+/** @deprecated Use threadSchema for new content. */
 export const strandSchema: Record<string, unknown> = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "StrandFrontmatter",
