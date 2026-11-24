@@ -10,7 +10,7 @@ A fabric with `version: 1`, or without `fabric.yaml`, can keep a thread under th
 
 ```text
 ok weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md
-  warning: weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md uses the version 1 thread layout. Use version 2 for new fabrics.
+  warning: Version 1 thread layout. Use version 2 for new fabrics.
 ```
 
 For a new fabric use `format: openquarry` and `version: 2` in `fabric.yaml`, and put the thread at `weaves/reading-a-map/the-map/scale-and-distance.md`. For an existing fabric, move the files and update path references together before changing the version. Keep the thread's ID and recheck its links after the move.

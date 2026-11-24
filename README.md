@@ -265,7 +265,9 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 ## Version 1 fabrics
 
-For new content use `thread.schema.yaml`, `ThreadFrontmatter` and a version 2 layout such as `weaves/reading-a-map/the-map/scale-and-distance.md`. A fabric without `fabric.yaml` is version 1. The [version 1 compatibility guide](docs/compatibility.md) explains the earlier names, the validation warnings and how to move an existing fabric.
+For new content use `thread.schema.yaml`, `ThreadFrontmatter` and a version 2 layout such as `weaves/reading-a-map/the-map/scale-and-distance.md`. A fabric without `fabric.yaml` is version 1.
+
+The version 1 export `strandSchema` and schema index entry `strand.schema` carry the old name for the thread schema. The [version 1 compatibility guide](docs/compatibility.md) explains the aliases, the validation warnings and how to move an existing fabric.
 
 ## The schema host
 

@@ -114,7 +114,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
     if (errors.length === 0) {
       lines.push(`ok ${relativePath}`)
       if (thread && legacyLayout && legacyThreadPath.test(relativePath)) {
-        lines.push(`  warning: ${relativePath} uses the version 1 thread layout. Use version 2 for new fabrics.`)
+        lines.push('  warning: Version 1 thread layout. Use version 2 for new fabrics.')
       }
     } else {
       invalid += 1

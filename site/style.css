@@ -197,6 +197,8 @@ blockquote,.callout{border-left:4px solid var(--accent);padding:12px 24px;backgr
 .callout p{margin:8px 0}
 details{border-block:1px solid var(--line);padding:16px 0;margin:24px 0}
 summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+#version-1-fabrics>summary{gap:8px}
+#version-1-fabrics[open]>summary .ic{transform:rotate(90deg)}
 .schema-list{list-style:none;padding:0;border-top:1px solid var(--line)}
 .schema-list li{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--line)}
 /* Footer */
