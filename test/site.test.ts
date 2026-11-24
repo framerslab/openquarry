@@ -125,7 +125,7 @@ describe('the public format site', () => {
   it('pairs the notes and course destinations in the landing hero, Format guide and course example', () => {
     for (const [path, region] of [
       ['', /<section class="hero">([\s\S]*?)<\/section>/],
-      ['format', /<h2>One real file<\/h2>([\s\S]*?)<h2 id="version-1-fabrics">/],
+      ['format', /<h2>One real file<\/h2>([\s\S]*?)<(?:h2|details) id="version-1-fabrics">/],
       ['courses', /<h2 id="the-example">The example<\/h2>([\s\S]*?)<h2 id="the-course-a-weave-of-kind-course">/],
     ] as const) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
@@ -135,6 +135,19 @@ describe('the public format site', () => {
       expect(pair).toMatch(/href="https:\/\/quarry\.space">See notes in Quarry[\s\S]*?Quarry reads your notes in the format\./)
       expect(pair).toMatch(/href="https:\/\/quarry\.school">See courses in Quarry School[\s\S]*?Each course is a weave, each unit a loom, each lesson a thread\./)
     }
+  })
+  it('keeps version 1 names in compatibility material and checks a saved thread index in the package example', () => {
+    const format = readFileSync(join(site, 'format', 'index.html'), 'utf8')
+    const compatibility = /<details id="version-1-fabrics">([\s\S]*?)<\/details>/.exec(format)
+    expect(compatibility?.[1], 'the Format guide has no Version 1 fabrics disclosure').toBeDefined()
+    expect(compatibility?.[1]).toContain('/schema/v1/strand.schema.json')
+    expect(format.replace(compatibility?.[0] ?? '', '')).not.toMatch(/strand\.schema|StrandFrontmatter|strands\//)
+
+    const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
+    const example = /<h2 id="blocks-index">([\s\S]*?)<h2 id="json-schema">/.exec(page)?.[1]
+    expect(example, 'the package page has no blocks-index example').toBeDefined()
+    expect(example).toContain('node blocks.mjs blocks-index.json')
+    expect(example).not.toMatch(/totalStrands|strandPath|\bstrands\b/)
   })
   it('gives the landing a GitHub key, the project badges and a card for Frame', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')

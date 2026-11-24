@@ -1,11 +1,34 @@
 import { describe, expect, it } from 'vitest'
 import {
   type ThreadFrontmatter,
+  validateBlocksIndex,
   validateFabricManifest,
   validateLoom,
   validateThreadFrontmatter,
   validateWeave,
 } from '../src/index.js'
+
+describe('validateBlocksIndex', () => {
+  it('accepts a version 1 thread index and warns about its three legacy wire names', () => {
+    const path = 'weaves/reading-a-map/the-map/scale-and-distance.md'
+    const index = {
+      generatedAt: '2026-11-17T09:30:00Z',
+      version: '1.0.0',
+      stats: { totalStrands: 1, totalBlocks: 1, totalTags: 1, worthyBlocks: 0 },
+      strands: { [path]: { path, blockCount: 1, blocks: [{ id: 'scale', line: 12, type: 'heading' }] } },
+      tagIndex: { maps: [{ strandPath: path, blockId: 'scale' }] },
+    }
+    const warnings = [
+      '/strands is the legacy key for per-thread block data.',
+      '/stats/totalStrands is the legacy key for the thread count.',
+      '/tagIndex entries use the legacy key "strandPath" for the thread file path.',
+    ]
+    expect(validateBlocksIndex(index)).toEqual({ valid: true, errors: [], warnings })
+    const emptyTag = { ...index, tagIndex: { maps: [] } }
+    expect(validateBlocksIndex(emptyTag)).toEqual({ valid: true, errors: [], warnings: warnings.slice(0, 2) })
+    expect(validateBlocksIndex({ ...index, strands: [] })).toEqual({ valid: false, errors: ['/strands must be object'] })
+  })
+})
 
 // The frontmatter shape the Frame Codex corpus stores (its rename fixture, 2026-10-07).
 const thread: ThreadFrontmatter = {
