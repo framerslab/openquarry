@@ -10,16 +10,15 @@ import {
 } from '../src/index.js'
 
 describe('validateBlocksIndex', () => {
-  it('accepts a version 1 thread index and warns about its three legacy wire names', () => {
-    const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1.json', import.meta.url), 'utf8')) as Record<string, unknown>
-    const warnings = [
-      '/strands is the legacy key for per-thread block data.',
-      '/stats/totalStrands is the legacy key for the thread count.',
-      '/tagIndex entries use the legacy key "strandPath" for the thread file path.',
-    ]
-    expect(validateBlocksIndex(index)).toEqual({ valid: true, errors: [], warnings })
-    const emptyTag = { ...index, tagIndex: { maps: [] } }
-    expect(validateBlocksIndex(emptyTag)).toEqual({ valid: true, errors: [], warnings: warnings.slice(0, 2) })
+  const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1.json', import.meta.url), 'utf8')) as Record<string, unknown>
+  it.each([
+    ['with a strandPath reference', index],
+    ['with no tag references', { ...index, tagIndex: { maps: [] } }],
+  ])('returns exactly valid and errors for a version 1 index %s', (_, input) => {
+    expect(validateBlocksIndex(input)).toStrictEqual({ valid: true, errors: [] })
+  })
+
+  it('rejects a version 1 index whose strands is an array', () => {
     expect(validateBlocksIndex({ ...index, strands: [] })).toEqual({ valid: false, errors: ['/strands must be object'] })
   })
 })

@@ -149,6 +149,12 @@ describe('the public format site', () => {
     expect(example).toContain('node blocks.mjs blocks-index.json')
     expect(example).not.toMatch(/totalStrands|strandPath|\bstrands\b/)
   })
+  it('documents optional validator warnings and the version 1 blocks index result on the package page', () => {
+    const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
+    const exports = /<h2 id="exports">[^<]*<\/h2>([\s\S]*?)<h2/.exec(page)?.[1]
+    expect(exports).toContain('optional <code>warnings</code>')
+    expect(exports).toContain('<code>validateBlocksIndex</code> returns only <code>{ valid, errors }</code> for version 1 indexes')
+  })
   it('gives the landing a GitHub key, the project badges and a card for Frame', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     const actions = /<div class="actions">([\s\S]*?)<\/div>/.exec(home)?.[1] ?? ''

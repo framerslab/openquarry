@@ -112,6 +112,26 @@ const inspect=()=>{
  return errors
 }
 try {
+// The compatibility link on the package page opens the Format disclosure on arrival and on a fragment change.
+{
+ const page=await browser.newPage({viewport:{width:390,height:900}})
+ const base='http://127.0.0.1:4173/'
+ const fragment='#version-1-fabrics'
+ const guide=page.locator(`${fragment} h2`).first()
+ await page.goto(base+'package/')
+ await page.locator(`[aria-labelledby="compatibility-exports"] a[href="/format/${fragment}"]`).click()
+ await page.waitForURL(base+'format/'+fragment,{waitUntil:'load'})
+ const openedFromPackage=await guide.isVisible()
+ await page.goto(base+'format/')
+ if(await guide.isVisible())throw Error('The compatibility disclosure should start closed without a fragment')
+ await page.evaluate(hash=>new Promise(resolve=>{
+  addEventListener('hashchange',()=>requestAnimationFrame(()=>resolve()),{once:true})
+  location.hash=hash
+ }),fragment)
+ const openedOnHashChange=await guide.isVisible()
+ await page.close()
+ if(!openedFromPackage||!openedOnHashChange)throw Error(`The version 1 guide stays hidden on ${[!openedFromPackage&&'clicking Version 1 compatibility on the package page',!openedOnHashChange&&'changing the Format fragment'].filter(Boolean).join(' and ')}`)
+}
 for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark']) {
  const page=await browser.newPage({viewport:{width,height:1000},colorScheme:theme})
  for(const route of routes) {

@@ -343,27 +343,39 @@ try {
 
   const legacyProject = join(home, 'legacy-layout')
   const legacyPath = 'weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md'
-  mkdirSync(dirname(join(legacyProject, legacyPath)), { recursive: true })
-  copyFileSync(join(root, 'examples', 'reading-a-map', 'weaves', 'reading-a-map', 'the-map', 'scale-and-distance.md'), join(legacyProject, legacyPath))
+  const threadFixture = join(root, 'examples', 'reading-a-map', 'weaves', 'reading-a-map', 'the-map', 'scale-and-distance.md')
   const legacyWarning = '  warning: Version 1 thread layout. Use version 2 for new fabrics.'
-  for (const version of [undefined, 1, 2]) {
+  const cases = [
+    { path: legacyPath, version: 2, warning: '  warning: Version 1 folder names in a version 2 fabric. Move the thread to weaves/<weave>/<loom>/<thread>.md.' },
+    { path: 'weaves/W/looms/L/x.md' },
+    { path: 'weaves/W/looms/L/strands/part/x.md' },
+    { path: 'weaves/W/the-map/strands/x.md' },
+    { path: legacyPath },
+    { path: legacyPath, version: 1 },
+  ]
+  const failures = []
+  for (const { path, version, warning = legacyWarning } of cases) {
+    mkdirSync(dirname(join(legacyProject, path)), { recursive: true })
+    copyFileSync(threadFixture, join(legacyProject, path))
     if (version) writeFileSync(join(legacyProject, 'fabric.yaml'), `format: openquarry\nversion: ${version}\n`)
-    const result = run(bin, ['check'], legacyProject)
-    same(result.status, 0, `legacy thread path with fabric version ${version ?? 'implicit 1'}`)
-    same(result.lines.filter((line) => line.includes('warning:')), version === 2 ? [] : [legacyWarning], `thread layout warning for fabric version ${version ?? 'implicit 1'}`)
-    const accepted = result.lines.indexOf(`ok ${legacyPath}`)
-    if (accepted === -1) fail(`the check did not read ${legacyPath}`)
-    if (version !== 2) same(result.lines[accepted + 1], legacyWarning, `warning follows ${legacyPath}`)
-    const starterReports = starters.map((starter) => {
+    const commandReport = run(bin, ['check'], legacyProject)
+    const reports = [{ name: 'openquarry check', report: commandReport }]
+    for (const starter of starters) {
       for (const name of ['check.mjs', 'package.json']) {
         copyFileSync(join(installed, 'templates', starter.id, name), join(legacyProject, name))
       }
-      const report = run('npm', ['run', '--silent', 'check'], legacyProject)
-      return { starter: starter.id, status: report.status, stdout: report.stdout }
-    })
-    same(starterReports, starters.map(({ id }) => ({ starter: id, status: result.status, stdout: result.stdout })),
-      `starter checks for ${legacyPath} with fabric version ${version ?? 'implicit 1'}`)
+      reports.push({ name: starter.id, report: run('npm', ['run', '--silent', 'check'], legacyProject) })
+    }
+    for (const { name, report } of reports) {
+      const accepted = report.lines.indexOf(`ok ${path}`)
+      if (report.status !== 0 || accepted === -1 || report.lines[accepted + 1] !== warning || report.stdout !== commandReport.stdout) {
+        failures.push(`${name} for ${path} with fabric version ${version ?? 'implicit 1'} (exit ${report.status}):\n${report.stdout.trimEnd()}\nexpected ok and ${warning.trim()}`)
+      }
+    }
+    rmSync(join(legacyProject, 'weaves'), { recursive: true })
+    if (version) rmSync(join(legacyProject, 'fabric.yaml'))
   }
+  if (failures.length) fail(failures.join('\n\n'))
 
   // 8. init: what it refuses, and what --force does.
   console.log('\n=== init: refusals')
