@@ -80,8 +80,7 @@ p,li{overflow-wrap:anywhere}
 .actions{display:flex;align-items:center;gap:12px;margin-block:30px 20px}
 .actions>a{flex:none}
 .actions .out{margin-left:0}
-/* The hero's four keys: one row of equal widths, each as wide as the widest label. Below 1280 px, where four of them
-   no longer fit one row, they are two rows of two equal halves, the filled key first; the narrowest phones read "The format" on it. */
+/* The hero's keys share a row on wider screens and use the standard two-row layout on phones. */
 .hero .actions{display:grid;width:max-content;max-width:100%;grid-auto-flow:column;grid-auto-columns:1fr}
 .hero .actions>a{justify-content:center}
 .hero .actions .short{display:none}
@@ -99,8 +98,11 @@ p,li{overflow-wrap:anywhere}
 .button{display:inline-flex;align-items:center;min-height:48px;padding:0 22px;border-radius:10px;background:var(--accent-strong);color:var(--on-accent);font-weight:700;text-decoration:none}
 .button:hover{text-decoration:underline}
 .actions .key{min-height:48px}
-.used{font-size:17px;color:var(--dim);margin:0}
-.used a{color:var(--ink);font-weight:600}
+.hero-credit{font-size:17px;color:var(--dim);margin:0}
+.hero-credit a{color:var(--ink);font-weight:600}
+.product-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:8px 24px;max-width:780px;margin:24px 0;padding:0;list-style:none}
+.product-links li,.product-links p{margin:0}
+.product-links a{display:inline-flex;align-items:center;gap:8px;min-height:44px;color:var(--accent-strong);font-weight:700}
 /* The specimen: the folders and one real file */
 .specimen{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:40px;align-items:start;margin:24px 0 72px}
 .nest{border:1.5px solid var(--accent);border-radius:12px;padding:18px 20px;margin-top:16px;background:var(--bg)}
@@ -235,9 +237,7 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .foot{grid-template-columns:1fr 1fr;padding:36px 20px 48px}
  .foot-brand{grid-column:1/-1}
 }
-@media(max-width:1279px){.hero .actions{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.hero .actions .button{grid-column:auto}}
-@media(max-width:1023px){.actions .wider{display:none}}
-@media(max-width:760px){.actions,.hero .actions{display:grid;width:auto;grid-auto-flow:row;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.actions .button{grid-column:1/-1}.actions>a{justify-content:center;min-width:0;padding-inline:10px}.actions .wider{display:none}}
+@media(max-width:760px){.actions,.hero .actions{display:grid;width:auto;grid-auto-flow:row;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.actions .button{grid-column:1/-1}.actions>a{justify-content:center;min-width:0;padding-inline:10px}}
 @media(max-width:560px){.badges a{flex-direction:column}.badges span,.badges strong{justify-content:center;min-height:24px}.badges strong{border-left:0;border-top:1px solid var(--line)}}
 @media(max-width:400px){.actions .wide{display:none}.hero .actions .short{display:inline}.actions>a{padding-inline:8px;gap:6px}.top{--pad:16px;gap:8px}main{padding-inline:16px}.brand{font-size:22px;gap:8px}.brand .mark{width:26px;height:26px}}
 /* The narrowest phones keep the two outlined keys in equal halves by dropping the outbound arrow, and the look switch

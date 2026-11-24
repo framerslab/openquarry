@@ -44,9 +44,8 @@ const inspect=()=>{
  const nav=document.querySelector('.top .main-nav')
  if(nav&&nav.getClientRects().length&&nav.scrollWidth>nav.clientWidth+1)errors.push('the header links are cut off')
  if(!shows('.top>[data-theme-toggle]')&&!document.querySelector('.menu-panel [data-theme-toggle]'))errors.push('no look switch')
- // The keys under a heading never wrap: the outlined keys share one row and no key breaks or clips its label. The
- // hero's four keys are one row from 1280 px and two rows of two below it, all of one width. The badges are one row
- // too, and it fits the page at every width (checked below).
+ // The keys never break or clip their labels. On phones the hero's filled key gets its own row and the
+ // outlined keys share the next one. On wider screens all three share a row of equal-width keys.
  const top=k=>Math.round(k.getBoundingClientRect().top)
  const keys=[...document.querySelectorAll('.actions .key')].filter(k=>!k.closest('.hero'))
  if(new Set(keys.map(top)).size>1)errors.push('the keys under the heading wrap')
@@ -54,9 +53,15 @@ const inspect=()=>{
  const hero=[...document.querySelectorAll('.hero .actions>a')]
  if(hero.length){
   const rows=[];for(const k of hero){const last=rows[rows.length-1];if(last&&last.top===top(k))last.n++;else rows.push({top:top(k),n:1})}
-  const want=innerWidth>=1280?[hero.length]:[2,2]
+  const want=innerWidth>760?[3]:[1,2]
   if(rows.map(r=>r.n).join()!==want.join())errors.push('the hero keys are not in their rows: '+rows.map(r=>r.n).join('+'))
-  if(new Set(hero.map(k=>Math.round(k.getBoundingClientRect().width))).size>1)errors.push('the hero keys differ in width')
+  const peers=innerWidth>760?hero:hero.slice(1)
+  if(new Set(peers.map(k=>Math.round(k.getBoundingClientRect().width))).size>1)errors.push('the hero keys differ in width')
+ }
+ if(['/','/format/','/courses/'].includes(location.pathname)){
+  const links=[...document.querySelectorAll('main .product-links a')]
+  if(links.map(a=>a.getAttribute('href')).join()!=='https://quarry.space,https://quarry.school')errors.push('the notes and course links are missing')
+  if(links.some(a=>Math.round(a.getBoundingClientRect().height)<44))errors.push('a notes or course link is under 44 px tall')
  }
  for(const k of document.querySelectorAll('.actions > a'))if(k.scrollWidth>k.clientWidth+1||k.getBoundingClientRect().height>56)errors.push('a key does not fit its label')
  const badgeTops=[...document.querySelectorAll('.badges a')].map(top)
@@ -94,7 +99,7 @@ const inspect=()=>{
    if(guides.getBoundingClientRect().height>64)errors.push('the guides row is taller than one line')
   }
  }
- if(location.pathname==='/'&&(!document.querySelector('.hero .actions a[href="https://quarry.school"]')||!document.querySelector('.hero .actions a[href="https://github.com/framerslab/openquarry"]')||!document.querySelector('.hero .actions a[href="/package/"]')||badgeTops.length<3))errors.push('the landing lacks its GitHub key, its Quarry School key, its package key or its badges')
+ if(location.pathname==='/'&&(!document.querySelector('.hero .actions a[href="https://github.com/framerslab/openquarry"]')||!document.querySelector('.hero .actions a[href="/package/"]')||badgeTops.length<3))errors.push('the landing lacks its GitHub key, its package key or its badges')
  if(location.pathname==='/'&&!document.querySelector('.install a[href="/package/"]'))errors.push('the landing lacks the install section')
  for(const el of document.querySelectorAll('p, a, code, button, li, td')) if(parseFloat(getComputedStyle(el).fontSize)<14)errors.push('small type')
  const luminance=c=>{const v=c.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return v[0]*.2126+v[1]*.7152+v[2]*.0722}
@@ -184,7 +189,7 @@ for(const width of [390,999,1000,1279,1280]) for(const theme of ['light','dark']
  }
  // The parts a change to Start a project touches, from this build and, where they exist there, from the live site.
  if(width===390||width===1280){
-  const parts=[['package/','.start','start'],['package/','.top','package-top'],['','.install','install'],['format/','p.start-link','format-link'],['package/','#command-line + p','command-line']]
+  const parts=[['package/','.start','start'],['package/','.top','package-top'],['','.install','install'],['format/','p.start-link','format-link'],['package/','#command-line + p','command-line'],['format/','.product-links','format-product-links'],['courses/','.product-links','courses-product-links']]
   for(const [route,selector,name] of parts){
    await page.goto('http://127.0.0.1:4173/'+route);await page.evaluate(()=>document.fonts.ready)
    if(name==='package-top')await page.screenshot({path:`site-screenshots/${name}-${width}-${theme}.png`,animations:'disabled'})

@@ -122,13 +122,26 @@ describe('the public format site', () => {
     expect(about).toContain('AboutPage')
     expect(about).toContain('Who makes it')
   })
-  it('gives the landing a GitHub key, a Quarry School key, the project badges and a card for Frame', () => {
+  it('pairs the notes and course destinations in the landing hero, Format guide and course example', () => {
+    for (const [path, region] of [
+      ['', /<section class="hero">([\s\S]*?)<\/section>/],
+      ['format', /<h2>One real file<\/h2>([\s\S]*?)<h2 id="version-1-fabrics">/],
+      ['courses', /<h2 id="the-example">The example<\/h2>([\s\S]*?)<h2 id="the-course-a-weave-of-kind-course">/],
+    ] as const) {
+      const html = readFileSync(join(site, path, 'index.html'), 'utf8')
+      const body = region.exec(html)?.[1] ?? ''
+      const pair = /<ul class="product-links"[^>]*>([\s\S]*?)<\/ul>/.exec(body)?.[1]
+      expect(pair, `${path || 'landing hero'} has no notes and course CTA pair`).toBeDefined()
+      expect(pair).toMatch(/href="https:\/\/quarry\.space">See notes in Quarry[\s\S]*?Quarry reads your notes in the format\./)
+      expect(pair).toMatch(/href="https:\/\/quarry\.school">See courses in Quarry School[\s\S]*?Each course is a weave, each unit a loom, each lesson a thread\./)
+    }
+  })
+  it('gives the landing a GitHub key, the project badges and a card for Frame', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     const actions = /<div class="actions">([\s\S]*?)<\/div>/.exec(home)?.[1] ?? ''
     expect(actions).toContain('<a class="button" href="/format/"><span class="wide">Read the format</span>')
     expect(actions).toContain('<a class="key" href="/package/">npm package</a>')
     expect(actions).toContain('<a class="key" href="https://github.com/framerslab/openquarry">')
-    expect(actions).toContain('<a class="key" href="https://quarry.school">')
     // The version on the npm badge is the package's own, read at build time.
     expect(home).toContain(`<a href="https://www.npmjs.com/package/@framers/openquarry"><span>npm</span><strong>${index.package.version}</strong></a>`)
     expect(home).toContain('<span>licence</span><strong>MIT</strong>')
