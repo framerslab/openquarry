@@ -195,16 +195,5 @@ export function validateCatalogue(catalogue: unknown): ValidationResult {
 
 /** Checks a parsed blocks index against blocks-index.schema.yaml. */
 export function validateBlocksIndex(index: unknown): ValidationResult {
-  const result = check(blocksIndexSchema, index)
-  if (!result.valid) return result
-
-  const { tagIndex } = index as { tagIndex?: Record<string, unknown[]> }
-  const warnings = [
-    '/strands is the legacy key for per-thread block data.',
-    '/stats/totalStrands is the legacy key for the thread count.',
-  ]
-  if (Object.values(tagIndex ?? {}).some((references) => references.length > 0)) {
-    warnings.push('/tagIndex entries use the legacy key "strandPath" for the thread file path.')
-  }
-  return { ...result, warnings }
+  return check(blocksIndexSchema, index)
 }

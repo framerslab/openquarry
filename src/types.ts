@@ -220,7 +220,7 @@ export interface FabricManifest {
   name?: string
   /**
    * 1: the file names before the thread rename (strand.schema.yaml, and the `looms/` and `strands/` prefix folders).
-   * 2: the thread names (thread.schema.yaml; the prefix folders are still read).
+   * 2: the thread names (thread.schema.yaml). Version 2 readers still accept the `looms/` and `strands/` prefix folders.
    */
   version: 1 | 2
 }

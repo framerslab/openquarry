@@ -14,7 +14,7 @@ import { entry } from './paths.mjs'
 // (ENOENT, or ENOTDIR when its path runs through a plain file) or round in a loop (ELOOP) leads to no file: none of
 // them is a plain file.
 const leadsNowhere = (error) => error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP'
-const legacyThreadPath = /^weaves\/[^/]+\/(?:looms\/[^/]+\/)*strands\/[^/]*\.md$/
+const legacyThreadPath = /^weaves\/[^/]+\/(?:[^/]+\/)*(?:looms|strands)\//
 function readPlain(path) {
   let fd
   try {
@@ -60,7 +60,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   for (const [name, validate] of [['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue]]) {
     if (entry(join(root, name))) files.push({ path: join(root, name), validate })
   }
-  let legacyLayout = !files.some(({ validate }) => validate === validateFabricManifest)
+  let fabricVersion = files.some(({ validate }) => validate === validateFabricManifest) ? undefined : 1
   if (entry(join(root, 'weaves'))) {
     // weaves/ is a folder, or a link to one, which the walk starts by reading.
     let isWeavesFolder = false
@@ -99,7 +99,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
         else {
           const value = parse(yaml)
           errors = validate(value).errors
-          if (validate === validateFabricManifest && errors.length === 0) legacyLayout = value.version === 1
+          if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version
           if (thread && errors.length === 0) {
             const other = ids.get(value.id)
             if (other) errors = [`/id is already the id of ${shown(other)}: give this file its own id`]
@@ -113,8 +113,11 @@ export function check({ folder, cwd = process.cwd() } = {}) {
     const relativePath = shown(path)
     if (errors.length === 0) {
       lines.push(`ok ${relativePath}`)
-      if (thread && legacyLayout && legacyThreadPath.test(relativePath)) {
-        lines.push('  warning: Version 1 thread layout. Use version 2 for new fabrics.')
+      if (thread && fabricVersion !== undefined && legacyThreadPath.test(relativePath)) {
+        const warning = fabricVersion === 2
+          ? 'Version 1 folder names in a version 2 fabric. Move the thread to weaves/<weave>/<loom>/<thread>.md.'
+          : 'Version 1 thread layout. Use version 2 for new fabrics.'
+        lines.push(`  warning: ${warning}`)
       }
     } else {
       invalid += 1
