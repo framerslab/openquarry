@@ -16,7 +16,7 @@ import {
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const shown = (path) => relative(root, path).split(sep).join('/')
-const legacyThreadPath = /^weaves\/[^/]+\/(?:looms\/[^/]+\/)*strands\/[^/]*\.md$/
+const legacyThreadPath = /^weaves\/[^/]+\/(?:[^/]+\/)*(?:looms|strands)\//
 
 // Every file under a folder, in name order. Folders whose names start with a dot, and node_modules, are skipped.
 function walk(dir) {
@@ -33,7 +33,7 @@ const files = []
 for (const [name, validate] of [['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue]]) {
   if (existsSync(join(root, name))) files.push({ path: join(root, name), validate })
 }
-let legacyLayout = !files.some(({ validate }) => validate === validateFabricManifest)
+let fabricVersion = files.some(({ validate }) => validate === validateFabricManifest) ? undefined : 1
 if (existsSync(join(root, 'weaves'))) {
   for (const path of walk(join(root, 'weaves'))) {
     const name = path.split(sep).pop()
@@ -54,7 +54,7 @@ for (const { path, validate, thread } of files) {
     else {
       const value = parse(yaml)
       errors = validate(value).errors
-      if (validate === validateFabricManifest && errors.length === 0) legacyLayout = value.version === 1
+      if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version
       if (thread && errors.length === 0) {
         const other = ids.get(value.id)
         if (other) errors = [`/id is already the id of ${shown(other)}: give this file its own id`]
@@ -67,8 +67,11 @@ for (const { path, validate, thread } of files) {
   const relativePath = shown(path)
   if (errors.length === 0) {
     console.log(`ok ${relativePath}`)
-    if (thread && legacyLayout && legacyThreadPath.test(relativePath)) {
-      console.log('  warning: Version 1 thread layout. Use version 2 for new fabrics.')
+    if (thread && fabricVersion !== undefined && legacyThreadPath.test(relativePath)) {
+      const warning = fabricVersion === 2
+        ? 'Version 1 folder names in a version 2 fabric. Move the thread to weaves/<weave>/<loom>/<thread>.md.'
+        : 'Version 1 thread layout. Use version 2 for new fabrics.'
+      console.log(`  warning: ${warning}`)
     }
   } else {
     invalid += 1

@@ -20,6 +20,15 @@ for (const toggle of toggles) {
 }
 label()
 
+function openLinkedDetails() {
+  let id
+  try { id = decodeURIComponent(location.hash.slice(1)) } catch { return }
+  const target = document.getElementById(id)
+  if (target instanceof HTMLDetailsElement) target.open = true
+}
+openLinkedDetails()
+addEventListener('hashchange', openLinkedDetails)
+
 // The menu opens without this script (it is a <details>). The script closes it on Escape, on a press outside it and when
 // the keyboard leaves it.
 const menu = document.querySelector('.menu')
