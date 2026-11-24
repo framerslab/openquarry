@@ -354,6 +354,15 @@ try {
     const accepted = result.lines.indexOf(`ok ${legacyPath}`)
     if (accepted === -1) fail(`the check did not read ${legacyPath}`)
     if (version !== 2) same(result.lines[accepted + 1], legacyWarning, `warning follows ${legacyPath}`)
+    const starterReports = starters.map((starter) => {
+      for (const name of ['check.mjs', 'package.json']) {
+        copyFileSync(join(installed, 'templates', starter.id, name), join(legacyProject, name))
+      }
+      const report = run('npm', ['run', '--silent', 'check'], legacyProject)
+      return { starter: starter.id, status: report.status, stdout: report.stdout }
+    })
+    same(starterReports, starters.map(({ id }) => ({ starter: id, status: result.status, stdout: result.stdout })),
+      `starter checks for ${legacyPath} with fabric version ${version ?? 'implicit 1'}`)
   }
 
   // 8. init: what it refuses, and what --force does.
