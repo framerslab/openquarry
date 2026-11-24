@@ -24,7 +24,8 @@ export function renderSchemasModule() {
     const name = NAMES[file]
     if (!name) throw new Error(`no export name for schema/${file}`)
     const schema = yaml.load(readFileSync(join(root, 'schema', file), 'utf8'))
-    out += `\nexport const ${name}: Record<string, unknown> = ${JSON.stringify(schema, null, 2)}\n`
+    const comment = name === 'strandSchema' ? '/** @deprecated Use threadSchema for new content. */\n' : ''
+    out += `\n${comment}export const ${name}: Record<string, unknown> = ${JSON.stringify(schema, null, 2)}\n`
   }
   return out
 }

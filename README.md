@@ -247,7 +247,7 @@ const { valid, errors } = validateThreadFrontmatter(parse(frontmatter))
 
 | Export | What it is |
 |---|---|
-| `validateThreadFrontmatter`, `validateLoom`, `validateWeave`, `validateFabricManifest`, `validateCatalogue`, `validateBlocksIndex` | validators that return `{ valid, errors }` |
+| `validateThreadFrontmatter`, `validateLoom`, `validateWeave`, `validateFabricManifest`, `validateCatalogue`, `validateBlocksIndex` | validators that return `{ valid, errors }` with optional `warnings` |
 | `ThreadFrontmatter`, `ThreadLink`, `ThreadLinkGroups`, `ThreadBlock`, `Loom`, `Weave`, `FabricManifest`, `Catalogue`, `CatalogueSubject`, `CatalogueEntry` | types for each file |
 | `LinkType`, `ContentType`, `DifficultyLevel`, `KnowledgeNodeType`, `SkillReference` | value types |
 | `threadSchema`, `loomSchema`, `weaveSchema`, `fabricSchema`, `catalogueSchema`, `blocksIndexSchema` | the JSON Schemas as objects |
@@ -265,13 +265,7 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 ## Version 1 fabrics
 
-New content uses thread names. Version 1 fabrics retain `strand.schema.yaml`, the deprecated `StrandFrontmatter` type and `strandSchema` export, the stored `'strand'` level in `KnowledgeNodeType`, and `looms/` and `strands/` folders. All remain supported. A fabric without `fabric.yaml` is version 1.
-
-```text
-weaves/reading-a-map/looms/the-map/strands/scale-and-distance.md
-```
-
-Version 2 uses `weaves/reading-a-map/the-map/scale-and-distance.md` with `thread.schema.yaml` and `ThreadFrontmatter`. The `relationships` and `notes` keys keep their names. The older schema URL, named `strand.schema` in the index, remains available unchanged. The team server SDK is a separate package.
+For new content use `thread.schema.yaml`, `ThreadFrontmatter` and a version 2 layout such as `weaves/reading-a-map/the-map/scale-and-distance.md`. A fabric without `fabric.yaml` is version 1. The [version 1 compatibility guide](docs/compatibility.md) explains the earlier names, the validation warnings and how to move an existing fabric.
 
 ## The schema host
 

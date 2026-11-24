@@ -8,6 +8,8 @@ export interface ValidationResult {
   valid: boolean
   /** One line per problem: the path inside the value, then what is wrong with it. */
   errors: string[]
+  /** Advisory messages for accepted inputs that use a deprecated spelling. */
+  warnings?: string[]
 }
 
 const compiled = new Map<object, ValidateFunction>()
@@ -193,5 +195,16 @@ export function validateCatalogue(catalogue: unknown): ValidationResult {
 
 /** Checks a parsed blocks index against blocks-index.schema.yaml. */
 export function validateBlocksIndex(index: unknown): ValidationResult {
-  return check(blocksIndexSchema, index)
+  const result = check(blocksIndexSchema, index)
+  if (!result.valid) return result
+
+  const { tagIndex } = index as { tagIndex?: Record<string, unknown[]> }
+  const warnings = [
+    '/strands is the legacy key for per-thread block data.',
+    '/stats/totalStrands is the legacy key for the thread count.',
+  ]
+  if (Object.values(tagIndex ?? {}).some((references) => references.length > 0)) {
+    warnings.push('/tagIndex entries use the legacy key "strandPath" for the thread file path.')
+  }
+  return { ...result, warnings }
 }

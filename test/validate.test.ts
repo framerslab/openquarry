@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   type ThreadFrontmatter,
@@ -10,14 +11,7 @@ import {
 
 describe('validateBlocksIndex', () => {
   it('accepts a version 1 thread index and warns about its three legacy wire names', () => {
-    const path = 'weaves/reading-a-map/the-map/scale-and-distance.md'
-    const index = {
-      generatedAt: '2026-11-17T09:30:00Z',
-      version: '1.0.0',
-      stats: { totalStrands: 1, totalBlocks: 1, totalTags: 1, worthyBlocks: 0 },
-      strands: { [path]: { path, blockCount: 1, blocks: [{ id: 'scale', line: 12, type: 'heading' }] } },
-      tagIndex: { maps: [{ strandPath: path, blockId: 'scale' }] },
-    }
+    const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1.json', import.meta.url), 'utf8')) as Record<string, unknown>
     const warnings = [
       '/strands is the legacy key for per-thread block data.',
       '/stats/totalStrands is the legacy key for the thread count.',

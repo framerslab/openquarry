@@ -90,18 +90,16 @@ for (const error of result.errors) console.log(error)`,
   },
   {
     id: 'blocks-index',
-    title: 'Check a blocks index',
-    text: '<p>A blocks index lists the tagged blocks of every file in a fabric, written by a build step. <code>validateBlocksIndex</code> checks one.</p>',
+    title: 'Check a saved blocks index',
+    text: '<p>A blocks index lists tagged blocks by thread. Save this script as <code>blocks.mjs</code> and run <code>node blocks.mjs blocks-index.json</code> on a generated index. <a href="/format/#version-1-fabrics">Version 1 compatibility</a> explains the older field names.</p>',
     file: 'blocks.mjs',
+    fixture: 'test/fixtures/blocks-index-v1.json',
     lang: 'js',
-    code: `import { validateBlocksIndex } from '@framers/openquarry'
+    code: `import { readFileSync } from 'node:fs'
+import { validateBlocksIndex } from '@framers/openquarry'
 
-const result = validateBlocksIndex({
-  generatedAt: '2026-11-17T09:30:00Z',
-  version: '1.0.0',
-  stats: { totalStrands: 0, totalBlocks: 0, totalTags: 0, worthyBlocks: 0 },
-  strands: {},
-})
+const index = JSON.parse(readFileSync(process.argv[2], 'utf8'))
+const result = validateBlocksIndex(index)
 console.log(result.valid)`,
     output: 'true',
   },
