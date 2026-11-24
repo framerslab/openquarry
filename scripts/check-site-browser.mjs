@@ -44,9 +44,8 @@ const inspect=()=>{
  const nav=document.querySelector('.top .main-nav')
  if(nav&&nav.getClientRects().length&&nav.scrollWidth>nav.clientWidth+1)errors.push('the header links are cut off')
  if(!shows('.top>[data-theme-toggle]')&&!document.querySelector('.menu-panel [data-theme-toggle]'))errors.push('no look switch')
- // The keys under a heading never wrap: the outlined keys share one row and no key breaks or clips its label. The
- // hero's four keys are one row from 1280 px and two rows of two below it, all of one width. The badges are one row
- // too, and it fits the page at every width (checked below).
+ // The keys never break or clip their labels. On phones the hero's filled key gets its own row and the
+ // outlined keys share the next one. On wider screens all three share a row of equal-width keys.
  const top=k=>Math.round(k.getBoundingClientRect().top)
  const keys=[...document.querySelectorAll('.actions .key')].filter(k=>!k.closest('.hero'))
  if(new Set(keys.map(top)).size>1)errors.push('the keys under the heading wrap')
