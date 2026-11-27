@@ -97,6 +97,22 @@ describe('validateBlocksIndex', () => {
     expect(validateBlocksIndex(input, { normalize: true }).value?.generatedAt).toBe(generatedAt)
   })
 
+  it('validates and normalizes non-enumerable own tag entries', () => {
+    const tagIndex = Object.defineProperty({}, 'maps', { value: [{ strandPath: path, blockId: 'scale' }] })
+    const invalidTags = Object.defineProperty({}, 'maps', { value: 'not an array' })
+    expect(validateBlocksIndex({ ...current, tagIndex }, { normalize: true }).value?.tagIndex).toEqual({
+      maps: [{ threadPath: path, blockId: 'scale' }],
+    })
+    expect(validateBlocksIndex({ ...current, tagIndex: invalidTags }, { normalize: true }).errors).toContain('/tagIndex/maps must be array')
+  })
+
+  it('reads reference arrays without calling methods supplied by the input', () => {
+    const maps = Object.assign([{ strandPath: path, blockId: 'scale' }], { map: null })
+    expect(validateBlocksIndex({ ...current, tagIndex: { maps } }, { normalize: true }).value?.tagIndex).toEqual({
+      maps: [{ threadPath: path, blockId: 'scale' }],
+    })
+  })
+
   it.each([
     ['with a strandPath reference', index],
     ['with no tag references', { ...index, tagIndex: { maps: [] } }],
