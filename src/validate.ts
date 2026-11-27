@@ -58,11 +58,11 @@ function describe(error: ErrorObject): string {
   return message
 }
 
-function check(schema: Record<string, unknown>, value: unknown): ValidationResult {
+function check(schema: Record<string, unknown>, value: unknown, includeError?: (error: ErrorObject) => boolean): ValidationResult {
   const validate = validatorFor(schema)
   const valid = validate(value) as boolean
-  const errors = (validate.errors ?? []).map(line)
-  return { valid, errors }
+  const errors = validate.errors ?? []
+  return { valid, errors: (includeError ? errors.filter(includeError) : errors).map(line) }
 }
 
 function renameField(
@@ -207,11 +207,18 @@ export function validateCatalogue(catalogue: unknown): ValidationResult {
   return { valid: errors.length === 0, errors }
 }
 
+// For each missing alias pair, keep the error from the current spelling (the first branch).
+const redundantBlocksIndexErrors = new Set([
+  '#/anyOf',
+  '#/properties/stats/anyOf',
+  '#/properties/tagIndex/additionalProperties/items/anyOf',
+].flatMap((path) => [path, `${path}/1/required`]))
+
 /** Checks a parsed blocks index. Pass `{ normalize: true }` to read it with current field names. */
 export function validateBlocksIndex(index: unknown): ValidationResult
 export function validateBlocksIndex(index: unknown, options: { normalize: true }): NormalizedValidationResult<BlocksIndex>
 export function validateBlocksIndex(index: unknown, options?: { normalize: true }): NormalizedValidationResult<BlocksIndex> {
-  const result = check(blocksIndexSchema, index)
+  const result = check(blocksIndexSchema, index, (error) => !redundantBlocksIndexErrors.has(error.schemaPath))
   if (!result.valid || !options?.normalize) return result
 
   const value = { ...index as Record<string, unknown> }
