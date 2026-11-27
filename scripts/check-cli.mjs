@@ -373,10 +373,10 @@ try {
     '  warning: Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.',
   ], 'check reports one blocks-index field warning')
   const fabricFile = join(legacyProject, 'fabric.yaml')
-  writeFileSync(fabricFile, 'format: openquarry\nversion: 1\nstrands: [old.md]\n')
+  writeFileSync(fabricFile, 'format: openquarry\nversion: 2\nstrand: 5\n')
   const legacyFields = run(bin, ['check'], legacyProject)
-  same(legacyFields.status, 0, 'check accepts legacy fabric fields')
-  same(legacyFields.lines.slice(0, 2), ['ok fabric.yaml', '  warning: Deprecated fields: use threads.'], 'check reports one fabric field warning')
+  same(legacyFields.status, 0, 'check accepts publisher-defined fabric fields')
+  same(legacyFields.lines.slice(0, 2), ['ok fabric.yaml', 'ok blocks-index.json'], 'check leaves publisher-defined manifest fields alone')
   for (const starter of starters) {
     for (const name of ['check.mjs', 'check-input.mjs']) {
       copyFileSync(join(installed, 'templates', starter.id, name), join(legacyProject, name))
@@ -423,8 +423,7 @@ try {
   const oldBin = join(oldest, 'node_modules', '.bin', 'openquarry')
   const oldLock = JSON.parse(readFileSync(join(oldest, 'package-lock.json'), 'utf8')).packages
   same(oldLock['node_modules/@framers/openquarry'].version, '0.3.0', 'the pinned old library is installed')
-  writeFileSync(join(oldest, 'fabric.yaml'), 'format: openquarry\nversion: 2\nstrand: old.md\n')
-  const fabricWarning = '  warning: Deprecated fields: use thread.'
+  writeFileSync(join(oldest, 'fabric.yaml'), 'format: openquarry\nversion: 2\nstrand: 5\n')
   for (const [fixture, warning] of [
     ['blocks-index-v1.json', undefined],
     ['blocks-index-v1-legacy.json', '  warning: Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.'],
@@ -443,7 +442,7 @@ try {
     for (const [command, args] of commands) {
       const report = run(command, args, oldest)
       const warnings = report.lines.filter((line) => line.includes('warning:'))
-      if (report.status !== 0 || JSON.stringify(warnings) !== JSON.stringify(warning ? [fabricWarning, warning] : [fabricWarning])) {
+      if (report.status !== 0 || JSON.stringify(warnings) !== JSON.stringify(warning ? [warning] : [])) {
         indexFailures.push(`${fixture} with the oldest supported library: ${args.join(' ')}\n${report.output}`)
       }
     }

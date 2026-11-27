@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
+  fabricSchema,
   type BlocksIndex,
   type FabricNodeType,
   type KnowledgeNodeType,
@@ -139,23 +140,13 @@ describe('validateThreadFrontmatter', () => {
 })
 
 describe('validateFabricManifest', () => {
-  it('keeps an explicitly present current manifest field with an undefined value', () => {
-    const input = { format: 'openquarry', version: 1, thread: undefined, strand: 'old.md' }
-    const result = validateFabricManifest(input, { normalize: true })
-    expect(result.value).toStrictEqual({ format: 'openquarry', version: 1, thread: undefined })
-  })
-
-  it('returns current fabric field names for legacy and mixed inputs', () => {
-    const manifest = { format: 'openquarry', version: 1 }
-    expect(validateFabricManifest({ ...manifest, strand: 'old.md', strands: ['old.md'] })).toStrictEqual({ valid: true, errors: [] })
-    expect(validateFabricManifest({
-      ...manifest, strand: 'old.md', thread: 'new.md', strands: ['old.md'], strandPath: 'old.md',
-    }, { normalize: true })).toStrictEqual({
-      valid: true,
-      errors: [],
-      value: { ...manifest, thread: 'new.md', threads: ['old.md'], threadPath: 'old.md' },
-      warnings: ['Deprecated fields: use thread, threads, threadPath.'],
+  it('leaves publisher-defined manifest fields alone', () => {
+    const input = { format: 'openquarry', version: 2, strand: 5 }
+    expect(Reflect.apply(validateFabricManifest, undefined, [input, { normalize: true }])).toStrictEqual({
+      valid: true, errors: [],
     })
+    expect(input).toStrictEqual({ format: 'openquarry', version: 2, strand: 5 })
+    expect(Object.keys(fabricSchema.properties as object).sort()).toEqual(['format', 'name', 'version'])
   })
 
   it('takes format openquarry and version 1 or 2', () => {

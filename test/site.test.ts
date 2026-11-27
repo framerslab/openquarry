@@ -162,7 +162,7 @@ describe('the public format site', () => {
     const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
     const exports = /<h2 id="exports">[^<]*<\/h2>([\s\S]*?)<h2/.exec(page)?.[1]
     expect(exports).toContain('optional <code>warnings</code>')
-    expect(exports).toContain('<code>validateBlocksIndex</code> and <code>validateFabricManifest</code> return <code>{ valid, errors }</code> by default')
+    expect(exports).toContain('<code>validateBlocksIndex</code> returns <code>{ valid, errors }</code> by default')
     expect(exports).toContain('<code>{ normalize: true }</code>')
   })
   it('leads the schema page with the thread schema and labels its compatibility alias once', () => {
