@@ -1,5 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
@@ -51,5 +52,32 @@ describe('the schema files', () => {
     expect(deprecated).toBe(true)
     expect(description).toContain('thread.schema')
     expect(thread).toEqual(alias)
+  })
+
+  it('keeps the deprecated annotation when a sync reads a quoted thread title and a description', () => {
+    const checkout = mkdtempSync(join(root, '.schema-sync-'))
+    try {
+      const upstream = join(checkout, 'upstream')
+      const upstreamSchemas = join(upstream, 'schema')
+      mkdirSync(upstreamSchemas, { recursive: true })
+      const thread = '$schema: "https://json-schema.org/draft/2020-12/schema"\ntitle: "ThreadFrontmatter"\ndescription: "A thread"\ntype: object\n'
+      writeFileSync(join(upstreamSchemas, 'thread.schema.yaml'), thread)
+      const git = (...args: string[]) => execFileSync('git', args, { cwd: upstream, stdio: 'pipe' })
+      git('init', '--quiet')
+      git('add', 'schema')
+      git('-c', 'user.name=Schema fixture', '-c', 'user.email=fixture@example.com', 'commit', '--quiet', '-m', 'Add thread schema')
+      cpSync(join(root, 'schema'), join(checkout, 'schema'), { recursive: true })
+      mkdirSync(join(checkout, 'scripts'))
+      mkdirSync(join(checkout, 'src'))
+      for (const file of ['sync-schema.mjs', 'build-schemas.mjs']) {
+        cpSync(join(root, 'scripts', file), join(checkout, 'scripts', file))
+      }
+      execFileSync(process.execPath, [join(checkout, 'scripts', 'sync-schema.mjs'), upstream])
+      expect(readFileSync(join(checkout, 'schema', 'thread.schema.yaml'), 'utf8')).toBe(thread)
+      const alias = yaml.load(readFileSync(join(checkout, 'schema', 'strand.schema.yaml'), 'utf8'))
+      expect(alias).toMatchObject({ title: 'StrandFrontmatter', type: 'object', deprecated: true })
+    } finally {
+      rmSync(checkout, { recursive: true, force: true })
+    }
   })
 })

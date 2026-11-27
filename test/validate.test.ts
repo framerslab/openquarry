@@ -4,6 +4,7 @@ import {
   type BlocksIndex,
   type FabricNodeType,
   type KnowledgeNodeType,
+  type NormalizedValidationResult,
   type StrandFrontmatter,
   type ThreadFrontmatter,
   validateBlocksIndex,
@@ -38,7 +39,7 @@ describe('validateBlocksIndex', () => {
 
   it('returns the thread names when reading a legacy index without rewriting the input', () => {
     const input = structuredClone(index)
-    const result = validateBlocksIndex(input, { normalize: true })
+    const result: NormalizedValidationResult<BlocksIndex> = validateBlocksIndex(input, { normalize: true })
     expect(result).toMatchObject({
       valid: true,
       warnings: ['Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.'],
@@ -138,6 +139,12 @@ describe('validateThreadFrontmatter', () => {
 })
 
 describe('validateFabricManifest', () => {
+  it('keeps an explicitly present current manifest field with an undefined value', () => {
+    const input = { format: 'openquarry', version: 1, thread: undefined, strand: 'old.md' }
+    const result = validateFabricManifest(input, { normalize: true })
+    expect(result.value).toStrictEqual({ format: 'openquarry', version: 1, thread: undefined })
+  })
+
   it('returns current fabric field names for legacy and mixed inputs', () => {
     const manifest = { format: 'openquarry', version: 1 }
     expect(validateFabricManifest({ ...manifest, strand: 'old.md', strands: ['old.md'] })).toStrictEqual({ valid: true, errors: [] })

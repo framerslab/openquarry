@@ -448,6 +448,17 @@ try {
       }
     }
   }
+  const invalidCurrent = JSON.parse(readFileSync(join(root, 'test/fixtures/blocks-index-v1.json'), 'utf8'))
+  invalidCurrent.threads = []
+  invalidCurrent.stats.totalThreads = 'one'
+  invalidCurrent.tagIndex = { 'map/scale': [{ threadPath: 42, blockId: 'scale' }] }
+  writeFileSync(join(oldest, 'blocks-index.json'), JSON.stringify(invalidCurrent))
+  for (const [command, args] of [[oldBin, ['check']], ...starters.map(({ id }) => [process.execPath, [`check-${id}.mjs`]])]) {
+    const report = run(command, args, oldest)
+    for (const line of ['  /threads must be object', '  /stats/totalThreads must be integer', '  /tagIndex/map~1scale/0/threadPath must be string']) {
+      if (report.status !== 1 || !report.lines.includes(line)) indexFailures.push(`${args.join(' ')} did not report ${line.trim()}`)
+    }
+  }
   if (indexFailures.length) fail(indexFailures.join('\n\n'))
 
   // 8. init: what it refuses, and what --force does.
