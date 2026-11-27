@@ -605,6 +605,75 @@ entries:
   exercise('Help shows the course command', () => {
     if (!help.stdout.includes('openquarry new course <title> [--slug <slug>] [--subject <id>]')) fail('help lacks the course usage')
   })
+  exercise('Check refuses two weaves sharing a catalogue entry', () => {
+    const duplicate = join(catalogueProject, 'weaves', 'copy')
+    mkdirSync(duplicate)
+    copyFileSync(join(firstWeave, 'weave.yaml'), join(duplicate, 'weave.yaml'))
+    try {
+      const result = checkCatalogue()
+      same(result.status, 1, 'check status for two weaves with one slug')
+      if (!result.lines.some((line) => line.includes('/slug') && line.includes('"first"') && line.includes('weaves/copy/weave.yaml'))) {
+        fail('check did not identify the shared slug and the first manifest')
+      }
+    } finally {
+      rmSync(duplicate, { recursive: true })
+    }
+  })
+  exercise('New course refuses a slug already used by a differently named folder', () => {
+    const other = join(catalogueProject, 'weaves', 'first', 'weave.yaml')
+    const previous = readFileSync(cataloguePath, 'utf8')
+    const withoutEntry = yaml.parse(previous)
+    withoutEntry.entries = withoutEntry.entries.filter(({ slug }) => slug !== 'first')
+    writeFileSync(cataloguePath, yaml.stringify(withoutEntry))
+    try {
+      const result = addCourse('Course with a shared slug', '--slug', 'first', '--subject', 'navigation')
+      same(result.status, 1, 'new course status for an existing slug')
+      if (!result.stderr.includes('weaves/first-folder/weave.yaml')) fail('new course did not identify the existing weave')
+      same(existsSync(other), false, 'no second weave for the same slug')
+    } finally {
+      rmSync(dirname(other), { recursive: true, force: true })
+      writeFileSync(cataloguePath, previous)
+    }
+  })
+  exercise('New course refuses a project subfolder before writing', () => {
+    const cwd = join(catalogueProject, 'weaves')
+    const nested = join(cwd, 'weaves')
+    try {
+      const result = run(bin, ['new', 'course', 'Nested course'], cwd)
+      same(result.status, 1, 'new course status from the weaves folder')
+      if (!result.stderr.includes('project root')) fail('new course did not tell the reader where to run it')
+      same(existsSync(nested), false, 'no nested weaves folder written')
+    } finally {
+      rmSync(nested, { recursive: true, force: true })
+    }
+  })
+  exercise('New course explains how to recover a stale catalogue lock', () => {
+    const lock = join(catalogueProject, '.openquarry-catalogue.lock')
+    mkdirSync(lock)
+    const original = readFileSync(cataloguePath, 'utf8')
+    try {
+      const result = addCourse('Locked course', '--subject', 'navigation')
+      same(result.status, 1, 'new course status when the catalogue is locked')
+      if (!/remove \.openquarry-catalogue\.lock/i.test(result.stderr)) fail('new course did not name the lock to remove')
+      same(readFileSync(cataloguePath, 'utf8'), original, 'the catalogue while locked')
+      same(existsSync(lock), true, 'a lock another writer might own is left in place')
+    } finally {
+      rmSync(lock, { recursive: true })
+    }
+  })
+  exercise('New course updates a catalogue whose entries key uses an alias', () => {
+    const previous = readFileSync(cataloguePath, 'utf8')
+    const aliased = catalogue.replace('id: guides', 'id: &entries-key entries').replace('entries:', '*entries-key :')
+    writeFileSync(cataloguePath, aliased)
+    try {
+      same(yaml.parse(aliased).entries[0].slug, 'first', 'the YAML alias fixture')
+      same(addCourse('Aliased catalogue', '--subject', 'navigation').status, 0, 'new course status with an alias for the entries key')
+      same(yaml.parse(readFileSync(cataloguePath, 'utf8')).entries.map(({ slug }) => slug), ['first', 'aliased-catalogue'], 'entries after updating the alias')
+    } finally {
+      rmSync(join(catalogueProject, 'weaves', 'aliased-catalogue'), { recursive: true, force: true })
+      writeFileSync(cataloguePath, previous)
+    }
+  })
   if (catalogueFailures.length) fail(catalogueFailures.join('\n'))
 
   // 8. init: what it refuses, and what --force does.
