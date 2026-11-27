@@ -9,6 +9,8 @@ npm run check
 
 `npm run check` validates `fabric.yaml`, `catalogue.yaml`, `blocks-index.json`, every `weave.yaml` and `loom.yaml`, and the frontmatter of every Markdown file under `weaves/`. It prints one line for each file and exits with 1 when a file is invalid, so the same command can run in CI.
 
+If you add a `catalogue.yaml`, the check reports any missing entries, entries without a matching weave, and duplicate weave slugs.
+
 ## What is here
 
 ```text

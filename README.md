@@ -2,13 +2,17 @@
 
 **The open format for notes and courses in plain Markdown files. Site and docs: [openquarry.dev](https://openquarry.dev/).** Made by [Frame](https://frame.dev) and used by [Quarry School](https://quarry.school) and [Quarry](https://quarry.space).
 
-[![npm](https://img.shields.io/npm/v/@framers/openquarry)](https://www.npmjs.com/package/@framers/openquarry) [![CI](https://github.com/framerslab/openquarry/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/framerslab/openquarry/actions/workflows/ci.yml?query=branch%3Amaster) [![License: MIT](https://img.shields.io/github/license/framerslab/openquarry)](LICENSE) [![Site: openquarry.dev](https://img.shields.io/badge/site-openquarry.dev-103822)](https://openquarry.dev/)
+[![npm](https://img.shields.io/npm/v/openquarry)](https://www.npmjs.com/package/openquarry) [![CI](https://github.com/framerslab/openquarry/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/framerslab/openquarry/actions/workflows/ci.yml?query=branch%3Amaster) [![License: MIT](https://img.shields.io/github/license/framerslab/openquarry)](LICENSE) [![Site: openquarry.dev](https://img.shields.io/badge/site-openquarry.dev-103822)](https://openquarry.dev/)
 
 OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A note or a lesson is one Markdown file with YAML frontmatter. Folders group the files into looms, and looms into weaves: a weave is a knowledge base or a course. The files are plain text that a person can read and a language model can write, and JSON Schemas say what each file may hold.
 
 ## Start a project
 
-One command starts a folder of notes or a course, and one checks every file in it. Both come from the [`openquarry`](https://www.npmjs.com/package/openquarry) package.
+Install the OpenQuarry command and validators.
+
+```bash
+npm install openquarry
+```
 
 Notes, a knowledge base with a first note:
 
@@ -35,6 +39,8 @@ npx openquarry check
 npx openquarry check
 ```
 
+If the project has a `catalogue.yaml`, `check` also reports missing entries and entries without a matching weave, one line per slug. It checks the catalogue's subject and prerequisite links and exits with 1 for any problem.
+
 Add a note or a lesson. The file gets a new `id`, a `slug` from its title, `version: 1.0.0` and its `contentType`:
 
 <!-- commands: new-notes -->
@@ -47,6 +53,14 @@ npx openquarry new note "Scale and distance" --in weaves/notes/getting-started
 npx openquarry new lesson "Reading contour lines" --in weaves/my-course/first-unit
 ```
 
+Add a course to the current project.
+
+```bash
+npx openquarry new course "Reading contour lines"
+```
+
+This creates `weaves/reading-contour-lines/weave.yaml` with its slug, title and `kind: course`. In a project with a catalogue, pass `--subject <id>` to append an entry under that subject. [Keeping a catalogue](docs/catalogue-cli.md) shows how to choose a subject and read the check report.
+
 A note or a lesson you write by hand needs its own `id`. This prints one:
 
 <!-- commands: id -->
@@ -58,7 +72,7 @@ The command needs Node 18 or later. `init` copies a starter that ships inside th
 
 ### Copy a starter with degit
 
-The same two starters can be copied straight from GitHub. Each has a `check` script that validates every file with `@framers/openquarry`.
+The same two starters can be copied straight from GitHub. Each has a `check` script that validates the project files.
 
 <!-- commands: notes -->
 ```bash
@@ -78,11 +92,11 @@ npm run check
 
 These commands need Node 20 or later. `npx degit` copies the starter's folder from GitHub without its history.
 
-Links: [the starters on GitHub](https://github.com/framerslab/openquarry/tree/master/templates), [the example course](examples/reading-a-map), [the schemas](https://openquarry.dev/schema/), [`openquarry`](https://www.npmjs.com/package/openquarry) and [`@framers/openquarry`](https://www.npmjs.com/package/@framers/openquarry) on npm, [the source on GitHub](https://github.com/framerslab/openquarry) and [Start a project on the package page](https://openquarry.dev/package/#start).
+Links: [the starters on GitHub](https://github.com/framerslab/openquarry/tree/master/templates), [the example course](examples/reading-a-map), [the schemas](https://openquarry.dev/schema/), [the source on GitHub](https://github.com/framerslab/openquarry) and [Start a project on the package page](https://openquarry.dev/package/#start).
 
 ## The package
 
-`@framers/openquarry` holds the format's JSON Schemas, TypeScript types for every file the format defines, and a validator built on [Ajv](https://ajv.js.org/). The `openquarry` package above is the command built on it, and re-exports its validators and types.
+`@framers/openquarry` is the library-only package. It holds the format's JSON Schemas, TypeScript types and validators built on [Ajv](https://ajv.js.org/). The `openquarry` command package re-exports the validators and types.
 
 - [Read the format guide](https://openquarry.dev/format/), including current summaries and the proposed reading depths.
 - [The package](https://openquarry.dev/package/): install it with npm, pnpm or yarn, and an example for each export.
@@ -92,12 +106,12 @@ Links: [the starters on GitHub](https://github.com/framerslab/openquarry/tree/ma
 - [FAQ](#faq) and [changelog](CHANGELOG.md).
 
 ```bash
-npm install @framers/openquarry
+npm install openquarry yaml
 ```
 
 ```ts
 import { parse } from 'yaml'
-import { validateThreadFrontmatter } from '@framers/openquarry'
+import { validateThreadFrontmatter } from 'openquarry'
 
 const frontmatter = parse(`
 id: 3fce914f-0801-45fd-b886-f0521aeeb4a1
@@ -234,7 +248,7 @@ Then check the reply:
 
 ```ts
 import { parse } from 'yaml'
-import { validateThreadFrontmatter } from '@framers/openquarry'
+import { validateThreadFrontmatter } from 'openquarry'
 
 const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(reply)?.[1] ?? ''
 const { valid, errors } = validateThreadFrontmatter(parse(frontmatter))
@@ -257,7 +271,7 @@ const { valid, errors } = validateThreadFrontmatter(parse(frontmatter))
 
 Blocks indexes use `threads`, `stats.totalThreads` and `threadPath`. Pass `{ normalize: true }` to `validateBlocksIndex` to read either spelling and receive `value` with the current fields.
 
-The YAML sources ship in the package too: `@framers/openquarry/schema/thread.schema.yaml` and its siblings, all JSON Schema draft 2020-12. So do the docs under `docs/` and the example course under `examples/`.
+The library-only package ships the YAML sources under `schema/`, all JSON Schema draft 2020-12. It also ships the docs under `docs/` and the example course under `examples/`.
 
 ## Who uses it
 
@@ -328,11 +342,11 @@ In this package under `schema/`, as YAML. At `https://openquarry.dev/schema/v1/`
 
 ### Do I need a catalogue?
 
-No. A fabric with one course needs none. Add `catalogue.yaml` when you have several courses and want them listed under subjects, or when one course builds on another.
+The catalogue is optional. Add `catalogue.yaml` when you want to list courses by subject or record which courses build on one another. Once the file exists, `openquarry check` expects one entry for each weave. [Keeping a catalogue](docs/catalogue-cli.md) explains how to add a course and check its entry.
 
 ## License
 
-MIT, copyright Framers Lab, Inc. See [LICENSE](LICENSE). The licence covers `@framers/openquarry` and `openquarry`. It does not cover the files you write in the format: see the FAQ.
+MIT, copyright Framers Lab, Inc. See [LICENSE](LICENSE). The licence covers both packages. It does not cover the files you write in the format: see the FAQ.
 
 The site at openquarry.dev is built from `site/` and `scripts/` in this repository. Its mark, the five cut stones it shares with Quarry and Quarry School, is the Quarry brand's logo and is not licensed for other uses by the MIT licence. Its fonts are under the SIL Open Font License, with each licence in `site/fonts/`.
 

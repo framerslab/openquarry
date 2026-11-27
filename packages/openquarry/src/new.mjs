@@ -1,16 +1,15 @@
-// openquarry new: writes one note or lesson, a Markdown file with the five keys every thread needs. It writes no
-// licence: a person's notes and lessons carry the licence they state themselves.
+// openquarry new: writes a thread or a course weave, and files the course in the project's catalogue if it has one.
 import { randomUUID } from 'node:crypto'
-import { closeSync, openSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join, resolve, sep } from 'node:path'
-import { stringify } from 'yaml'
-import { validateThreadFrontmatter } from '@framers/openquarry'
+import { chmodSync, closeSync, fstatSync, lstatSync, mkdirSync, openSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
+import { isAlias, parseDocument, stringify, visit } from 'yaml'
+import { validateCatalogue, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
+import { readPlain } from './check-input.mjs'
 import { Refusal, UsageError } from './errors.mjs'
 import { block, parse } from './frontmatter.mjs'
-import { entry } from './paths.mjs'
+import { entry, walkProjectFiles } from './paths.mjs'
 
 const contentTypes = { note: 'markdown', lesson: 'lesson' }
-const example = 'openquarry new note "A title"'
 
 /** A title as a slug: its letters without their accents, in lowercase, with a hyphen for each run of anything else. */
 export function slugOf(title) {
@@ -22,13 +21,7 @@ export function slugOf(title) {
     .replace(/^-+|-+$/g, '')
 }
 
-/**
- * Writes the file and returns the lines to print. `folder` is the folder as the person typed it (undefined: the current
- * folder), `cwd` where they typed it.
- */
-export function newThread({ kind, title: given, folder, slug: wanted, cwd = process.cwd() }) {
-  if (kind === undefined) throw new UsageError(`say note or lesson: ${example}`)
-  if (!Object.hasOwn(contentTypes, kind)) throw new UsageError(`say note or lesson, not ${JSON.stringify(kind)}`)
+function titleAndSlug(given, wanted, example) {
   const title = (given ?? '').trim()
   if (title === '') throw new UsageError(`a title is missing: ${example}`)
   if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(title)) throw new UsageError('the title must be one line with no control character')
@@ -37,6 +30,28 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   }
   const slug = wanted ?? slugOf(title)
   if (slug === '') throw new UsageError(`no slug can be made from the title ${JSON.stringify(title)}: pass --slug with lowercase letters, digits and hyphens`)
+  return { title, slug }
+}
+
+function hasProjectManifest(dir) {
+  return ['fabric.yaml', 'catalogue.yaml'].some((file) => {
+    try {
+      return statSync(join(dir, file)).isFile()
+    } catch {
+      return false
+    }
+  })
+}
+
+/**
+ * Writes the file and returns the lines to print. `folder` is the folder as the person typed it (undefined: the current
+ * folder), `cwd` where they typed it.
+ */
+export function newThread({ kind, title: given, folder, slug: wanted, cwd = process.cwd() }) {
+  const example = 'openquarry new note "A title"'
+  if (kind === undefined) throw new UsageError(`say note, lesson or course: ${example}`)
+  if (!Object.hasOwn(contentTypes, kind)) throw new UsageError(`say note, lesson or course, not ${JSON.stringify(kind)}`)
+  const { title, slug } = titleAndSlug(given, wanted, example)
 
   const typed = folder === undefined ? '' : folder.replace(/[/\\]+$/, '') || folder
   const here = typed === '' || typed === '.'
@@ -61,15 +76,8 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   // weaves/ in it are refused, as are folders below weaves/notes/.drafts/weaves, since the check skips .drafts. A folder
   // that only bears one of those names is no manifest. With neither file in the path, the first weaves/ counts, so the
   // note lands where a check from any folder above it reads it.
-  const manifest = (path) => {
-    try {
-      return statSync(path).isFile()
-    } catch {
-      return false
-    }
-  }
   let count = segments.length
-  while (count > 0 && !['fabric.yaml', 'catalogue.yaml'].some((file) => manifest(join(top(count), file)))) count -= 1
+  while (count > 0 && !hasProjectManifest(top(count))) count -= 1
   const weaves = count > 0 ? (segments[count] === 'weaves' ? count : -1) : segments.indexOf('weaves')
   if (weaves === -1 || weaves === segments.length - 1) {
     throw new Refusal(`${name} is not inside the project's weaves/ folder, where openquarry check looks for notes and lessons: name a folder with --in, such as --in weaves/notes/getting-started`)
@@ -105,7 +113,11 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   if (!same || !validateThreadFrontmatter(read).valid) throw new Refusal(`the title ${JSON.stringify(title)} cannot be written as YAML that reads back the same: nothing written`)
 
   const shown = here ? `${slug}.md` : `${typed}/${slug}.md`
-  const path = join(dir, `${slug}.md`)
+  writeNew(join(dir, `${slug}.md`), shown, text)
+  return [`wrote ${shown}`]
+}
+
+function writeNew(path, shown, text) {
   let fd
   try {
     // wx: create the file or fail. A file that is there is never opened.
@@ -116,7 +128,9 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   }
   try {
     writeFileSync(fd, text)
+    const written = fstatSync(fd, { bigint: true })
     closeSync(fd)
+    return written
   } catch (error) {
     // A write that began and failed (a full disk) leaves no half-written file, so the same command works again: this
     // run created the file, so it removes it.
@@ -128,5 +142,144 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
     rmSync(path, { force: true })
     throw new Refusal(`${shown} could not be written: ${String(error.message).split('\n')[0]}. Nothing was left in its place.`)
   }
-  return [`wrote ${shown}`]
+}
+
+function updateCatalogue(path, slug, subject) {
+  const info = entry(path)
+  const text = info?.isFile() ? readPlain(path) : undefined
+  if (text === undefined) throw new Refusal('catalogue.yaml must be a regular file to add an entry')
+  const doc = parseDocument(text)
+  if (doc.errors.length) throw new Refusal(`catalogue.yaml: ${doc.errors[0].message}`)
+  const value = doc.toJS()
+  const result = validateCatalogue(value)
+  if (!result.valid) throw new Refusal(`catalogue.yaml: ${result.errors[0]}. Run openquarry check for the full report.`)
+  const ids = value.subjects.map(({ id }) => id)
+  if (ids.length === 0) throw new Refusal('catalogue.yaml has no subjects: add one, then pass its id with --subject')
+  if (!ids.includes(subject)) {
+    const problem = subject === undefined ? 'pass --subject' : `unknown subject ${JSON.stringify(subject)}`
+    throw new Refusal(`${problem}: catalogue.yaml lists ${ids.join(', ')}`)
+  }
+  if (value.entries.some((item) => item.slug === slug)) {
+    throw new Refusal(`catalogue.yaml already lists ${JSON.stringify(slug)}: choose another slug or restore the listed weave`)
+  }
+
+  const added = { slug, home: subject, subjects: [subject], requires: [] }
+  const member = doc.contents.items.find(({ key }) => (isAlias(key) ? key.resolve(doc) : key)?.value === 'entries')
+  const entries = member?.value
+  const withComments = (node, from) => Object.assign(node, {
+    comment: from.comment, commentBefore: from.commentBefore, spaceBefore: from.spaceBefore,
+  })
+  if (!member) {
+    // A YAML merge can supply entries through another mapping.
+    doc.set('entries', [...value.entries, added])
+  } else if (isAlias(entries)) {
+    // An empty sequence can be shared with a subject's broader links. Only entries should grow.
+    member.value = withComments(doc.createNode([...value.entries, added]), entries)
+  } else {
+    if (entries.anchor) {
+      visit(doc, { Alias: (_, alias) => {
+        if (alias.resolve(doc) === entries) return withComments(doc.createNode([]), alias)
+      } })
+    }
+    entries.add(doc.createNode(added))
+  }
+  const updated = doc.toString({ lineWidth: 0 })
+  return { text, updated: text.includes('\r\n') ? updated.replaceAll('\n', '\r\n') : updated, mode: info.mode }
+}
+
+function refuseProjectSubfolder(root) {
+  if (hasProjectManifest(root)) return
+  for (let child = root, parent = dirname(child); parent !== child; child = parent, parent = dirname(child)) {
+    if (basename(child) === 'weaves' || hasProjectManifest(parent) || entry(join(parent, 'weaves'))?.isDirectory()) {
+      throw new Refusal('run openquarry new course from the project root, beside weaves/')
+    }
+  }
+}
+
+function findWeave(weaves, slug, target) {
+  if (!entry(weaves)) return undefined
+  return walkProjectFiles(weaves).find((file) => {
+    if (file === target || basename(file) !== 'weave.yaml') return false
+    const text = readPlain(file)
+    if (text === undefined) return false
+    try {
+      return parse(text)?.slug === slug
+    } catch {
+      // check reports YAML it cannot read.
+      return false
+    }
+  })
+}
+
+/** Creates a course in the current project's weaves/ and appends its catalogue entry, when there is a catalogue. */
+export function newCourse({ title: given, slug: wanted, subject, cwd = process.cwd() }) {
+  const { title, slug } = titleAndSlug(given, wanted, 'openquarry new course "A title"')
+  const data = { slug, title, kind: 'course' }
+  const result = validateWeave(data)
+  if (!result.valid) throw new Refusal(`weave.yaml: ${result.errors.join('; ')}`)
+
+  const root = resolve(cwd)
+  refuseProjectSubfolder(root)
+  const weaves = join(root, 'weaves')
+  const dir = join(weaves, slug)
+  const shown = `weaves/${slug}/weave.yaml`
+  const path = join(dir, 'weave.yaml')
+  for (const folder of [weaves, dir]) {
+    const info = entry(folder)
+    if (info && !info.isDirectory()) throw new Refusal(`${folder === weaves ? 'weaves' : `weaves/${slug}`} must be a real folder`)
+  }
+  const writeWeave = () => {
+    const other = findWeave(weaves, slug, path)
+    if (other) {
+      throw new Refusal(`slug ${JSON.stringify(slug)} is already used by ${relative(root, other).split(sep).join('/')}: choose another slug`)
+    }
+    mkdirSync(dir, { recursive: true })
+    return writeNew(path, shown, stringify(data, { lineWidth: 0 }))
+  }
+
+  const catalogue = join(root, 'catalogue.yaml')
+  if (!entry(catalogue)) {
+    if (subject !== undefined) throw new Refusal('--subject needs a catalogue.yaml in the current folder')
+    writeWeave()
+    return [`wrote ${shown}`]
+  }
+
+  // Serialize catalogue updates by this command and stage the replacement beside the original for an atomic rename.
+  const lock = join(root, '.openquarry-catalogue.lock')
+  try {
+    mkdirSync(lock)
+  } catch (error) {
+    if (error.code === 'EEXIST') {
+      throw new Refusal('catalogue.yaml is locked. If no course creation is running, remove .openquarry-catalogue.lock and run openquarry check before retrying.')
+    }
+    throw error
+  }
+  const staged = join(lock, 'catalogue.yaml')
+  try {
+    const { text, updated, mode } = updateCatalogue(catalogue, slug, subject)
+    writeFileSync(staged, updated, { flag: 'wx' })
+    chmodSync(staged, mode & 0o777)
+    const written = writeWeave()
+    try {
+      if (!entry(catalogue)?.isFile() || readPlain(catalogue) !== text) {
+        throw new Refusal('catalogue.yaml changed while adding the course: try again')
+      }
+      renameSync(staged, catalogue)
+    } catch (error) {
+      const current = lstatSync(path, { bigint: true, throwIfNoEntry: false })
+      if (current) {
+        const unchanged = ['dev', 'ino', 'size', 'mtimeNs', 'ctimeNs'].every((key) => current[key] === written[key])
+        if (!unchanged) {
+          const problem = String(error.message).split('\n')[0]
+          throw new Refusal(`${problem}. Kept ${shown} because it changed during course creation. Run openquarry check.`)
+        }
+        rmSync(path, { force: true })
+      }
+      throw error
+    }
+  } finally {
+    rmSync(staged, { force: true })
+    rmdirSync(lock)
+  }
+  return [`wrote ${shown}`, 'updated catalogue.yaml']
 }

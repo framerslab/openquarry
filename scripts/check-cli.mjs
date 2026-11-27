@@ -144,7 +144,7 @@ try {
   usage(['check', '--json'], 'openquarry check: no option named --json')
   usage(['check', 'a', 'b'], 'openquarry check: one folder at most, got 2')
   usage(['id', 'now'], 'openquarry id: takes no argument')
-  usage(['new', 'page', 'A title'], 'openquarry new: say note or lesson, not "page"')
+  usage(['new', 'page', 'A title'], 'openquarry new: say note, lesson or course, not "page"')
   usage(['new', 'note'], 'openquarry new: a title is missing: openquarry new note "A title"')
   usage(['init', '--template'], 'openquarry init: --template needs a value')
 
@@ -500,6 +500,230 @@ try {
     }
   }
   if (indexFailures.length) fail(indexFailures.join('\n\n'))
+
+  // Catalogue checks and course creation run through the installed bin.
+  const catalogueProject = join(home, 'catalogue-project')
+  const cataloguePath = join(catalogueProject, 'catalogue.yaml')
+  const firstWeave = join(catalogueProject, 'weaves', 'first-folder')
+  mkdirSync(firstWeave, { recursive: true })
+  writeFileSync(join(firstWeave, 'weave.yaml'), 'slug: first\ntitle: First course\nkind: course\n')
+  const weave = join(catalogueProject, 'weaves', 'map-skills', 'weave.yaml')
+  const catalogue = `# Field guides
+id: guides
+title: Field guides
+subjects:
+  - id: navigation # the home subject
+    title: Navigation
+    broader: []
+  - id: outdoors
+    title: Outdoors
+    broader: []
+entries:
+  # Read this one first
+  - slug: first
+    home: navigation
+    subjects: [navigation]
+    requires: []
+# End of catalogue
+`
+  const yaml = createRequire(join(installed, 'index.cjs'))('yaml')
+  const catalogueFailures = []
+  const exercise = (name, test) => {
+    try {
+      test()
+    } catch (error) {
+      catalogueFailures.push(`${name}: ${error.message}`)
+    }
+  }
+  const checkCatalogue = () => run(bin, ['check', 'catalogue-project'], home)
+  exercise('Catalogue is optional and matches manifest slugs when present', () => {
+    same(checkCatalogue().status, 0, 'check without catalogue.yaml')
+    writeFileSync(cataloguePath, catalogue)
+    same(checkCatalogue().status, 0, 'check with a folder named differently from the manifest slug')
+  })
+  exercise('Check lists each missing or orphaned slug on its own line', () => {
+    writeFileSync(cataloguePath, catalogue.replace('slug: first', 'slug: retired'))
+    const result = checkCatalogue()
+    same(result.status, 1, 'check status for a mismatched catalogue')
+    if (!result.lines.includes('not ok catalogue.yaml')) fail('check did not mark catalogue.yaml invalid')
+    for (const [slug, action] of [['first', /add.*entry/i], ['retired', /add.*weave/i]]) {
+      same(result.lines.filter((line) => line.includes(slug) && action.test(line)).length, 1, `action for ${slug}`)
+    }
+    same(result.stderr, '', 'check diagnostics go to standard output')
+  })
+  exercise('Check reports each existing catalogue rule once', () => {
+    const record = yaml.parse(catalogue)
+    record.subjects.push({ id: 'navigation', title: 'Copy', broader: ['unknown'] })
+    record.entries.push({ slug: 'first', home: 'outdoors', subjects: ['navigation'], requires: [] })
+    record.entries[0].requires = ['first']
+    writeFileSync(cataloguePath, yaml.stringify(record))
+    const result = checkCatalogue()
+    same(result.status, 1, 'check status for invalid catalogue links')
+    for (const message of ['/subjects/2/id is listed twice', '/subjects/2/broader/0 names a subject',
+      '/entries/1/slug is listed twice', '/entries/1/home must be one of', '/entries/0/requires makes a circle']) {
+      same(result.lines.filter((line) => line.includes(message)).length, 1, message)
+    }
+  })
+  const addCourse = (...args) => run(bin, ['new', 'course', ...args], catalogueProject)
+  exercise('New course creates a validated weave without a catalogue', () => {
+    rmSync(cataloguePath, { force: true })
+    same(addCourse('Map Skills').status, 0, 'new course status without catalogue.yaml')
+    same(yaml.parse(readFileSync(weave, 'utf8')), { slug: 'map-skills', title: 'Map Skills', kind: 'course' }, 'weave manifest')
+    same(existsSync(cataloguePath), false, 'no catalogue created')
+    same(checkCatalogue().status, 0, 'check the new weave')
+    rmSync(dirname(weave), { recursive: true })
+  })
+  exercise('New course requires a listed subject before writing', () => {
+    writeFileSync(cataloguePath, catalogue)
+    for (const args of [[], ['--subject', 'missing']]) {
+      const result = addCourse('Map Skills', ...args)
+      same(result.status, 1, 'new course status without a listed subject')
+      if (!result.stderr.includes('navigation') || !result.stderr.includes('outdoors')) fail('new course did not list the available subject ids')
+      same(existsSync(weave), false, 'no weave written')
+      same(readFileSync(cataloguePath, 'utf8'), catalogue, 'the catalogue after refusal')
+    }
+  })
+  exercise('New course adds an entry and preserves catalogue order and comments', () => {
+    writeFileSync(cataloguePath, catalogue)
+    const args = ['A map course', '--slug', 'map-skills', '--subject', 'navigation']
+    same(addCourse(...args).status, 0, 'new course status with a listed subject')
+    const manifest = readFileSync(weave, 'utf8')
+    same(yaml.parse(manifest), { slug: 'map-skills', title: 'A map course', kind: 'course' }, 'weave manifest with an explicit slug')
+    const updated = readFileSync(cataloguePath, 'utf8')
+    const before = yaml.parse(catalogue)
+    same(yaml.parse(updated), { ...before, entries: [...before.entries, { slug: 'map-skills', home: 'navigation', subjects: ['navigation'], requires: [] }] }, 'the catalogue after adding the course')
+    same(updated.match(/#[^\r\n]*/g), catalogue.match(/#[^\r\n]*/g), 'catalogue comments in order')
+    same(checkCatalogue().status, 0, 'check after adding the catalogue entry')
+    same(addCourse('Another title', ...args.slice(1)).status, 1, 'refuse an existing weave')
+    same(readFileSync(weave, 'utf8'), manifest, 'the weave after refusal')
+    same(readFileSync(cataloguePath, 'utf8'), updated, 'the catalogue after refusal')
+  })
+  exercise('New course validates the weave title before writing', () => {
+    same(addCourse('No', '--subject', 'navigation').status, 1, 'reject a title below the weave minimum')
+    same(existsSync(join(catalogueProject, 'weaves', 'no')), false, 'no invalid weave written')
+  })
+  exercise('Help shows the course command', () => {
+    if (!help.stdout.includes('openquarry new course <title> [--slug <slug>] [--subject <id>]')) fail('help lacks the course usage')
+  })
+  exercise('Check refuses two weaves sharing a catalogue entry', () => {
+    const duplicate = join(catalogueProject, 'weaves', 'copy')
+    mkdirSync(duplicate)
+    copyFileSync(join(firstWeave, 'weave.yaml'), join(duplicate, 'weave.yaml'))
+    try {
+      const result = checkCatalogue()
+      same(result.status, 1, 'check status for two weaves with one slug')
+      if (!result.lines.some((line) => line.includes('/slug') && line.includes('"first"') && line.includes('weaves/copy/weave.yaml'))) {
+        fail('check did not identify the shared slug and the first manifest')
+      }
+    } finally {
+      rmSync(duplicate, { recursive: true })
+    }
+  })
+  exercise('New course refuses a slug already used by a differently named folder', () => {
+    const other = join(catalogueProject, 'weaves', 'first', 'weave.yaml')
+    const previous = readFileSync(cataloguePath, 'utf8')
+    const withoutEntry = yaml.parse(previous)
+    withoutEntry.entries = withoutEntry.entries.filter(({ slug }) => slug !== 'first')
+    writeFileSync(cataloguePath, yaml.stringify(withoutEntry))
+    try {
+      const result = addCourse('Course with a shared slug', '--slug', 'first', '--subject', 'navigation')
+      same(result.status, 1, 'new course status for an existing slug')
+      if (!result.stderr.includes('weaves/first-folder/weave.yaml')) fail('new course did not identify the existing weave')
+      same(existsSync(other), false, 'no second weave for the same slug')
+    } finally {
+      rmSync(dirname(other), { recursive: true, force: true })
+      writeFileSync(cataloguePath, previous)
+    }
+  })
+  exercise('New course refuses a project subfolder before writing', () => {
+    const cwd = join(catalogueProject, 'weaves')
+    const nested = join(cwd, 'weaves')
+    try {
+      const result = run(bin, ['new', 'course', 'Nested course'], cwd)
+      same(result.status, 1, 'new course status from the weaves folder')
+      if (!result.stderr.includes('project root')) fail('new course did not tell the reader where to run it')
+      same(existsSync(nested), false, 'no nested weaves folder written')
+    } finally {
+      rmSync(nested, { recursive: true, force: true })
+    }
+  })
+  exercise('New course explains how to recover a stale catalogue lock', () => {
+    const lock = join(catalogueProject, '.openquarry-catalogue.lock')
+    mkdirSync(lock)
+    const original = readFileSync(cataloguePath, 'utf8')
+    try {
+      const result = addCourse('Locked course', '--subject', 'navigation')
+      same(result.status, 1, 'new course status when the catalogue is locked')
+      if (!/remove \.openquarry-catalogue\.lock/i.test(result.stderr)) fail('new course did not name the lock to remove')
+      same(readFileSync(cataloguePath, 'utf8'), original, 'the catalogue while locked')
+      same(existsSync(lock), true, 'a lock another writer might own is left in place')
+    } finally {
+      rmSync(lock, { recursive: true })
+    }
+  })
+  exercise('New course updates a catalogue whose entries key uses an alias', () => {
+    const previous = readFileSync(cataloguePath, 'utf8')
+    const aliased = catalogue.replace('id: guides', 'id: &entries-key entries').replace('entries:', '*entries-key :')
+    writeFileSync(cataloguePath, aliased)
+    try {
+      same(yaml.parse(aliased).entries[0].slug, 'first', 'the YAML alias fixture')
+      same(addCourse('Aliased catalogue', '--subject', 'navigation').status, 0, 'new course status with an alias for the entries key')
+      same(yaml.parse(readFileSync(cataloguePath, 'utf8')).entries.map(({ slug }) => slug), ['first', 'aliased-catalogue'], 'entries after updating the alias')
+    } finally {
+      rmSync(join(catalogueProject, 'weaves', 'aliased-catalogue'), { recursive: true, force: true })
+      writeFileSync(cataloguePath, previous)
+    }
+  })
+  exercise('The starter checks match CLI catalogue coverage', () => {
+    const previous = readFileSync(cataloguePath, 'utf8')
+    const copy = join(catalogueProject, 'weaves', 'copy')
+    mkdirSync(copy)
+    copyFileSync(join(firstWeave, 'weave.yaml'), join(copy, 'weave.yaml'))
+    writeFileSync(cataloguePath, catalogue.replace('slug: first', 'slug: retired'))
+    try {
+      const cli = checkCatalogue()
+      same(cli.status, 1, 'CLI status for catalogue coverage errors')
+      for (const { id } of starters) {
+        const source = join(installed, 'templates', id)
+        copyFileSync(join(source, 'check-input.mjs'), join(catalogueProject, 'check-input.mjs'))
+        copyFileSync(join(source, 'check.mjs'), join(catalogueProject, 'check.mjs'))
+        const report = run(process.execPath, ['check.mjs'], catalogueProject)
+        same([report.status, report.stdout], [cli.status, cli.stdout], `${id} starter catalogue report`)
+      }
+    } finally {
+      rmSync(copy, { recursive: true })
+      writeFileSync(cataloguePath, previous)
+    }
+  })
+  exercise('Course rollback keeps a manifest replaced by another writer', () => {
+    const original = readFileSync(cataloguePath, 'utf8')
+    const target = join(catalogueProject, 'weaves', 'raced-course', 'weave.yaml')
+    const replacement = 'slug: raced-course\ntitle: Replaced course\nkind: course\n'
+    const preload = join(work, 'raced-course.cjs')
+    writeFileSync(preload, `
+      const fs = require('node:fs')
+      const rename = fs.renameSync
+      fs.renameSync = function (from, to) {
+        if (to !== ${JSON.stringify(cataloguePath)}) return rename(from, to)
+        if (process.env.REPLACE_WEAVE === 'yes') {
+          const target = ${JSON.stringify(target)}
+          fs.writeFileSync(target + '.replacement', ${JSON.stringify(replacement)})
+          rename(target + '.replacement', target)
+        }
+        throw new Error('catalogue rename failed')
+      }
+      require('node:module').syncBuiltinESMExports()
+    `)
+    const args = ['--require', preload, join(installed, 'bin', 'openquarry.mjs'), 'new', 'course', 'Raced course', '--subject', 'navigation']
+    const rolledBack = run(process.execPath, args, catalogueProject)
+    same(rolledBack.status, 1, 'new course status after a catalogue write fails')
+    same(existsSync(target), false, 'rollback removes the manifest just created')
+    const raced = run(process.execPath, args, catalogueProject, { REPLACE_WEAVE: 'yes' })
+    same(raced.status, 1, 'new course status when rollback races a replacement')
+    same(existsSync(target) && readFileSync(target, 'utf8'), replacement, 'rollback preserves the replacement manifest')
+    same(readFileSync(cataloguePath, 'utf8'), original, 'catalogue after a failed replacement')
+  })
+  if (catalogueFailures.length) fail(catalogueFailures.join('\n'))
 
   // 8. init: what it refuses, and what --force does.
   console.log('\n=== init: refusals')

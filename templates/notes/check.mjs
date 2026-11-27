@@ -12,7 +12,7 @@ import {
   validateThreadFrontmatter,
   validateWeave,
 } from '@framers/openquarry'
-import { checkBlocksIndex, readPlain } from './check-input.mjs'
+import { catalogueCoverage, checkBlocksIndex, readPlain, recordWeave } from './check-input.mjs'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const shown = (path) => relative(root, path).split(sep).join('/')
@@ -47,10 +47,11 @@ if (existsSync(join(root, 'weaves'))) {
 }
 
 const ids = new Map()
-let invalid = 0
-for (const { path, validate, thread, json } of files) {
+const weaveSlugs = new Map()
+const results = files.map(({ path, validate, thread, json }) => {
   let errors
   let warnings
+  let entries
   try {
     const text = readPlain(path)
     const content = text === undefined || !thread ? text : frontmatter(text)
@@ -61,7 +62,12 @@ for (const { path, validate, thread, json } of files) {
       const result = validate(value)
       errors = result.errors
       warnings = result.warnings
+      if (validate === validateCatalogue) entries = value?.entries
       if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version
+      if (rootEntries.has('catalogue.yaml') && validate === validateWeave) {
+        const duplicate = recordWeave(weaveSlugs, value?.slug, shown(path))
+        if (duplicate) errors = [...errors, duplicate]
+      }
       if (thread && errors.length === 0) {
         const other = ids.get(value.id)
         if (other) errors = [`/id is already the id of ${shown(other)}: give this file its own id`]
@@ -71,7 +77,14 @@ for (const { path, validate, thread, json } of files) {
   } catch (error) {
     errors = [`/ cannot be read as ${json ? 'JSON' : 'YAML'}: ${String(error.message).split('\n')[0]}`]
   }
-  const relativePath = shown(path)
+  return { relativePath: shown(path), thread, errors, warnings, entries }
+})
+
+const catalogue = results.find(({ relativePath }) => relativePath === 'catalogue.yaml')
+if (catalogue) catalogue.errors = [...catalogue.errors, ...catalogueCoverage(catalogue.entries, weaveSlugs)]
+
+let invalid = 0
+for (const { relativePath, thread, errors, warnings } of results) {
   if (errors.length === 0) {
     console.log(`ok ${relativePath}`)
     for (const warning of warnings ?? []) console.log(`  warning: ${warning}`)

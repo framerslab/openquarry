@@ -17,6 +17,28 @@ export function readPlain(path) {
   }
 }
 
+export function recordWeave(weaves, slug, path) {
+  if (typeof slug !== 'string') return undefined
+  const other = weaves.get(slug)
+  if (other) return `/slug ${JSON.stringify(slug)} is already the slug of ${other}: give this weave its own slug`
+  weaves.set(slug, path)
+  return undefined
+}
+
+export function catalogueCoverage(entries, weaves) {
+  // Compare even when there are other catalogue errors, as long as all entry slugs can be read.
+  if (!Array.isArray(entries) || !entries.every((entry) => typeof entry?.slug === 'string')) return []
+  const slugs = new Set(entries.map(({ slug }) => slug))
+  const errors = []
+  for (const slug of weaves.keys()) {
+    if (!slugs.has(slug)) errors.push(`/entries has no entry for weave ${JSON.stringify(slug)}: add a catalogue entry with that slug`)
+  }
+  for (const slug of slugs) {
+    if (!weaves.has(slug)) errors.push(`/entries lists ${JSON.stringify(slug)} without a weave: add its weave.yaml under weaves/ or remove the entry`)
+  }
+  return errors
+}
+
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 
 // An older library understands the legacy keys. Project each spelling to those keys and, when both were present,
