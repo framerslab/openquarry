@@ -501,6 +501,112 @@ try {
   }
   if (indexFailures.length) fail(indexFailures.join('\n\n'))
 
+  // Catalogue checks and course creation run through the installed bin.
+  const catalogueProject = join(home, 'catalogue-project')
+  const cataloguePath = join(catalogueProject, 'catalogue.yaml')
+  const firstWeave = join(catalogueProject, 'weaves', 'first-folder')
+  mkdirSync(firstWeave, { recursive: true })
+  writeFileSync(join(firstWeave, 'weave.yaml'), 'slug: first\ntitle: First course\nkind: course\n')
+  const weave = join(catalogueProject, 'weaves', 'map-skills', 'weave.yaml')
+  const catalogue = `# Field guides
+id: guides
+title: Field guides
+subjects:
+  - id: navigation # the home subject
+    title: Navigation
+    broader: []
+  - id: outdoors
+    title: Outdoors
+    broader: []
+entries:
+  # Read this one first
+  - slug: first
+    home: navigation
+    subjects: [navigation]
+    requires: []
+# End of catalogue
+`
+  const yaml = createRequire(join(installed, 'index.cjs'))('yaml')
+  const catalogueFailures = []
+  const exercise = (name, test) => {
+    try {
+      test()
+    } catch (error) {
+      catalogueFailures.push(`${name}: ${error.message}`)
+    }
+  }
+  const checkCatalogue = () => run(bin, ['check', 'catalogue-project'], home)
+  exercise('Catalogue is optional and matches manifest slugs when present', () => {
+    same(checkCatalogue().status, 0, 'check without catalogue.yaml')
+    writeFileSync(cataloguePath, catalogue)
+    same(checkCatalogue().status, 0, 'check with a folder named differently from the manifest slug')
+  })
+  exercise('Check lists each missing or orphaned slug on its own line', () => {
+    writeFileSync(cataloguePath, catalogue.replace('slug: first', 'slug: retired'))
+    const result = checkCatalogue()
+    same(result.status, 1, 'check status for a mismatched catalogue')
+    if (!result.lines.includes('not ok catalogue.yaml')) fail('check did not mark catalogue.yaml invalid')
+    for (const [slug, action] of [['first', /add.*entry/i], ['retired', /add.*weave/i]]) {
+      same(result.lines.filter((line) => line.includes(slug) && action.test(line)).length, 1, `action for ${slug}`)
+    }
+    same(result.stderr, '', 'check diagnostics go to standard output')
+  })
+  exercise('Check reports each existing catalogue rule once', () => {
+    const record = yaml.parse(catalogue)
+    record.subjects.push({ id: 'navigation', title: 'Copy', broader: ['unknown'] })
+    record.entries.push({ slug: 'first', home: 'outdoors', subjects: ['navigation'], requires: [] })
+    record.entries[0].requires = ['first']
+    writeFileSync(cataloguePath, yaml.stringify(record))
+    const result = checkCatalogue()
+    same(result.status, 1, 'check status for invalid catalogue links')
+    for (const message of ['/subjects/2/id is listed twice', '/subjects/2/broader/0 names a subject',
+      '/entries/1/slug is listed twice', '/entries/1/home must be one of', '/entries/0/requires makes a circle']) {
+      same(result.lines.filter((line) => line.includes(message)).length, 1, message)
+    }
+  })
+  const addCourse = (...args) => run(bin, ['new', 'course', ...args], catalogueProject)
+  exercise('New course creates a validated weave without a catalogue', () => {
+    rmSync(cataloguePath, { force: true })
+    same(addCourse('Map Skills').status, 0, 'new course status without catalogue.yaml')
+    same(yaml.parse(readFileSync(weave, 'utf8')), { slug: 'map-skills', title: 'Map Skills', kind: 'course' }, 'weave manifest')
+    same(existsSync(cataloguePath), false, 'no catalogue created')
+    same(checkCatalogue().status, 0, 'check the new weave')
+    rmSync(dirname(weave), { recursive: true })
+  })
+  exercise('New course requires a listed subject before writing', () => {
+    writeFileSync(cataloguePath, catalogue)
+    for (const args of [[], ['--subject', 'missing']]) {
+      const result = addCourse('Map Skills', ...args)
+      same(result.status, 1, 'new course status without a listed subject')
+      if (!result.stderr.includes('navigation') || !result.stderr.includes('outdoors')) fail('new course did not list the available subject ids')
+      same(existsSync(weave), false, 'no weave written')
+      same(readFileSync(cataloguePath, 'utf8'), catalogue, 'the catalogue after refusal')
+    }
+  })
+  exercise('New course adds an entry and preserves catalogue order and comments', () => {
+    writeFileSync(cataloguePath, catalogue)
+    const args = ['A map course', '--slug', 'map-skills', '--subject', 'navigation']
+    same(addCourse(...args).status, 0, 'new course status with a listed subject')
+    const manifest = readFileSync(weave, 'utf8')
+    same(yaml.parse(manifest), { slug: 'map-skills', title: 'A map course', kind: 'course' }, 'weave manifest with an explicit slug')
+    const updated = readFileSync(cataloguePath, 'utf8')
+    const before = yaml.parse(catalogue)
+    same(yaml.parse(updated), { ...before, entries: [...before.entries, { slug: 'map-skills', home: 'navigation', subjects: ['navigation'], requires: [] }] }, 'the catalogue after adding the course')
+    same(updated.match(/#[^\r\n]*/g), catalogue.match(/#[^\r\n]*/g), 'catalogue comments in order')
+    same(checkCatalogue().status, 0, 'check after adding the catalogue entry')
+    same(addCourse('Another title', ...args.slice(1)).status, 1, 'refuse an existing weave')
+    same(readFileSync(weave, 'utf8'), manifest, 'the weave after refusal')
+    same(readFileSync(cataloguePath, 'utf8'), updated, 'the catalogue after refusal')
+  })
+  exercise('New course validates the weave title before writing', () => {
+    same(addCourse('No', '--subject', 'navigation').status, 1, 'reject a title below the weave minimum')
+    same(existsSync(join(catalogueProject, 'weaves', 'no')), false, 'no invalid weave written')
+  })
+  exercise('Help shows the course command', () => {
+    if (!help.stdout.includes('openquarry new course <title> [--slug <slug>] [--subject <id>]')) fail('help lacks the course usage')
+  })
+  if (catalogueFailures.length) fail(catalogueFailures.join('\n'))
+
   // 8. init: what it refuses, and what --force does.
   console.log('\n=== init: refusals')
   const notes = starters.find((starter) => starter.id === 'notes')
