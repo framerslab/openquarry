@@ -171,7 +171,7 @@ describe('the public format site', () => {
           const content = fs.readFileSync(file, encoding)
           if (file !== manifest) return content
           const pkg = JSON.parse(content)
-          return JSON.stringify({ ...pkg, engines: { ...pkg.engines, node: '>=20' } })
+          return JSON.stringify({ ...pkg, engines: { ...pkg.engines, node: '>=22' } })
         },
       }
     })
@@ -180,7 +180,7 @@ describe('the public format site', () => {
       const { buildSite: buildWithNodeFloor } = await import('../scripts/build-site.mjs')
       buildWithNodeFloor(output)
       const packagePage = readFileSync(join(output, 'site', 'package', 'index.html'), 'utf8')
-      expect(packagePage.match(/Node 20 or later/g)).toHaveLength(2)
+      expect(packagePage.match(/Node 22 or later/g)).toHaveLength(2)
     } finally {
       vi.doUnmock('node:fs')
       vi.resetModules()
