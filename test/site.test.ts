@@ -83,6 +83,34 @@ describe('the schema host', () => {
 
 
 describe('the public format site', () => {
+  it.each([
+    ['index.html', 'OpenQuarry: A Markdown format for courses and notes', 'Write courses and notes in an open Markdown format'],
+    ['format/index.html', 'The OpenQuarry format: Markdown files, folders and manifests', 'The OpenQuarry format: Markdown files, folders and manifests'],
+    ['courses/index.html', 'Write a course as a folder of Markdown lessons · OpenQuarry', 'Write a course as a folder of Markdown lessons'],
+    ['llm/index.html', 'Write lessons with a language model · OpenQuarry', 'Write lessons with a language model'],
+    ['schema/index.html', 'JSON Schemas for OpenQuarry files', 'JSON Schemas for OpenQuarry files'],
+    ['validate/index.html', 'Validate YAML frontmatter and manifests · OpenQuarry', 'Validate YAML frontmatter and manifests'],
+    ['spiral/index.html', 'Link lessons in a spiral curriculum · OpenQuarry', 'Link lessons in a spiral curriculum'],
+    ['learning/index.html', 'Learning science for course authors · OpenQuarry', 'Learning science for course authors'],
+    ['package/index.html', 'Install the openquarry command from npm · OpenQuarry', 'Install the openquarry command from npm'],
+    ['about/index.html', 'About OpenQuarry', 'About OpenQuarry'],
+    ['404.html', 'Page not found · OpenQuarry', 'Page not found'],
+  ])('renders the title and one h1 without eyebrows or badges in %s', (file, title, heading) => {
+    const html = readFileSync(join(site, file), 'utf8')
+    expect(html.match(/<title>(.*?)<\/title>/)?.[1]).toBe(title)
+    const h1s = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map(([, h1]) => h1.replaceAll('<br>', ' '))
+    expect(h1s).toEqual([heading])
+    expect(html).not.toMatch(/class="(?:eyebrow|badges)(?=[ "])/)
+  })
+
+  it('serves old and new license anchors and the validator limits anchor', () => {
+    const courses = readFileSync(join(site, 'courses', 'index.html'), 'utf8')
+    for (const id of ['the-license-of-your-content', 'the-licence-of-your-content', 'the-catalogue']) {
+      expect(courses).toContain(`id="${id}"`)
+    }
+    expect(readFileSync(join(site, 'llm', 'index.html'), 'utf8')).toContain('id="what-the-validator-leaves-to-you"')
+  })
+
   it('writes all ten canonical pages, navigation and sitemap entries', () => {
     for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'package', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
