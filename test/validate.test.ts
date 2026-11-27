@@ -64,6 +64,22 @@ describe('validateBlocksIndex', () => {
     expect(validateBlocksIndex({ ...input, strands: [] }).valid).toBe(false)
   })
 
+  it('reports only the current names when both spellings are missing', () => {
+    const input = {
+      ...current,
+      threads: undefined,
+      stats: { ...current.stats, totalThreads: undefined },
+      tagIndex: { maps: [{ blockId: 'scale' }] },
+    }
+    const result = validateBlocksIndex(input)
+    expect(result.valid).toBe(false)
+    expect(result.errors.sort()).toEqual([
+      "/ must have required property 'threads'",
+      "/stats must have required property 'totalThreads'",
+      "/tagIndex/maps/0 must have required property 'threadPath'",
+    ].sort())
+  })
+
   it.each([
     ['with a strandPath reference', index],
     ['with no tag references', { ...index, tagIndex: { maps: [] } }],
