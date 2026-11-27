@@ -49,24 +49,29 @@ function projectIndex(index, preferCurrent, fields, projectedPaths) {
   return projected
 }
 
-function withWarnings(result, fields) {
-  return result.valid && fields.size
-    ? { ...result, warnings: [`Deprecated fields: use ${[...fields].join(', ')}.`] }
-    : result
-}
-
 export function checkBlocksIndex(value) {
   if (Object.hasOwn(blocksIndexSchema.properties, 'threads')) return validateBlocksIndex(value, { normalize: true })
 
   const fields = new Set()
   const projectedErrors = /^\/(?:strands(?=\/| )|stats\/totalStrands(?= )|tagIndex\/[^/]*\/\d+\/strandPath(?= ))/
+  const missingAlias = / must have required property '(strands|totalStrands|strandPath)'$/
+  const currentKeys = { strands: 'threads', totalStrands: 'totalThreads', strandPath: 'threadPath' }
   const checkProjection = (preferCurrent) => {
     const paths = new Map()
     const result = validateBlocksIndex(projectIndex(value, preferCurrent, fields, paths))
     if (result.valid) return result
-    return { ...result, errors: result.errors.map((line) => line.replace(projectedErrors, (path) => paths.get(path) ?? path)) }
+    const errors = result.errors.map((line) => line
+      .replace(projectedErrors, (path) => paths.get(path) ?? path)
+      .replace(missingAlias, (_, key) => ` must have required property '${currentKeys[key]}'`))
+    return { ...result, errors }
   }
   const current = checkProjection(true)
-  if (!current.valid || !fields.size) return current
-  return withWarnings(checkProjection(false), fields)
+  if (!fields.size) return current
+
+  const legacy = checkProjection(false)
+  const valid = current.valid && legacy.valid
+  const errors = [...new Set([...current.errors, ...legacy.errors])]
+  return valid
+    ? { valid, errors, warnings: [`Deprecated fields: use ${[...fields].join(', ')}.`] }
+    : { valid, errors }
 }
