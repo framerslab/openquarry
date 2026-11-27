@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import { blocksIndexSchema, catalogueSchema, fabricSchema, loomSchema, threadSchema, weaveSchema } from './schemas.js'
-import type { BlocksIndex, Catalogue, FabricManifest } from './types.js'
+import type { BlocksIndex, Catalogue } from './types.js'
 
 export interface ValidationResult {
   valid: boolean
@@ -66,22 +66,12 @@ function check(schema: Record<string, unknown>, value: unknown): ValidationResul
 }
 
 function renameField(
-  record: Record<string, unknown>, legacy: string, current: string, warnings: Set<string>,
-  { path = current, preserveUndefined = false } = {},
+  record: Record<string, unknown>, legacy: string, current: string, warnings: Set<string>, path = current,
 ): void {
   if (!Object.hasOwn(record, legacy)) return
-  const hasCurrent = preserveUndefined ? Object.hasOwn(record, current) : record[current] !== undefined
-  if (!hasCurrent) record[current] = record[legacy]
+  if (record[current] === undefined) record[current] = record[legacy]
   delete record[legacy]
   warnings.add(path)
-}
-
-function normalized<T>(result: ValidationResult, value: unknown, fields: Set<string>): NormalizedValidationResult<T> {
-  return {
-    ...result,
-    value: value as T,
-    ...(fields.size ? { warnings: [`Deprecated fields: use ${[...fields].join(', ')}.`] } : {}),
-  }
 }
 
 /** Checks a thread's frontmatter (already parsed from YAML) against thread.schema.yaml. */
@@ -99,19 +89,9 @@ export function validateWeave(weave: unknown): ValidationResult {
   return check(weaveSchema, weave)
 }
 
-/** Checks a parsed fabric.yaml. Pass `{ normalize: true }` to read it with current field names. */
-export function validateFabricManifest(manifest: unknown): ValidationResult
-export function validateFabricManifest(manifest: unknown, options: { normalize: true }): NormalizedValidationResult<FabricManifest>
-export function validateFabricManifest(manifest: unknown, options?: { normalize: true }): NormalizedValidationResult<FabricManifest> {
-  const result = check(fabricSchema, manifest)
-  if (!result.valid || !options?.normalize) return result
-
-  const value = { ...manifest as Record<string, unknown> }
-  const fields = new Set<string>()
-  for (const [legacy, current] of [['strand', 'thread'], ['strands', 'threads'], ['strandPath', 'threadPath']]) {
-    renameField(value, legacy, current, fields, { preserveUndefined: true })
-  }
-  return normalized(result, value, fields)
+/** Checks a parsed fabric.yaml against fabric.schema.yaml. */
+export function validateFabricManifest(manifest: unknown): ValidationResult {
+  return check(fabricSchema, manifest)
 }
 
 /**
@@ -238,7 +218,7 @@ export function validateBlocksIndex(index: unknown, options?: { normalize: true 
   const fields = new Set<string>()
   renameField(value, 'strands', 'threads', fields)
   const stats = { ...value.stats as Record<string, unknown> }
-  renameField(stats, 'totalStrands', 'totalThreads', fields, { path: 'stats.totalThreads' })
+  renameField(stats, 'totalStrands', 'totalThreads', fields, 'stats.totalThreads')
   value.stats = stats
   if (value.tagIndex !== undefined) {
     const tagIndex = value.tagIndex as Record<string, Record<string, unknown>[]>
@@ -246,10 +226,14 @@ export function validateBlocksIndex(index: unknown, options?: { normalize: true 
       tag,
       entries.map((entry) => {
         const reference = { ...entry }
-        renameField(reference, 'strandPath', 'threadPath', fields, { path: 'tagIndex[].threadPath' })
+        renameField(reference, 'strandPath', 'threadPath', fields, 'tagIndex[].threadPath')
         return reference
       }),
     ]))
   }
-  return normalized(result, value, fields)
+  return {
+    ...result,
+    value: value as unknown as BlocksIndex,
+    ...(fields.size ? { warnings: [`Deprecated fields: use ${[...fields].join(', ')}.`] } : {}),
+  }
 }

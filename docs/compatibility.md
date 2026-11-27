@@ -19,16 +19,15 @@ For a new fabric use `format: openquarry` and `version: 2` in `fabric.yaml`, and
 
 `FabricNodeType` uses `'thread'` for new nodes. The deprecated `KnowledgeNodeType` retains its original set of values, including the stored value `'strand'`.
 
-| Current field | Deprecated alias | Where it appears |
+| Current blocks-index field | Deprecated alias | Where it appears |
 | --- | --- | --- |
-| `thread` | `strand` | Fabric manifest |
-| `threads` | `strands` | Fabric manifest and blocks index |
-| `threadPath` | `strandPath` | Fabric manifest and blocks-index tag references |
-| `stats.totalThreads` | `stats.totalStrands` | Blocks index |
+| `threads` | `strands` | Top-level index |
+| `threadPath` | `strandPath` | Tag references |
+| `stats.totalThreads` | `stats.totalStrands` | Index statistics |
 
-The blocks index requires either spelling of each renamed field. When both are present, both must satisfy the schema and the current value wins. Fabric fields in the table are optional and retain their publisher-defined values. When both names are present in a fabric manifest, the current value wins there too.
+The blocks index requires either spelling of each renamed field. When both are present, both must satisfy the schema and the current value wins. Fabric manifests continue to accept publisher-defined fields as written.
 
-`validateBlocksIndex` and `validateFabricManifest` return `{ valid, errors }` by default. Pass `{ normalize: true }` as the second argument to get a valid input back as `value` with current keys and a warning when it used deprecated fields. The input stays intact. `openquarry check` and the starter checks print one field deprecation line per valid file, naming the replacements.
+`validateBlocksIndex` returns `{ valid, errors }` by default. Pass `{ normalize: true }` as the second argument to get a valid index back as `value` with current keys and a warning when it used deprecated fields. The input stays intact. `openquarry check` and the starter checks print one field deprecation line per valid index, naming the replacements.
 
 ## When the aliases retire
 

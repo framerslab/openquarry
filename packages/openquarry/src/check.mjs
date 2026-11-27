@@ -3,8 +3,8 @@
 // For a starter project the report matches the check.mjs script it carries.
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
-import { validateBlocksIndex, validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
-import { checkThreadFields, readPlain } from './check-input.mjs'
+import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
+import { checkBlocksIndex, readPlain } from './check-input.mjs'
 import { Refusal } from './errors.mjs'
 import { block, parse } from './frontmatter.mjs'
 import { entry } from './paths.mjs'
@@ -41,7 +41,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   // as if the file were missing.
   const files = []
   for (const [name, validate] of [
-    ['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue], ['blocks-index.json', validateBlocksIndex],
+    ['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue], ['blocks-index.json', checkBlocksIndex],
   ]) {
     if (entry(join(root, name))) files.push({ path: join(root, name), validate, json: name.endsWith('.json') })
   }
@@ -84,9 +84,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
         if (content === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
         else {
           const value = json ? JSON.parse(content) : parse(content)
-          const result = json || validate === validateFabricManifest
-            ? checkThreadFields(value, validate)
-            : validate(value)
+          const result = validate(value)
           errors = result.errors
           warnings = result.warnings
           if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version

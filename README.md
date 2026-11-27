@@ -255,7 +255,7 @@ const { valid, errors } = validateThreadFrontmatter(parse(frontmatter))
 
 `validateCatalogue` checks the record against its schema and then the rules a schema cannot hold: see [the catalogue](docs/courses.md#the-catalogue).
 
-Blocks indexes use `threads`, `stats.totalThreads` and `threadPath`. Pass `{ normalize: true }` to `validateBlocksIndex` or `validateFabricManifest` to read either spelling and receive `value` with the current fields.
+Blocks indexes use `threads`, `stats.totalThreads` and `threadPath`. Pass `{ normalize: true }` to `validateBlocksIndex` to read either spelling and receive `value` with the current fields.
 
 The YAML sources ship in the package too: `@framers/openquarry/schema/thread.schema.yaml` and its siblings, all JSON Schema draft 2020-12. So do the docs under `docs/` and the example course under `examples/`.
 
@@ -270,7 +270,7 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 For new content use `thread.schema.yaml`, `ThreadFrontmatter` and a version 2 layout such as `weaves/reading-a-map/the-map/scale-and-distance.md`. A fabric without `fabric.yaml` is version 1.
 
-The `strand.schema` URL and the `strandSchema` and `StrandFrontmatter` exports are deprecated aliases. The [version 1 compatibility guide](docs/compatibility.md) lists the old fields and explains how to move an existing fabric. `openquarry check` warns once per file when it finds deprecated fields in `fabric.yaml` or `blocks-index.json`.
+The `strand.schema` URL and the `strandSchema` and `StrandFrontmatter` exports are deprecated aliases. The [version 1 compatibility guide](docs/compatibility.md) lists the old fields and explains how to move an existing fabric. `openquarry check` warns once per index when it finds deprecated fields in `blocks-index.json`.
 
 ## The schema host
 

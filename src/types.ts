@@ -220,12 +220,6 @@ export interface FabricManifest {
   name?: string
   /** 1: the original thread layout. 2: the current thread layout. Both accept legacy prefix folders on read. */
   version: 1 | 2
-  /** Optional publisher-defined information about a thread. */
-  thread?: unknown
-  /** Optional publisher-defined information about threads. */
-  threads?: unknown
-  /** Optional publisher-defined thread path field. */
-  threadPath?: unknown
 }
 
 /** A compiled blocks index with the current field names. */

@@ -6,14 +6,13 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
 import {
-  validateBlocksIndex,
   validateCatalogue,
   validateFabricManifest,
   validateLoom,
   validateThreadFrontmatter,
   validateWeave,
 } from '@framers/openquarry'
-import { checkThreadFields, readPlain } from './check-input.mjs'
+import { checkBlocksIndex, readPlain } from './check-input.mjs'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const shown = (path) => relative(root, path).split(sep).join('/')
@@ -33,7 +32,7 @@ const frontmatter = (text) => /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text
 const files = []
 const rootEntries = new Set(readdirSync(root))
 for (const [name, validate] of [
-  ['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue], ['blocks-index.json', validateBlocksIndex],
+  ['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue], ['blocks-index.json', checkBlocksIndex],
 ]) {
   if (rootEntries.has(name)) files.push({ path: join(root, name), validate, json: name.endsWith('.json') })
 }
@@ -59,9 +58,7 @@ for (const { path, validate, thread, json } of files) {
     else if (content === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
     else {
       const value = json ? JSON.parse(content) : parse(content)
-      const result = json || validate === validateFabricManifest
-        ? checkThreadFields(value, validate)
-        : validate(value)
+      const result = validate(value)
       errors = result.errors
       warnings = result.warnings
       if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version

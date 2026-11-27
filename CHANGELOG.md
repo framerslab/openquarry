@@ -4,7 +4,7 @@ Every release of `@framers/openquarry`, newest first. The package follows semant
 
 The `openquarry` package, the command built on this library (`openquarry init`, `new`, `check` and `id`), keeps its own changelog: [packages/openquarry/CHANGELOG.md](https://github.com/framerslab/openquarry/blob/master/packages/openquarry/CHANGELOG.md). Its first release is 0.3.0, for the 0.3.0 format; this library is unchanged by it.
 
-**Thread naming migration.** Blocks indexes and fabric manifests accept the current thread fields and the deprecated spellings. The validators can return current field names, and the command warns when it reads a deprecated field. Use `FabricNodeType` for new nodes. The original `KnowledgeNodeType` values and the published compatibility schema stay available.
+**Thread naming migration.** Blocks indexes accept the current thread fields and the deprecated spellings. The validator can return current field names, and the command warns when an index uses a deprecated field. The fabric schema describes the current thread layout. Use `FabricNodeType` for new nodes. The original `KnowledgeNodeType` values and the published compatibility schema stay available.
 
 ## 0.3.0
 

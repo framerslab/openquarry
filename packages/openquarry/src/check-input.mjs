@@ -1,5 +1,5 @@
 import { closeSync, constants, fstatSync, openSync, readFileSync } from 'node:fs'
-import { blocksIndexSchema, validateFabricManifest } from '@framers/openquarry'
+import { blocksIndexSchema, validateBlocksIndex } from '@framers/openquarry'
 
 // Open once without waiting for a writer and read only if the same handle is a plain file.
 export function readPlain(path) {
@@ -55,23 +55,14 @@ function withWarnings(result, fields) {
     : result
 }
 
-export function checkThreadFields(value, validate) {
-  if (Object.hasOwn(blocksIndexSchema.properties, 'threads')) return validate(value, { normalize: true })
+export function checkBlocksIndex(value) {
+  if (Object.hasOwn(blocksIndexSchema.properties, 'threads')) return validateBlocksIndex(value, { normalize: true })
 
   const fields = new Set()
-  if (validate === validateFabricManifest) {
-    const result = validate(value)
-    if (!result.valid) return result
-    for (const [legacy, current] of [['strand', 'thread'], ['strands', 'threads'], ['strandPath', 'threadPath']]) {
-      if (Object.hasOwn(value, legacy)) fields.add(current)
-    }
-    return withWarnings(result, fields)
-  }
-
   const projectedErrors = /^\/(?:strands(?=\/| )|stats\/totalStrands(?= )|tagIndex\/[^/]*\/\d+\/strandPath(?= ))/
   const checkProjection = (preferCurrent) => {
     const paths = new Map()
-    const result = validate(projectIndex(value, preferCurrent, fields, paths))
+    const result = validateBlocksIndex(projectIndex(value, preferCurrent, fields, paths))
     if (result.valid) return result
     return { ...result, errors: result.errors.map((line) => line.replace(projectedErrors, (path) => paths.get(path) ?? path)) }
   }

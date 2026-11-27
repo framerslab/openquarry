@@ -401,7 +401,7 @@ export const catalogueSchema: Record<string, unknown> = {
 export const fabricSchema: Record<string, unknown> = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "FabricManifest",
-  "description": "The optional manifest at the root of a fabric (fabric.yaml). A directory or repository that holds weaves/ is a fabric with or without it; a missing manifest reads as version 1. .quarry/vault.json is the app's per-device state, never this file. When both spellings of a field are present, readers use the current spelling.",
+  "description": "The optional manifest at the root of a fabric (fabric.yaml). A directory or repository that holds weaves/ is a fabric with or without it; a missing manifest reads as version 1. .quarry/vault.json is the app's per-device state, never this file.",
   "type": "object",
   "required": [
     "format",
@@ -422,27 +422,6 @@ export const fabricSchema: Record<string, unknown> = {
         2
       ],
       "description": "1: the original thread layout. 2: the current thread layout. Both versions accept the legacy prefix folders when reading. A reader refuses a fabric whose version it does not support."
-    },
-    "thread": {
-      "description": "Optional publisher-defined information about a thread."
-    },
-    "threads": {
-      "description": "Optional publisher-defined information about threads."
-    },
-    "threadPath": {
-      "description": "Optional publisher-defined thread path field."
-    },
-    "strand": {
-      "deprecated": true,
-      "description": "Deprecated alias for thread."
-    },
-    "strands": {
-      "deprecated": true,
-      "description": "Deprecated alias for threads."
-    },
-    "strandPath": {
-      "deprecated": true,
-      "description": "Deprecated alias for threadPath."
     }
   }
 }
