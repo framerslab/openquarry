@@ -11,21 +11,25 @@ import { packageExamples, quickExample } from './package-examples.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
+const wrapperRoot = join(root, 'packages', 'openquarry')
+const wrapper = JSON.parse(readFileSync(join(wrapperRoot, 'package.json'), 'utf8'))
 const dir = mkdtempSync(join(tmpdir(), 'openquarry-examples-'))
 const run = (command, args) => execFileSync(command, args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 // A failed command: its exit status and everything it wrote, so a CI log shows why.
 const failure = (error) => `exit ${error.status}\n${error.stdout || ''}${error.stderr || ''}`
 
 try {
-  run('npm', ['pack', root, '--silent', '--pack-destination', dir])
-  const spec = join(dir, readdirSync(dir).find((name) => name.endsWith('.tgz')))
-  console.log(`Checking the examples against the packed ${pkg.name}@${pkg.version}`)
+  run('npm', ['pack', root, wrapperRoot, '--silent', '--pack-destination', dir])
+  const specs = readdirSync(dir).filter((name) => name.endsWith('.tgz')).map((name) => join(dir, name))
+  console.log(`Checking the examples against the packed ${wrapper.name}@${wrapper.version} and ${pkg.name}@${pkg.version}`)
 
   const typescript = String(pkg.devDependencies.typescript).replace(/^\^/, '')
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'openquarry-examples', private: true, type: 'module' }, null, 2))
-  run('npm', ['install', '--no-audit', '--no-fund', spec, 'yaml', 'ajv', 'ajv-formats', `typescript@${typescript}`])
-  const installed = JSON.parse(readFileSync(join(dir, 'node_modules', '@framers', 'openquarry', 'package.json'), 'utf8')).version
-  if (installed !== pkg.version) throw Error(`Installed ${installed}, expected ${pkg.version}`)
+  run('npm', ['install', '--no-audit', '--no-fund', ...specs, 'yaml', 'ajv', 'ajv-formats', `typescript@${typescript}`])
+  for (const { name, version } of [pkg, wrapper]) {
+    const installed = JSON.parse(readFileSync(join(dir, 'node_modules', name, 'package.json'), 'utf8')).version
+    if (installed !== version) throw Error(`Installed ${name}@${installed}, expected ${version}`)
+  }
 
   const tsc = (file) => run(process.execPath, [join(dir, 'node_modules', 'typescript', 'bin', 'tsc'), '--noEmit', '--strict', '--skipLibCheck', '--target', 'es2022', '--module', 'nodenext', '--moduleResolution', 'nodenext', file])
   for (const example of [quickExample, ...packageExamples]) {
@@ -53,7 +57,9 @@ try {
   }
 
   // The page lists every export of the package, and lists nothing the package lacks.
-  const values = JSON.parse(run(process.execPath, ['--input-type=module', '-e', "console.log(JSON.stringify(Object.keys(await import('@framers/openquarry'))))"]))
+  const exportNames = (name) => JSON.parse(run(process.execPath, ['--input-type=module', '-e', `console.log(JSON.stringify(Object.keys(await import(${JSON.stringify(name)}))))`]))
+  const values = exportNames(pkg.name)
+  if (JSON.stringify(exportNames(wrapper.name)) !== JSON.stringify(values)) throw Error('The wrapper and library export different names')
   const declarations = readFileSync(join(dir, 'node_modules', '@framers', 'openquarry', 'dist', 'index.d.ts'), 'utf8')
   const types = [...(/export \{([^}]*)\};?\s*$/.exec(declarations)?.[1] ?? '').matchAll(/type (\w+)/g)].map((m) => m[1])
   const exported = new Set([...values, ...types])
@@ -69,7 +75,6 @@ try {
   const extra = [...listed].filter((name) => !exported.has(name))
   if (missing.length) throw Error(`The package page does not list: ${missing.join(', ')}`)
   if (extra.length) throw Error(`The package page lists what the package does not export: ${extra.join(', ')}`)
-  if (!page.includes(`<strong>${pkg.version}</strong>`) || !page.includes(`<strong>${pkg.license}</strong>`)) throw Error('The package page lacks the version or the licence from package.json')
   console.log(`ok the package page lists all ${exported.size} exports of ${pkg.version}`)
 } finally {
   rmSync(dir, { recursive: true, force: true })

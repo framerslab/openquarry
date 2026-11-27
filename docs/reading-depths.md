@@ -1,24 +1,24 @@
-# Proposal: reading depths
+# A proposal for reading depths
 
-**Proposal only.** OpenQuarry 0.3.0 does not define two depths of the same text. No schema change accompanies this proposal.
+This is a proposal. The 0.3 schemas have no field for two depths of the same text, and the proposal changes no schema.
 
-## What works today
+## Fields that describe a thread's level and summary
 
-A thread has `extractiveSummary` (pipeline summary), `aiSummary` (model summary), and the deprecated `summary` alias. Blocks have their own `extractiveSummary`. `difficulty` describes the thread's level. Typed relationships such as `summarizes`, `extends` and `refines` can connect separate threads. `teaches` and `requires` identify skills. These fields can help a reader select content; they do not specify which passages to hide.
+A thread can carry two summaries. `extractiveSummary` comes from a summary pipeline and `aiSummary` from a model, and `summary` is a deprecated alias. Each block has its own `extractiveSummary`. `difficulty` gives the thread's level. Typed links such as `summarizes`, `extends` and `refines` join separate threads, and `teaches` and `requires` name skills. These fields help a reader pick threads. None of them marks a passage inside a thread to hide.
 
 ## Proposed fields
 
-Add an optional thread-level `overview` string: an author-written orientation to the whole thread. Add optional `depth` to each block with exactly three values:
+The proposal adds an optional `overview` string to the thread, written by the author to introduce the whole thread, and an optional `depth` on each block with three values.
 
-- `core`: the essential explanation, shown first.
-- `detail`: derivation, worked examples and further explanation, opened on request.
-- `refresher`: prerequisite reminders, opened when needed.
+- `core` marks the essential explanation, shown first.
+- `detail` marks a derivation, a worked example or further explanation, opened on request.
+- `refresher` marks a reminder of a prerequisite, opened when a learner needs it.
 
-A reader could show “Overview” followed by core blocks, with “Full explanation” revealing every block in source order. A new reader could choose the full explanation from the start. Depth is an editorial choice, independent of difficulty.
+An app could show the overview and the core blocks first, with a Full explanation control that opens every block in source order. A learner new to the subject could open the full explanation from the start. The author sets `depth`, and it is separate from `difficulty`.
 
-## Example: Scale and distance
+## Depths marked in the Scale and distance lesson
 
-This proposed metadata annotates passages in [the existing lesson](https://github.com/framerslab/openquarry/blob/master/examples/reading-a-map/weaves/reading-a-map/the-map/scale-and-distance.md). Line numbers below refer to the existing Markdown file including its frontmatter; a publisher must update ranges when editing. This is an illustrative metadata fragment, not a complete thread.
+The fragment below marks three passages of [the Scale and distance lesson](https://github.com/framerslab/openquarry/blob/master/examples/reading-a-map/weaves/reading-a-map/the-map/scale-and-distance.md) with the proposed keys. Its line numbers count from the first line of the file, frontmatter included, and a publisher updates them whenever the lesson changes. The excerpt shows the proposed `overview` and `depth` keys beside the existing block ids, types and lines.
 
 ```yaml
 overview: Turn a distance on the map into a distance on the ground.
@@ -40,10 +40,17 @@ blocks:
     depth: refresher
 ```
 
-The core says what 1:25,000 means. The detail works through centimetres and metres. The refresher reminds the reader that a larger denominator makes a smaller drawing.
+The core block says what 1:25,000 means. The detail block works through centimeters and meters. The refresher reminds the learner that a bigger second number means a smaller drawing.
 
-## Compatibility and decisions before adoption
+## Rules for older content, and questions to settle first
 
-Missing depth must mean core, so older content remains fully visible. Readers that do not understand depth must show the full Markdown. Never hide a warning or a necessary premise only in detail. Keep headings with their content and preserve document order, keyboard access, search and print access to every block.
+A block without `depth` counts as core, so older content stays fully visible. An app that does not read `depth` shows the full Markdown. A warning or a premise the lesson depends on never sits only in a detail block. Headings stay with their content, and every block keeps its place in the document order and stays reachable by keyboard, search and print.
 
-The schema currently allows unknown properties in these objects; validation accepting a new key does not make it a supported format feature. Before adoption, agree on block identity and range maintenance, whether overview is plain text, how overlapping ranges behave, and how author annotations survive reindexing. Update the source schemas in framerslab/codex first, sync them here, then add types, tests and reader support. The example and the schemas carry none of these fields.
+The thread schema accepts keys it does not name on a thread and its blocks. An otherwise valid thread may carry `depth`, and that does not make `depth` part of the format. Settle four questions first:
+
+- how a block keeps its identity and its line range;
+- whether `overview` is plain text;
+- how overlapping ranges behave;
+- how an author's marks survive reindexing.
+
+The change starts in the source schemas in framerslab/codex and is synced into this repository. The types and tests follow, and apps add support last. Neither the example course nor the schemas use any of these fields.

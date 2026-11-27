@@ -73,7 +73,6 @@ h2{font-size:34px;font-weight:700;margin:56px 0 18px}
 h3{font-size:24px;font-weight:700;margin:36px 0 12px}
 p,li{overflow-wrap:anywhere}
 .hero{padding:72px 0 40px}
-.eyebrow{font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:0 0 20px}
 .intro{font-size:23px;line-height:1.5;max-width:780px;margin:0}
 .lead{font-size:21px;line-height:1.55}
 /* The keys under a heading: one row. On a phone the filled key takes a row of its own and the outlined keys share the next in equal halves. */
@@ -87,14 +86,6 @@ p,li{overflow-wrap:anywhere}
 /* The project's facts as badges: one row that fits the page at every width. On a phone each fact is a chip of two
    lines, its label over its value, so three facts fit one row from 320 px. When a reader's own text size makes them
    too wide for one row, they take a second row and the page keeps to its width. */
-.badges{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 24px;white-space:nowrap}
-.badges li{flex:none;margin:0}
-.badges a{display:inline-flex;align-items:stretch;min-height:36px;border:1px solid var(--edge);border-radius:8px;overflow:hidden;background:var(--panel);font-size:15px;line-height:1;text-decoration:none}
-.badges a:hover{border-color:var(--accent)}
-.badges a:focus-visible{outline-offset:1px}
-.badges span,.badges strong{display:inline-flex;align-items:center;padding:0 10px}
-.badges span{color:var(--dim)}
-.badges strong{border-left:1px solid var(--line);background:var(--wash);font-weight:700}
 .button{display:inline-flex;align-items:center;min-height:48px;padding:0 22px;border-radius:10px;background:var(--accent-strong);color:var(--on-accent);font-weight:700;text-decoration:none}
 .button:hover{text-decoration:underline}
 .actions .key{min-height:48px}
@@ -156,13 +147,11 @@ pre code{font-size:15px}
 /* The package under the hero: the install line and a short example side by side. */
 .install{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:40px;align-items:start;margin:8px 0 72px}
 .install h2{margin:0 0 14px}
-.install .eyebrow{margin-bottom:12px}
 .install p{margin:0}
 .install div .code{margin:20px 0 16px}
 .install>.code{margin:0}
 .start-home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:40px;align-items:start;margin:8px 0 56px}
 .start-home h2{margin:0 0 14px}
-.start-home .eyebrow{margin-bottom:12px}
 .start-home p{margin:0}
 .start-home .start-codes .code{margin:0 0 16px}
 .start-home p+p,.start-home .callout+p{margin-top:12px}
@@ -221,7 +210,6 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .docs-nav:not([data-scroll]) .docs-tabs{-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 90%,transparent)}
  main{padding-inline:20px}
  .hero{padding:40px 0 32px}
- .badges a{min-height:44px}
  .intro{font-size:20px}
  .specimen,.why,.install,.start-home{grid-template-columns:minmax(0,1fr);gap:28px}
  .install{margin-bottom:48px}
@@ -240,7 +228,6 @@ summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:
  .foot-brand{grid-column:1/-1}
 }
 @media(max-width:760px){.actions,.hero .actions{display:grid;width:auto;grid-auto-flow:row;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.actions .button{grid-column:1/-1}.actions>a{justify-content:center;min-width:0;padding-inline:10px}}
-@media(max-width:560px){.badges a{flex-direction:column}.badges span,.badges strong{justify-content:center;min-height:24px}.badges strong{border-left:0;border-top:1px solid var(--line)}}
 @media(max-width:400px){.actions .wide{display:none}.hero .actions .short{display:inline}.actions>a{padding-inline:8px;gap:6px}.top{--pad:16px;gap:8px}main{padding-inline:16px}.brand{font-size:22px;gap:8px}.brand .mark{width:26px;height:26px}}
 /* The narrowest phones keep the two outlined keys in equal halves by dropping the outbound arrow, and the look switch
    moves from the header into the menu so the row still fits. */

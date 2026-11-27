@@ -1,6 +1,6 @@
-# Courses and lessons
+# Write a course as a folder of Markdown lessons
 
-A course in OpenQuarry is made of the files the format already has. A course is a weave. A unit is a loom. A lesson, an exercise and an assessment are threads. Version 0.3.0 adds two things, so that a reader can tell a course from a knowledge base and list courses by subject: an optional `kind` on the weave and the loom, and one optional file, `catalogue.yaml`.
+A course uses the same files as a knowledge base. The course is a weave, each unit is a loom, and each lesson, exercise and assessment is a thread. Set `kind: course` in `weave.yaml` and `kind: unit` in each unit's `loom.yaml` to mark them. Add a `catalogue.yaml` at the fabric's root to file courses under subjects. Both are optional.
 
 | In a course | In the format | File | Checked by |
 |---|---|---|---|
@@ -12,11 +12,9 @@ A course in OpenQuarry is made of the files the format already has. A course is 
 | what a lesson teaches and what it assumes | `teaches` and `requires`: lists of skill ids | the thread's frontmatter | `validateThreadFrontmatter` |
 | courses by subject, and which course builds on which | the catalogue | `catalogue.yaml` at the fabric's root | `validateCatalogue` |
 
-On this page: [the example](#the-example), [the course](#the-course-a-weave-of-kind-course), [a unit](#a-unit-a-loom-of-kind-unit), [lessons, exercises and assessments](#lessons-exercises-and-assessments-threads), [skills](#skills-teaches-and-requires), [the catalogue](#the-catalogue), [check a course](#check-a-course), [the licence of your content](#the-licence-of-your-content), [what a 0.2.0 reader sees](#what-a-020-reader-sees).
+## The example course
 
-## The example
-
-[`examples/reading-a-map`](../examples/reading-a-map) is a small course written for this page. It teaches how to read a paper map.
+[`examples/reading-a-map`](../examples/reading-a-map) is a course of six threads that teaches how to read a paper map.
 
 ```text
 examples/reading-a-map/                     a fabric
@@ -37,9 +35,9 @@ examples/reading-a-map/                     a fabric
             └── check-your-map-reading.md   assessment
 ```
 
-The tests of this repository run every file of the example through its validator and check the links between the files ([test/example.test.ts](https://github.com/framerslab/openquarry/blob/master/test/example.test.ts)).
+The repository's tests validate every manifest and every thread of the example. They also check that each `slug` matches its file name, that no two threads share an `id`, that a lesson teaches every skill a thread requires and that every thread's subjects are in the catalogue ([test/example.test.ts](https://github.com/framerslab/openquarry/blob/master/test/example.test.ts)).
 
-## The course: a weave of kind `course`
+## The course is a weave of kind `course`
 
 <!-- file: examples/reading-a-map/weaves/reading-a-map/weave.yaml -->
 ```yaml
@@ -53,11 +51,11 @@ license: MIT
 tags: [maps, navigation]
 ```
 
-`kind` says what the weave is. It is one lowercase word: letters, digits and hyphens, starting with a letter (`^[a-z][a-z0-9-]*$`). The course layer's two values are `course` on a weave and `unit` on a loom. The field holds a publisher's own noun, so `kind: field-guide` on a weave and `kind: week` on a loom pass too. A weave without `kind` is a knowledge base, as before.
+`kind` says what the weave is, in one lowercase word of letters, digits and hyphens that starts with a letter (`^[a-z][a-z0-9-]*$`). A course uses `course` on the weave and `unit` on each loom. A publisher may use its own noun, so `kind: field-guide` on a weave and `kind: week` on a loom pass too. A weave without `kind` is a knowledge base.
 
-`license` states the licence of the course's content. Write it: see [the licence of your content](#the-licence-of-your-content).
+`license` states the license of the course's content. Set it in every course, as [the license of your content](#the-license-of-your-content) explains.
 
-## A unit: a loom of kind `unit`
+## Each unit is a loom of kind `unit`
 
 <!-- file: examples/reading-a-map/weaves/reading-a-map/finding-your-way/loom.yaml -->
 ```yaml
@@ -73,9 +71,9 @@ relationships:
 
 A unit is a folder inside the course's folder, with a `loom.yaml`. The link of type `extends` says this unit builds on the unit whose slug is `the-map`. `ordering` takes `manual`, `alpha`, `date` or `weight`.
 
-## Lessons, exercises and assessments: threads
+## Lessons, exercises and assessments are threads
 
-A lesson is a thread, the same kind of file a note is. `contentType` names its teaching role: `lesson`, `exercise` or `assessment`. One lesson of the example, whole:
+A lesson is a thread, the same kind of file as a note. `contentType` gives its teaching role: `lesson`, `exercise` or `assessment`. The example's lesson Scale and distance, in full:
 
 <!-- file: examples/reading-a-map/weaves/reading-a-map/the-map/scale-and-distance.md -->
 ```markdown
@@ -134,13 +132,13 @@ A bigger second number means a smaller drawing. A 1:50,000 map shows the same pa
 | `taxonomy.subjects` | the subject the lesson is filed under. The example uses the subject ids of its catalogue |
 | `relationships` | a link of type `follows` to the lesson that comes before this one in the unit |
 | `teaches`, `requires` | the skills the lesson teaches and assumes |
-| `publishing.license` | the licence of this thread's content |
+| `publishing.license` | the license of this thread's content |
 
 Below the frontmatter, the lesson is plain Markdown.
 
-## Skills: `teaches` and `requires`
+## `teaches` and `requires` hold skill ids
 
-`teaches` lists the ids of the skills a thread teaches. `requires` lists the ids of the skills it assumes. A skill id is a string the publisher chooses. The example's ids look like `field-skills/skill/map-scale`, and the table gives the last part of each:
+`teaches` lists the ids of the skills a thread teaches, and `requires` the ids of the skills it assumes. The publisher chooses each id. The example's ids look like `field-skills/skill/map-scale`, and the table gives the last part of each.
 
 | Thread | `contentType` | `teaches` | `requires` |
 |---|---|---|---|
@@ -151,13 +149,13 @@ Below the frontmatter, the lesson is plain Markdown.
 | `plan-a-route` | `exercise` | | `map-scale`, `orient-map` |
 | `check-your-map-reading` | `assessment` | | `map-symbols`, `map-scale`, `orient-map` |
 
-A reader can order the threads from these lists: a thread comes after the lessons that teach what it requires.
+Order the threads from these lists: each thread goes after the lessons that teach what it requires.
 
-The schema takes any string as a skill id, and it does not look for the lesson that teaches a required skill. The example's test checks that every required skill is taught by a lesson of the course. A check like it belongs in your own build.
+The schema accepts any string as a skill id and never looks for the lesson that teaches a required skill. The example's test checks that some lesson of the course teaches each required skill. If your app orders lessons by skill, your build also checks that the teaching lesson comes first.
 
 ## The catalogue
 
-`catalogue.yaml` sits at the fabric's root, beside `fabric.yaml`. It is optional. It files each weave under one or more subjects and says which weave builds on which.
+The optional `catalogue.yaml` sits at the fabric's root, beside `fabric.yaml`. It files each weave under one or more subjects and records which weave builds on which.
 
 <!-- file: examples/reading-a-map/catalogue.yaml -->
 ```yaml
@@ -183,16 +181,16 @@ entries:
 | `title` | the publisher's name for the whole catalogue |
 | `subjects` | the subject tree, in the publisher's order. Each subject has an `id`, a `title` and `broader`: the ids of the subjects it sits under, empty at the top of the tree |
 | `entries` | one entry for each weave, in the publisher's order |
-| an entry's `slug` | the weave's slug. Another product links to the course by it |
+| an entry's `slug` | the weave's slug, which another product uses to link to the course |
 | an entry's `subjects` | the ids of every subject the weave sits under: at least one, each once |
 | an entry's `home` | one of its `subjects`: where the weave is listed first |
 | an entry's `requires` | the slugs of the entries this one builds on |
 
-The record is closed: at every level it refuses a key it does not name. It holds no address and no count, so a reader counts units and lessons from the files.
+`catalogue.yaml` refuses any key its schema does not list, at every level. It holds no address and no count. Your app counts units and lessons from the files.
 
-### The rules a schema cannot hold
+### Four rules the schema cannot hold
 
-`catalogue.schema.yaml` checks the record's shape, and that an entry lists each subject once. It states four more rules in words, because a JSON Schema cannot hold them. `validateCatalogue` checks them once the shape passes:
+`catalogue.schema.yaml` checks the record's shape and that an entry lists each subject once. It states four more rules in words, because a JSON Schema cannot express them. `validateCatalogue` checks them once the shape passes.
 
 | Rule | A line `validateCatalogue` gives |
 |---|---|
@@ -201,7 +199,7 @@ The record is closed: at every level it refuses a key it does not name. It holds
 | an entry's `home` is one of its `subjects` | `/entries/0/home must be one of the entry's subjects: "navigation"` |
 | no chain of `broader` or `requires` links makes a circle | `/entries/0/requires makes a circle: "reading-a-map" > "night-navigation" > "reading-a-map"` |
 
-A reader that checks the record with the schema alone, in any language, checks these four itself.
+An app that uses only the JSON Schema, in any language, has to check these four rules in its own code.
 
 ## Check a course
 
@@ -217,17 +215,19 @@ validateCatalogue(parse(catalogueYaml)) // the shape, then the four rules
 
 Each call returns `{ valid, errors }`, with one line for each problem. A weave whose kind is `Course` gives the line `/kind must match pattern "^[a-z][a-z0-9-]*$"`.
 
-## The licence of your content
+<a id="the-licence-of-your-content"></a>
 
-The MIT licence of this package covers the format: the schemas, the types, the validator, these docs and the example course. It does not cover what you write in the format. Your course is yours, under the licence you state:
+## The license of your content
+
+The MIT License of this package covers the schemas, the types, the validator, these docs and the example course. It does not cover what you write in the format. Record the license of your content in two keys.
 
 - `license` in `weave.yaml`, for the course;
 - `publishing.license` in a thread's frontmatter, for that thread.
 
-Write both. The two schemas give `license` a default of `MIT` with JSON Schema's [`default` keyword](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.2), so a tool that fills in defaults writes MIT where you left the key out. The validator in this package fills in nothing. If your content is not under the MIT licence, say what it is under, for example `CC-BY-4.0` or `All rights reserved`. The field takes any text.
+Set both before you publish. The two schemas give `license` a default of `MIT` with JSON Schema's [`default` keyword](https://json-schema.org/draft/2020-12/json-schema-validation#section-9.2), and a tool that fills in defaults can write MIT into a missing key. The validator in this package fills in nothing. Content under another license names it, for example `CC-BY-4.0` or `All rights reserved`. The field takes any text.
 
-## What a 0.2.0 reader sees
+## Files from 0.2.0, and apps built on it
 
-The thread, fabric and block-index schemas (including the compatibility copy) are the files of 0.2.0, byte for byte. `weave.schema.yaml` and `loom.schema.yaml` gain the optional `kind` and change in no other byte. A file that validated under 0.2.0 validates under 0.3.0, with one exception. 0.2.0 refused no key it did not name, so a weave or a loom could carry `kind` with any value. 0.3.0 takes only a lowercase word there: `kind: Course` and `kind: 3` are now refused, and `kind: field-guide` validates.
+The thread, fabric and blocks-index schemas of 0.3.0, the compatibility copy included, match 0.2.0 byte for byte, and `weave.schema.yaml` and `loom.schema.yaml` differ only by the optional `kind`. A file that validated under 0.2.0 validates under 0.3.0 with one exception. 0.2.0 accepted any value in a `kind` key on a weave or a loom, and 0.3.0 accepts only a lowercase word, so `kind: Course` and `kind: 3` fail and `kind: field-guide` passes.
 
-A reader built on 0.2.0 reads a course as a knowledge base: the weave and loom schemas of 0.2.0 refuse no key they do not name, so `kind` passes. It has no schema for `catalogue.yaml`. The tests in `test/compat.test.ts` hold each of these statements.
+The 0.2.0 weave and loom schemas accept a `kind` key they do not name, and 0.2.0 has no schema for `catalogue.yaml`. An app built on 0.2.0 reads a course as a knowledge base. The tests in `test/compat.test.ts` check each of these statements.

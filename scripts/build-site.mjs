@@ -15,7 +15,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 export const ORIGIN = 'https://openquarry.dev'
 export const SCHEMA_PATH = '/schema/v1/'
 export const REPOSITORY = 'https://github.com/framerslab/openquarry'
-export const NPM = 'https://www.npmjs.com/package/@framers/openquarry'
+export const NPM = 'https://www.npmjs.com/package/openquarry'
+const LIBRARY_NPM = 'https://www.npmjs.com/package/@framers/openquarry'
 
 const HEADERS = `/schema/*
   Access-Control-Allow-Origin: *
@@ -47,7 +48,7 @@ export async function onRequest(context) {
 }
 `
 
-// The version the site names: npm's newest when the build asks for it (CI sets OPENQUARRY_SITE_NPM_VERSION=1, since the
+// The version the schema index names: npm's newest when the build asks for it (CI sets OPENQUARRY_SITE_NPM_VERSION=1, since the
 // daily release publishes a new version without a commit), otherwise the repository's package.json. An npm that does not
 // answer leaves the repository's version.
 export function siteVersion(pkg) {
@@ -65,6 +66,15 @@ export function schemaFiles() {
   const alias = 'strand.schema.yaml'
   const files = readdirSync(join(root, 'schema')).filter((file) => file.endsWith('.schema.yaml')).sort()
   return [primary, ...files.filter((file) => file !== primary && file !== alias), alias]
+}
+
+function latestChangeDate(paths) {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%cs', '--', ...paths], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    // Builds from source archives can omit the last modification date.
+    return ''
+  }
 }
 
 export function buildSite(out = join(root, 'dist-site')) {
@@ -98,7 +108,7 @@ export function buildSite(out = join(root, 'dist-site')) {
     format: 'openquarry',
     schemas,
     source: { repository: source.repository, commit: source.commit, path: source.path },
-    package: { name: pkg.name, version: siteVersion(pkg), npm: NPM },
+    package: { name: pkg.name, version: siteVersion(pkg), npm: LIBRARY_NPM },
     repository: REPOSITORY,
     builtFrom: process.env.GITHUB_SHA || 'local',
   }
@@ -106,7 +116,7 @@ export function buildSite(out = join(root, 'dist-site')) {
   writeFileSync(join(site, '_headers'), HEADERS)
   writeFileSync(join(site, '_redirects'), REDIRECTS)
   writeFileSync(join(site, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${ORIGIN}/sitemap.xml\n`)
-  writePages(site, index)
+  writePages(site, index, latestChangeDate)
   writeFileSync(join(out, 'functions', '_middleware.js'), MIDDLEWARE)
   return index
 }

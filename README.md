@@ -308,7 +308,7 @@ Everything a learner sees. The format stores a course as files and checks them. 
 
 ### What licence covers the format, and what covers my content?
 
-The format is under the MIT licence: the schemas, the types, the validator, the docs and the example course in this package. Your content is yours, under the licence you state in `license` (a weave) and `publishing.license` (a thread). State it: both schemas give `license` a default of `MIT`, so a tool that fills in defaults writes MIT where you left the key out. [The licence of your content](docs/courses.md#the-licence-of-your-content) has the detail.
+The format is under the MIT licence: the schemas, the types, the validator, the docs and the example course in this package. Your content is yours, under the licence you state in `license` (a weave) and `publishing.license` (a thread). State it: both schemas give `license` a default of `MIT`, so a tool that fills in defaults writes MIT where you left the key out. [The license of your content](docs/courses.md#the-license-of-your-content) has the detail.
 
 ### Can a language model write these files?
 

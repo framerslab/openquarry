@@ -13,14 +13,14 @@ export const starters = [
     title: 'Notes',
     folder: 'templates/notes',
     dest: 'my-notes',
-    text: 'A knowledge base: one weave of notes, a loom and a first note.',
+    text: 'Makes a knowledge base with a fabric manifest, one weave, one loom and a first note.',
   },
   {
     id: 'course',
     title: 'A course',
     folder: 'templates/course',
     dest: 'my-course',
-    text: 'A weave of kind <code>course</code>, a loom of kind <code>unit</code> and a first lesson.',
+    text: 'Makes a course with a weave of kind <code>course</code>, a loom of kind <code>unit</code> and a first lesson.',
   },
 ]
 

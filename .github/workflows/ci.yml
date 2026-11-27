@@ -13,6 +13,9 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  PLAYWRIGHT_VERSION: '1.65.1'
+
 jobs:
   test:
     name: Types, tests, build and the packed files
@@ -43,7 +46,7 @@ jobs:
 
       - name: Check the documented validator command
         run: |
-          npm install --no-save . yaml
+          npm install --no-save . ./packages/openquarry yaml
           node scripts/check-validator-command.mjs
 
       - name: Run the package page's examples from the packed checkout
@@ -114,6 +117,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -123,7 +128,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      # The version badge and index.json name npm's newest library version (scripts/build-site.mjs, siteVersion).
+      # index.json names npm's newest library version (scripts/build-site.mjs, siteVersion).
       - name: Build the host
         env:
           OPENQUARRY_SITE_NPM_VERSION: '1'
@@ -141,7 +146,7 @@ jobs:
 
       - name: Browser checks and screenshots (CI only)
         run: |
-          npm install --no-save playwright
+          npm install --no-save "playwright@$PLAYWRIGHT_VERSION"
           npx playwright install --with-deps chromium
           node scripts/check-site-browser.mjs
 
@@ -155,7 +160,7 @@ jobs:
 
   # Every green push to master goes live: the site artifact this run built is uploaded to the Cloudflare Pages project
   # behind openquarry.dev (openquarry-schema), then the host is read until it serves this commit. A run dispatched on
-  # master deploys too (the release workflow starts one after a library release, so the version badge follows npm);
+  # master deploys too (the release workflow starts one after a library release, so index.json follows npm);
   # a pull request deploys nothing. The token can edit Pages projects on the one account and nothing else.
   deploy-site:
     name: Deploy openquarry.dev
@@ -198,3 +203,38 @@ jobs:
           done
           echo "openquarry.dev serves ${built:-nothing readable}, not $GITHUB_SHA" >&2
           exit 1
+
+  live-site:
+    name: Compare live pages with the build
+    needs: [deploy-site]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-screenshots
+          path: site-screenshots
+
+      - name: Capture openquarry.dev and compare with the build
+        run: |
+          npm install --no-save "playwright@$PLAYWRIGHT_VERSION" pngjs
+          npx playwright install --with-deps chromium
+          node scripts/check-site-browser.mjs --live
+
+      - name: Keep live screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-site-screenshots
+          path: live-site-screenshots/
+          if-no-files-found: ignore
