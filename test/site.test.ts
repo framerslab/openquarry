@@ -1,10 +1,11 @@
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { buildSite, schemaFiles, ORIGIN, SCHEMA_PATH } from '../scripts/build-site.mjs'
 import { highlight } from '../scripts/highlight.mjs'
 import { beforeRelease, checkCommand, idCommand, initCommands, newCommands, startCommands, starters } from '../scripts/start-commands.mjs'
@@ -126,6 +127,67 @@ describe('the public format site', () => {
       }
     }
   })
+  it('dates each sitemap URL from the files that contribute to that page', () => {
+    const history = mkdtempSync(join(tmpdir(), 'openquarry-history-'))
+    const git = (args: string[], date = '2026-01-01') => execFileSync('git', args, {
+      cwd: history,
+      env: { ...process.env, GIT_AUTHOR_DATE: `${date}T12:00:00Z`, GIT_COMMITTER_DATE: `${date}T12:00:00Z` },
+    })
+    const originalGitDir = process.env.GIT_DIR
+    try {
+      git(['init', '--quiet'])
+      for (const [file, date] of [
+        ['scripts/site-pages.mjs', '2026-01-01'],
+        ['scripts/highlight.mjs', '2026-01-02'],
+        ['docs/language-models.md', '2026-01-03'],
+      ]) {
+        mkdirSync(join(history, file.split('/')[0]), { recursive: true })
+        writeFileSync(join(history, file), date)
+        git(['add', file])
+        git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--quiet', '-m', file], date)
+      }
+      process.env.GIT_DIR = join(history, '.git')
+      const output = join(history, 'output')
+      buildSite(output)
+      const sitemap = readFileSync(join(output, 'site', 'sitemap.xml'), 'utf8')
+      expect(sitemap).toContain(`<loc>${ORIGIN}/</loc><lastmod>2026-01-02</lastmod>`)
+      expect(sitemap).toContain(`<loc>${ORIGIN}/llm/</loc><lastmod>2026-01-03</lastmod>`)
+      expect(sitemap).toContain(`<loc>${ORIGIN}/about/</loc><lastmod>2026-01-01</lastmod>`)
+    } finally {
+      if (originalGitDir === undefined) delete process.env.GIT_DIR
+      else process.env.GIT_DIR = originalGitDir
+      rmSync(history, { recursive: true, force: true })
+    }
+  })
+
+  it('uses the package manifest for both Node version mentions on the package page', async () => {
+    const output = mkdtempSync(join(tmpdir(), 'openquarry-node-floor-'))
+    const manifest = join(root, 'package.json')
+    vi.doMock('node:fs', async (importOriginal) => {
+      const fs = await importOriginal<typeof import('node:fs')>()
+      return {
+        ...fs,
+        readFileSync: (file: string, encoding: BufferEncoding) => {
+          const content = fs.readFileSync(file, encoding)
+          if (file !== manifest) return content
+          const pkg = JSON.parse(content)
+          return JSON.stringify({ ...pkg, engines: { ...pkg.engines, node: '>=20' } })
+        },
+      }
+    })
+    vi.resetModules()
+    try {
+      const { buildSite: buildWithNodeFloor } = await import('../scripts/build-site.mjs')
+      buildWithNodeFloor(output)
+      const packagePage = readFileSync(join(output, 'site', 'package', 'index.html'), 'utf8')
+      expect(packagePage.match(/Node 20 or later/g)).toHaveLength(2)
+    } finally {
+      vi.doUnmock('node:fs')
+      vi.resetModules()
+      rmSync(output, { recursive: true, force: true })
+    }
+  })
+
   it('answers an unknown address with a not-found page, so a mistyped schema URL is not served the landing', () => {
     const html = readFileSync(join(site, '404.html'), 'utf8')
     expect(html).toContain('Page not found')
