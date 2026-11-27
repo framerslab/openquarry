@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
+  fabricSchema,
+  type BlocksIndex,
+  type FabricNodeType,
+  type KnowledgeNodeType,
+  type NormalizedValidationResult,
+  type StrandFrontmatter,
   type ThreadFrontmatter,
   validateBlocksIndex,
   validateFabricManifest,
@@ -9,8 +15,104 @@ import {
   validateWeave,
 } from '../src/index.js'
 
+const threadNode: FabricNodeType = 'thread'
+const legacyNode: KnowledgeNodeType = 'strand'
+const labelsFromAnExistingReader: Record<KnowledgeNodeType, string> = {
+  fabric: 'Fabric', weave: 'Weave', loom: 'Loom', strand: 'Thread',
+}
+
 describe('validateBlocksIndex', () => {
-  const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1.json', import.meta.url), 'utf8')) as Record<string, unknown>
+  const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1-legacy.json', import.meta.url), 'utf8')) as Record<string, unknown>
+  const path = 'weaves/reading-a-map/the-map/scale-and-distance.md'
+  const current: BlocksIndex = {
+    generatedAt: '2026-11-26T00:00:00Z',
+    version: '1.0.0',
+    stats: { totalThreads: 1, totalBlocks: 1, totalTags: 1, worthyBlocks: 0 },
+    threads: { [path]: { path, blockCount: 1, blocks: [{ id: 'scale', line: 1, type: 'heading' }] } },
+    tagIndex: { maps: [{ threadPath: path, blockId: 'scale' }] },
+  }
+
+  it('accepts thread names in a version 1 index', () => {
+    expect(validateBlocksIndex(current)).toStrictEqual({ valid: true, errors: [] })
+    expect([threadNode, legacyNode]).toEqual(['thread', 'strand'])
+    expect(labelsFromAnExistingReader[legacyNode]).toBe('Thread')
+  })
+
+  it('returns the thread names when reading a legacy index without rewriting the input', () => {
+    const input = structuredClone(index)
+    const result: NormalizedValidationResult<BlocksIndex> = validateBlocksIndex(input, { normalize: true })
+    expect(result).toMatchObject({
+      valid: true,
+      warnings: ['Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.'],
+    })
+    expect(result.value).not.toHaveProperty('strands')
+    expect(result.value?.threads).toEqual(index.strands)
+    expect(result.value?.stats).not.toHaveProperty('totalStrands')
+    expect(result.value?.stats.totalThreads).toBe(1)
+    expect(result.value?.tagIndex?.maps).toEqual([{ threadPath: path, blockId: 'scale' }])
+    expect(input).toEqual(index)
+  })
+
+  it('uses the current value when both spellings are present', () => {
+    const input = {
+      ...current,
+      strands: {},
+      stats: { ...current.stats, totalStrands: 0 },
+      tagIndex: { maps: [{ ...current.tagIndex?.maps[0], strandPath: 'other.md' }] },
+    }
+    expect(validateBlocksIndex(input, { normalize: true })).toMatchObject({ valid: true, value: current })
+    expect(validateBlocksIndex({ ...input, strands: [] }).valid).toBe(false)
+  })
+
+  it('reports only the current names when both spellings are missing', () => {
+    const input = {
+      ...current,
+      threads: undefined,
+      stats: { ...current.stats, totalThreads: undefined },
+      tagIndex: { maps: [{ blockId: 'scale' }] },
+    }
+    const result = validateBlocksIndex(input)
+    expect(result.valid).toBe(false)
+    expect(result.errors.sort()).toEqual([
+      "/ must have required property 'threads'",
+      "/stats must have required property 'totalThreads'",
+      "/tagIndex/maps/0 must have required property 'threadPath'",
+    ].sort())
+  })
+
+  const { generatedAt, ...withoutGeneratedAt } = current
+  it.each([
+    [Object.assign(Object.create({ generatedAt }), withoutGeneratedAt), "/ must have required property 'generatedAt'"],
+    [{ ...current, stats: Object.create(current.stats) }, "/stats must have required property 'totalThreads'"],
+  ])('requires data that survives normalization', (input, error) => {
+    expect(validateBlocksIndex(input).valid).toBe(true)
+    const result = validateBlocksIndex(input, { normalize: true })
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain(error)
+    expect(result.value).toBeUndefined()
+  })
+
+  it('keeps validated own fields that are non-enumerable', () => {
+    const input = Object.defineProperty({ ...withoutGeneratedAt }, 'generatedAt', { value: generatedAt })
+    expect(validateBlocksIndex(input, { normalize: true }).value?.generatedAt).toBe(generatedAt)
+  })
+
+  it('validates and normalizes non-enumerable own tag entries', () => {
+    const tagIndex = Object.defineProperty({}, 'maps', { value: [{ strandPath: path, blockId: 'scale' }] })
+    const invalidTags = Object.defineProperty({}, 'maps', { value: 'not an array' })
+    expect(validateBlocksIndex({ ...current, tagIndex }, { normalize: true }).value?.tagIndex).toEqual({
+      maps: [{ threadPath: path, blockId: 'scale' }],
+    })
+    expect(validateBlocksIndex({ ...current, tagIndex: invalidTags }, { normalize: true }).errors).toContain('/tagIndex/maps must be array')
+  })
+
+  it('reads reference arrays without calling methods supplied by the input', () => {
+    const maps = Object.assign([{ strandPath: path, blockId: 'scale' }], { map: null })
+    expect(validateBlocksIndex({ ...current, tagIndex: { maps } }, { normalize: true }).value?.tagIndex).toEqual({
+      maps: [{ threadPath: path, blockId: 'scale' }],
+    })
+  })
+
   it.each([
     ['with a strandPath reference', index],
     ['with no tag references', { ...index, tagIndex: { maps: [] } }],
@@ -55,7 +157,8 @@ const thread: ThreadFrontmatter = {
 
 describe('validateThreadFrontmatter', () => {
   it('accepts the frontmatter the corpus stores', () => {
-    expect(validateThreadFrontmatter(thread)).toEqual({ valid: true, errors: [] })
+    const oldImport: StrandFrontmatter = thread
+    expect(validateThreadFrontmatter(oldImport)).toEqual({ valid: true, errors: [] })
   })
 
   it('accepts typed links, a note as text, and the skill ids a thread teaches and requires', () => {
@@ -86,6 +189,15 @@ describe('validateThreadFrontmatter', () => {
 })
 
 describe('validateFabricManifest', () => {
+  it('leaves publisher-defined manifest fields alone', () => {
+    const input = { format: 'openquarry', version: 2, strand: 5 }
+    expect(Reflect.apply(validateFabricManifest, undefined, [input, { normalize: true }])).toStrictEqual({
+      valid: true, errors: [],
+    })
+    expect(input).toStrictEqual({ format: 'openquarry', version: 2, strand: 5 })
+    expect(Object.keys(fabricSchema.properties as object).sort()).toEqual(['format', 'name', 'version'])
+  })
+
   it('takes format openquarry and version 1 or 2', () => {
     expect(validateFabricManifest({ format: 'openquarry', name: 'Frame Codex', version: 2 }).valid).toBe(true)
     expect(validateFabricManifest({ format: 'openquarry', version: 1 }).valid).toBe(true)

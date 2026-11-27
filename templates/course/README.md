@@ -7,7 +7,7 @@ npm install
 npm run check
 ```
 
-`npm run check` validates `fabric.yaml`, every `weave.yaml` and `loom.yaml`, and the frontmatter of every Markdown file under `weaves/`. It prints one line for each file and exits with 1 when a file is invalid, so the same command can run in CI.
+`npm run check` validates `fabric.yaml`, `catalogue.yaml`, `blocks-index.json`, every `weave.yaml` and `loom.yaml`, and the frontmatter of every Markdown file under `weaves/`. It prints one line for each file and exits with 1 when a file is invalid, so the same command can run in CI.
 
 ## What is here
 
@@ -17,6 +17,7 @@ weaves/my-course/weave.yaml                       the course: a weave of kind co
 weaves/my-course/first-unit/loom.yaml             a unit: a loom of kind unit
 weaves/my-course/first-unit/first-lesson.md       a lesson: a thread whose contentType is lesson
 check.mjs                                         the script behind npm run check
+check-input.mjs                                   the checker’s file and index reader
 ```
 
 ## Add a lesson

@@ -1,34 +1,17 @@
-// openquarry check: validates every OpenQuarry file in a folder with @framers/openquarry. fabric.yaml and catalogue.yaml
-// at the top, and under weaves/ each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two
-// threads may share an id. The report names valid and invalid files, with an advisory for a version 1 thread path.
+// openquarry check: validates fabric.yaml, catalogue.yaml and blocks-index.json at the top, and under weaves/
+// each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two threads may share an id.
 // For a starter project the report matches the check.mjs script it carries.
-import { closeSync, constants, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
+import { checkBlocksIndex, readPlain } from './check-input.mjs'
 import { Refusal } from './errors.mjs'
-import { block, parse, unmarked } from './frontmatter.mjs'
+import { block, parse } from './frontmatter.mjs'
 import { entry } from './paths.mjs'
 
-// The text of a plain file, or undefined for anything else. O_NONBLOCK lets a pipe open at once instead of waiting for a
-// writer; a regular file reads as usual. A socket cannot be opened at all (ENXIO), and a link that leads nowhere
-// (ENOENT, or ENOTDIR when its path runs through a plain file) or round in a loop (ELOOP) leads to no file: none of
-// them is a plain file.
+// A link can lead nowhere, pass through a file or go round in a loop.
 const leadsNowhere = (error) => error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP'
 const legacyThreadPath = /^weaves\/[^/]+\/(?:[^/]+\/)*(?:looms|strands)\//
-function readPlain(path) {
-  let fd
-  try {
-    fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0))
-  } catch (error) {
-    if (error.code === 'ENXIO' || leadsNowhere(error)) return undefined
-    throw error
-  }
-  try {
-    return fstatSync(fd).isFile() ? unmarked(readFileSync(fd, 'utf8')) : undefined
-  } finally {
-    closeSync(fd)
-  }
-}
 
 // Every file under a folder, in name order. Folders whose names start with a dot, and node_modules, are skipped. A link
 // to a folder is not followed: it is listed as an entry, like a file.
@@ -57,8 +40,10 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   // A name is there when anything is at it, a link that leads nowhere included: such a link is reported, never skipped
   // as if the file were missing.
   const files = []
-  for (const [name, validate] of [['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue]]) {
-    if (entry(join(root, name))) files.push({ path: join(root, name), validate })
+  for (const [name, validate] of [
+    ['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue], ['blocks-index.json', checkBlocksIndex],
+  ]) {
+    if (entry(join(root, name))) files.push({ path: join(root, name), validate, json: name.endsWith('.json') })
   }
   let fabricVersion = files.some(({ validate }) => validate === validateFabricManifest) ? undefined : 1
   if (entry(join(root, 'weaves'))) {
@@ -85,8 +70,9 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   const lines = []
   const ids = new Map()
   let invalid = 0
-  for (const { path, validate, thread } of files) {
+  for (const { path, validate, thread, json } of files) {
     let errors
+    let warnings
     try {
       // Opened once, without waiting on a pipe, and read from that same handle only when it is a plain file: a pipe, a
       // socket, a device or a folder named like a file of the format is reported and never read. A link to a plain file
@@ -94,11 +80,13 @@ export function check({ folder, cwd = process.cwd() } = {}) {
       const text = readPlain(path)
       if (text === undefined) errors = ['/ is not a plain file']
       else {
-        const yaml = thread ? block(text) : text
-        if (yaml === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
+        const content = thread ? block(text) : text
+        if (content === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
         else {
-          const value = parse(yaml)
-          errors = validate(value).errors
+          const value = json ? JSON.parse(content) : parse(content)
+          const result = validate(value)
+          errors = result.errors
+          warnings = result.warnings
           if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version
           if (thread && errors.length === 0) {
             const other = ids.get(value.id)
@@ -108,11 +96,12 @@ export function check({ folder, cwd = process.cwd() } = {}) {
         }
       }
     } catch (error) {
-      errors = [`/ cannot be read as YAML: ${String(error.message).split('\n')[0]}`]
+      errors = [`/ cannot be read as ${json ? 'JSON' : 'YAML'}: ${String(error.message).split('\n')[0]}`]
     }
     const relativePath = shown(path)
     if (errors.length === 0) {
       lines.push(`ok ${relativePath}`)
+      for (const warning of warnings ?? []) lines.push(`  warning: ${warning}`)
       if (thread && fabricVersion !== undefined && legacyThreadPath.test(relativePath)) {
         const warning = fabricVersion === 2
           ? 'Version 1 folder names in a version 2 fabric. Move the thread to weaves/<weave>/<loom>/<thread>.md.'
@@ -126,7 +115,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
     }
   }
 
-  if (files.length === 0) lines.push('No OpenQuarry files found: expected fabric.yaml or a weaves/ folder here.')
+  if (files.length === 0) lines.push('No OpenQuarry files found: expected fabric.yaml, blocks-index.json or a weaves/ folder here.')
   else if (invalid > 0) lines.push(`${invalid} of ${files.length} files invalid.`)
   else lines.push(`${files.length} files checked, all valid.`)
   return { lines, valid: files.length > 0 && invalid === 0 }

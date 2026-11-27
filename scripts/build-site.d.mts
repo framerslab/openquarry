@@ -5,7 +5,7 @@ export declare const NPM: string
 export declare function schemaFiles(): string[]
 export interface SiteIndex {
   format: string
-  schemas: { name: string; title?: string; url: string; yaml: string; sha256: string }[]
+  schemas: { name: string; title?: string; url: string; yaml: string; sha256: string; deprecated?: boolean; aliasOf?: string }[]
   source: { repository: string; commit: string; path: string }
   package: { name: string; version: string; npm: string }
   repository: string

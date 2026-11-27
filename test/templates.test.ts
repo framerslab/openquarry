@@ -65,6 +65,8 @@ describe('the starters', () => {
   it('share one check script, one Node range and the same dependencies, and run the check with npm run check', () => {
     const [first, ...rest] = starters
     for (const starter of rest) expect(read(starter.folder, 'check.mjs')).toBe(read(first.folder, 'check.mjs'))
+    const checkInput = read('packages/openquarry/src/check-input.mjs')
+    for (const starter of starters) expect(read(starter.folder, 'check-input.mjs')).toBe(checkInput)
     const manifests = starters.map((s) => JSON.parse(read(s.folder, 'package.json')) as Record<string, any>)
     for (const [i, manifest] of manifests.entries()) {
       expect(manifest.name).toBe(starters[i].dest)

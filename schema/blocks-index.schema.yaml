@@ -1,8 +1,13 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 title: CodexBlocksIndex
-description: "Compiled index of all block-level tags across the codex repository"
+description: >-
+  Compiled index of all block-level tags in a fabric. When both spellings of a field are present, both must be valid
+  and readers use the current spelling.
 type: object
-required: [generatedAt, version, stats, strands]
+required: [generatedAt, version, stats]
+anyOf:
+  - required: [threads]
+  - required: [strands]
 properties:
   generatedAt:
     type: string
@@ -15,12 +20,20 @@ properties:
   stats:
     type: object
     description: "Aggregate statistics for the block index"
-    required: [totalStrands, totalBlocks, totalTags, worthyBlocks]
+    required: [totalBlocks, totalTags, worthyBlocks]
+    anyOf:
+      - required: [totalThreads]
+      - required: [totalStrands]
     properties:
-      totalStrands:
+      totalThreads:
         type: integer
         minimum: 0
         description: "Number of threads with block-level data"
+      totalStrands:
+        type: integer
+        minimum: 0
+        deprecated: true
+        description: "Deprecated alias for totalThreads."
       totalBlocks:
         type: integer
         minimum: 0
@@ -61,14 +74,25 @@ properties:
       type: array
       items:
         type: object
-        required: [strandPath, blockId]
+        required: [blockId]
+        anyOf:
+          - required: [threadPath]
+          - required: [strandPath]
         properties:
-          strandPath: { type: string }
+          threadPath: { type: string }
+          strandPath: { type: string, deprecated: true, description: "Deprecated alias for threadPath." }
           blockId: { type: string }
           confidence: { type: number, minimum: 0, maximum: 1 }
-  strands:
-    type: object
+  threads:
+    $ref: "#/$defs/threads"
     description: "Per-thread block data, keyed by thread path"
+  strands:
+    $ref: "#/$defs/threads"
+    deprecated: true
+    description: "Deprecated alias for threads."
+$defs:
+  threads:
+    type: object
     additionalProperties:
       type: object
       required: [path, blockCount, blocks]

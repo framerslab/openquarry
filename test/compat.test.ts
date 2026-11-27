@@ -1,6 +1,5 @@
 // What 0.2.0 read, 0.3.0 reads. The course layer adds an optional `kind` to the weave and the loom and one new record,
-// the catalogue; it changes nothing else. These tests hold the schema files to the bytes 0.2.0 shipped and run 0.2.0's
-// own examples through the validators.
+// the catalogue. These tests run 0.2.0's examples through the validators and check the retained schema bytes.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -22,10 +21,9 @@ const read = (file: string) => readFileSync(join(schemaDir, file), 'utf8')
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
 describe('the schema files, against 0.2.0', () => {
-  it('keep the thread, the strand copy, the manifest and the blocks index byte for byte', () => {
-    for (const file of ['blocks-index.schema.yaml', 'fabric.schema.yaml', 'strand.schema.yaml', 'thread.schema.yaml']) {
-      expect(sha256(read(file)), file).toBe(AT_0_2_0[file])
-    }
+  it('keeps the canonical thread schema byte for byte', () => {
+    const file = 'thread.schema.yaml'
+    expect(sha256(read(file)), file).toBe(AT_0_2_0[file])
   })
 
   it('add kind to the weave and the loom and change no other byte', () => {

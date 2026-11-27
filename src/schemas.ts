@@ -3,13 +3,24 @@
 export const blocksIndexSchema: Record<string, unknown> = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "CodexBlocksIndex",
-  "description": "Compiled index of all block-level tags across the codex repository",
+  "description": "Compiled index of all block-level tags in a fabric. When both spellings of a field are present, both must be valid and readers use the current spelling.",
   "type": "object",
   "required": [
     "generatedAt",
     "version",
-    "stats",
-    "strands"
+    "stats"
+  ],
+  "anyOf": [
+    {
+      "required": [
+        "threads"
+      ]
+    },
+    {
+      "required": [
+        "strands"
+      ]
+    }
   ],
   "properties": {
     "generatedAt": {
@@ -26,16 +37,33 @@ export const blocksIndexSchema: Record<string, unknown> = {
       "type": "object",
       "description": "Aggregate statistics for the block index",
       "required": [
-        "totalStrands",
         "totalBlocks",
         "totalTags",
         "worthyBlocks"
       ],
+      "anyOf": [
+        {
+          "required": [
+            "totalThreads"
+          ]
+        },
+        {
+          "required": [
+            "totalStrands"
+          ]
+        }
+      ],
       "properties": {
-        "totalStrands": {
+        "totalThreads": {
           "type": "integer",
           "minimum": 0,
           "description": "Number of threads with block-level data"
+        },
+        "totalStrands": {
+          "type": "integer",
+          "minimum": 0,
+          "deprecated": true,
+          "description": "Deprecated alias for totalThreads."
         },
         "totalBlocks": {
           "type": "integer",
@@ -111,12 +139,28 @@ export const blocksIndexSchema: Record<string, unknown> = {
         "items": {
           "type": "object",
           "required": [
-            "strandPath",
             "blockId"
           ],
+          "anyOf": [
+            {
+              "required": [
+                "threadPath"
+              ]
+            },
+            {
+              "required": [
+                "strandPath"
+              ]
+            }
+          ],
           "properties": {
-            "strandPath": {
+            "threadPath": {
               "type": "string"
+            },
+            "strandPath": {
+              "type": "string",
+              "deprecated": true,
+              "description": "Deprecated alias for threadPath."
             },
             "blockId": {
               "type": "string"
@@ -130,9 +174,19 @@ export const blocksIndexSchema: Record<string, unknown> = {
         }
       }
     },
+    "threads": {
+      "$ref": "#/$defs/threads",
+      "description": "Per-thread block data, keyed by thread path"
+    },
     "strands": {
+      "$ref": "#/$defs/threads",
+      "deprecated": true,
+      "description": "Deprecated alias for threads."
+    }
+  },
+  "$defs": {
+    "threads": {
       "type": "object",
-      "description": "Per-thread block data, keyed by thread path",
       "additionalProperties": {
         "type": "object",
         "required": [
@@ -367,7 +421,7 @@ export const fabricSchema: Record<string, unknown> = {
         1,
         2
       ],
-      "description": "1: the file names before the thread rename (weave.yaml, loom.yaml, strand.schema.yaml, looms/ and strands/ prefix folders accepted). 2: the thread names (thread.schema.yaml; the prefix folders still accepted on read). A reader refuses a fabric whose version it does not support."
+      "description": "1: the original thread layout. 2: the current thread layout. Both versions accept the legacy prefix folders when reading. A reader refuses a fabric whose version it does not support."
     }
   }
 }
@@ -441,10 +495,12 @@ export const loomSchema: Record<string, unknown> = {
   }
 }
 
-/** @deprecated Use threadSchema for new content. */
+/** @deprecated Use threadSchema. */
 export const strandSchema: Record<string, unknown> = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "StrandFrontmatter",
+  "description": "Deprecated alias for thread.schema. Use thread.schema.json or thread.schema.yaml for new files.",
+  "deprecated": true,
   "type": "object",
   "required": [
     "id",

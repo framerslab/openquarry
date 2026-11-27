@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import { blocksIndexSchema, catalogueSchema, fabricSchema, loomSchema, threadSchema, weaveSchema } from './schemas.js'
-import type { Catalogue } from './types.js'
+import type { BlocksIndex, Catalogue } from './types.js'
 
 export interface ValidationResult {
   valid: boolean
@@ -12,16 +12,23 @@ export interface ValidationResult {
   warnings?: string[]
 }
 
-const compiled = new Map<object, ValidateFunction>()
+export interface NormalizedValidationResult<T> extends ValidationResult {
+  /** Present when the input is valid. Uses the current field names. */
+  value?: T
+}
 
-function validatorFor(schema: Record<string, unknown>): ValidateFunction {
-  let validate = compiled.get(schema)
+const compiled = new Map<object, ValidateFunction>()
+const compiledOwnProperties = new Map<object, ValidateFunction>()
+
+function validatorFor(schema: Record<string, unknown>, ownProperties = false): ValidateFunction {
+  const cache = ownProperties ? compiledOwnProperties : compiled
+  let validate = cache.get(schema)
   if (!validate) {
     // verbose: an error carries the value it is about, which the line for a value listed twice quotes.
-    const ajv = new Ajv2020({ allErrors: true, strict: false, verbose: true })
+    const ajv = new Ajv2020({ allErrors: true, strict: false, verbose: true, ownProperties })
     addFormats(ajv)
     validate = ajv.compile(schema)
-    compiled.set(schema, validate)
+    cache.set(schema, validate)
   }
   return validate
 }
@@ -53,11 +60,23 @@ function describe(error: ErrorObject): string {
   return message
 }
 
-function check(schema: Record<string, unknown>, value: unknown): ValidationResult {
-  const validate = validatorFor(schema)
+function check(
+  schema: Record<string, unknown>, value: unknown,
+  { includeError, ownProperties }: { includeError?: (error: ErrorObject) => boolean; ownProperties?: boolean } = {},
+): ValidationResult {
+  const validate = validatorFor(schema, ownProperties)
   const valid = validate(value) as boolean
-  const errors = (validate.errors ?? []).map(line)
-  return { valid, errors }
+  const errors = validate.errors ?? []
+  return { valid, errors: (includeError ? errors.filter(includeError) : errors).map(line) }
+}
+
+function renameField(
+  record: Record<string, unknown>, legacy: string, current: string, warnings: Set<string>, path = current,
+): void {
+  if (!Object.hasOwn(record, legacy)) return
+  if (record[current] === undefined) record[current] = record[legacy]
+  delete record[legacy]
+  warnings.add(path)
 }
 
 /** Checks a thread's frontmatter (already parsed from YAML) against thread.schema.yaml. */
@@ -193,7 +212,61 @@ export function validateCatalogue(catalogue: unknown): ValidationResult {
   return { valid: errors.length === 0, errors }
 }
 
-/** Checks a parsed blocks index against blocks-index.schema.yaml. */
-export function validateBlocksIndex(index: unknown): ValidationResult {
-  return check(blocksIndexSchema, index)
+// For each missing alias pair, keep the error from the current spelling (the first branch).
+const redundantBlocksIndexErrors = new Set([
+  '#/anyOf',
+  '#/properties/stats/anyOf',
+  '#/properties/tagIndex/additionalProperties/items/anyOf',
+].flatMap((path) => [path, `${path}/1/required`]))
+
+function copyOwnFields(record: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.getOwnPropertyNames(record).map((key) => [key, record[key]]))
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function copyIndexForNormalization(index: unknown): unknown {
+  if (!isRecord(index)) return index
+  const value = copyOwnFields(index)
+  // Make all own tag entries enumerable so Ajv checks the same entries normalization reads.
+  if (isRecord(value.tagIndex)) value.tagIndex = copyOwnFields(value.tagIndex)
+  return value
+}
+
+/** Checks a parsed blocks index. Pass `{ normalize: true }` to read it with current field names. */
+export function validateBlocksIndex(index: unknown): ValidationResult
+export function validateBlocksIndex(index: unknown, options: { normalize: true }): NormalizedValidationResult<BlocksIndex>
+export function validateBlocksIndex(index: unknown, options?: { normalize: true }): NormalizedValidationResult<BlocksIndex> {
+  const valueToCheck = options?.normalize ? copyIndexForNormalization(index) : index
+  const result = check(blocksIndexSchema, valueToCheck, {
+    includeError: (error) => !redundantBlocksIndexErrors.has(error.schemaPath),
+    // The result only copies own fields. Validate that same data when normalization is requested.
+    ownProperties: options?.normalize,
+  })
+  if (!result.valid || !options?.normalize) return result
+
+  const value = valueToCheck as Record<string, unknown>
+  const fields = new Set<string>()
+  renameField(value, 'strands', 'threads', fields)
+  const stats = copyOwnFields(value.stats as Record<string, unknown>)
+  renameField(stats, 'totalStrands', 'totalThreads', fields, 'stats.totalThreads')
+  value.stats = stats
+  if (value.tagIndex !== undefined) {
+    const tagIndex = value.tagIndex as Record<string, Record<string, unknown>[]>
+    value.tagIndex = Object.fromEntries(Object.entries(tagIndex).map(([tag, entries]) => [
+      tag,
+      Array.from({ length: entries.length }, (_, offset) => {
+        const reference = copyOwnFields(entries[offset])
+        renameField(reference, 'strandPath', 'threadPath', fields, 'tagIndex[].threadPath')
+        return reference
+      }),
+    ]))
+  }
+  return {
+    ...result,
+    value: value as unknown as BlocksIndex,
+    ...(fields.size ? { warnings: [`Deprecated fields: use ${[...fields].join(', ')}.`] } : {}),
+  }
 }

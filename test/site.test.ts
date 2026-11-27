@@ -38,6 +38,12 @@ describe('the schema host', () => {
   it('lists the seven schemas, their corpus commit and the package in the index', () => {
     const idx = JSON.parse(readFileSync(join(served, 'index.json'), 'utf8'))
     expect(idx.schemas.map((s: { name: string }) => s.name)).toEqual(schemaFiles().map((f) => f.replace(/\.yaml$/, '')))
+    expect(idx.schemas[0].name).toBe('thread.schema')
+    expect(idx.schemas.at(-1)).toMatchObject({
+      name: 'strand.schema',
+      deprecated: true,
+      aliasOf: 'thread.schema',
+    })
     expect(idx.schemas.find((s: { name: string }) => s.name === 'catalogue.schema')).toEqual({
       name: 'catalogue.schema',
       title: 'Catalogue',
@@ -99,7 +105,7 @@ describe('the public format site', () => {
     const format = readFileSync(join(site, 'format/index.html'), 'utf8')
     expect(format).toContain('Proposal only.')
     expect(format).toContain('Version 1 fabrics')
-    for (const path of ['', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning']) {
+    for (const path of ['', 'courses', 'llm', 'validate', 'spiral', 'learning']) {
       expect(readFileSync(join(site, path, 'index.html'), 'utf8')).not.toMatch(/strand\.schema|StrandFrontmatter|strands\//)
     }
     for (const font of ['HankenGrotesk', 'Fraunces', 'JetBrainsMono']) {
@@ -141,19 +147,29 @@ describe('the public format site', () => {
     const compatibility = /<details id="version-1-fabrics">([\s\S]*?)<\/details>/.exec(format)
     expect(compatibility?.[1], 'the Format guide has no Version 1 fabrics disclosure').toBeDefined()
     expect(compatibility?.[1]).toContain('/schema/v1/strand.schema.json')
+    expect(format.indexOf('/schema/v1/thread.schema.json')).toBeGreaterThan(-1)
+    expect(format.indexOf('/schema/v1/thread.schema.json')).toBeLessThan(format.indexOf('/schema/v1/strand.schema.json'))
     expect(format.replace(compatibility?.[0] ?? '', '')).not.toMatch(/strand\.schema|StrandFrontmatter|strands\//)
 
     const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
     const example = /<h2 id="blocks-index">([\s\S]*?)<h2 id="json-schema">/.exec(page)?.[1]
     expect(example, 'the package page has no blocks-index example').toBeDefined()
     expect(example).toContain('node blocks.mjs blocks-index.json')
+    expect(example).toContain('<code>threadPath</code>')
     expect(example).not.toMatch(/totalStrands|strandPath|\bstrands\b/)
   })
   it('documents optional validator warnings and the version 1 blocks index result on the package page', () => {
     const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
     const exports = /<h2 id="exports">[^<]*<\/h2>([\s\S]*?)<h2/.exec(page)?.[1]
     expect(exports).toContain('optional <code>warnings</code>')
-    expect(exports).toContain('<code>validateBlocksIndex</code> returns only <code>{ valid, errors }</code> for version 1 indexes')
+    expect(exports).toContain('<code>validateBlocksIndex</code> returns <code>{ valid, errors }</code> by default')
+    expect(exports).toContain('<code>{ normalize: true }</code>')
+  })
+  it('leads the schema page with the thread schema and labels its compatibility alias once', () => {
+    const page = readFileSync(join(site, 'schema', 'index.html'), 'utf8')
+    const listed = /<ul class="schema-list">([\s\S]*?)<\/ul>/.exec(page)?.[1] ?? ''
+    expect(listed).toMatch(/^<li><strong>thread\.schema<\/strong>/)
+    expect(listed.match(/<strong>strand\.schema \(deprecated alias\)<\/strong>/g)).toHaveLength(1)
   })
   it('gives the landing a GitHub key, the project badges and a card for Frame', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')

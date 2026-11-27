@@ -1,5 +1,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 title: StrandFrontmatter
+description: "Deprecated alias for thread.schema. Use thread.schema.json or thread.schema.yaml for new files."
+deprecated: true
 type: object
 required: [id, slug, title, version, contentType]
 properties:

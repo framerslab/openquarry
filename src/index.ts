@@ -5,7 +5,7 @@ export {
   catalogueSchema,
   fabricSchema,
   loomSchema,
-  strandSchema,
   threadSchema,
+  strandSchema,
   weaveSchema,
 } from './schemas.js'

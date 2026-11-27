@@ -28,12 +28,14 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
+        id: dependencies
         run: npm install --no-audit --no-fund
 
       - name: Type check
         run: npm run typecheck
 
       - name: Tests
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npm test
 
       - name: Build
@@ -44,7 +46,7 @@ jobs:
           npm install --no-save . yaml
           node scripts/check-validator-command.mjs
 
-      - name: Run the package page's examples against the package from npm
+      - name: Run the package page's examples from the packed checkout
         run: node scripts/check-package-examples.mjs
 
       - name: The files npm would publish
@@ -71,6 +73,13 @@ jobs:
 
       - name: Pack the command, install the tarball and run every command
         run: node scripts/check-cli.mjs
+
+      - name: Check packed packages before a new library line reaches npm
+        if: matrix.node == 22
+        run: |
+          npm pkg set version=999.0.0
+          npm --prefix packages/openquarry pkg set version=999.0.0 'dependencies.@framers/openquarry=^999.0.0'
+          node scripts/check-cli.mjs
 
   start:
     name: Start a project (the documented commands, against npm)

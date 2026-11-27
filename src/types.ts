@@ -4,11 +4,11 @@
  * frontmatter.
  */
 
-/**
- * A node's level in a fabric. These are stored values: a thread is stored as 'strand', and readers show it as a
- * thread. Changing a stored value would orphan saved data, so the format keeps it.
- */
-export type KnowledgeNodeType = 'fabric' | 'weave' | 'loom' | 'strand'
+/** A node's level in a fabric. */
+export type FabricNodeType = 'fabric' | 'weave' | 'loom' | 'thread'
+
+/** @deprecated Use FabricNodeType for new nodes. This type retains the original stored values. */
+export type KnowledgeNodeType = Exclude<FabricNodeType, 'thread'> | 'strand'
 
 /** The type of a typed link between two threads. */
 export type LinkType =
@@ -218,11 +218,33 @@ export interface Catalogue {
 export interface FabricManifest {
   format: 'openquarry'
   name?: string
-  /**
-   * 1: the file names before the thread rename (strand.schema.yaml, and the `looms/` and `strands/` prefix folders).
-   * 2: the thread names (thread.schema.yaml). Version 2 readers still accept the `looms/` and `strands/` prefix folders.
-   */
+  /** 1: the original thread layout. 2: the current thread layout. Both accept legacy prefix folders on read. */
   version: 1 | 2
+}
+
+/** A compiled blocks index with the current field names. */
+export interface BlocksIndex {
+  generatedAt: string
+  version: string
+  stats: {
+    totalThreads: number
+    totalBlocks: number
+    totalTags: number
+    worthyBlocks: number
+    uniqueTags?: number
+    pendingSuggestions?: number
+    tagsBySource?: Record<string, unknown>
+    blocksByType?: Record<string, number>
+  }
+  threads: Record<string, {
+    path: string
+    title?: string
+    blockCount: number
+    tagCount?: number
+    worthyBlockCount?: number
+    blocks: Array<{ id: string; line: number; type: string; [key: string]: unknown }>
+  }>
+  tagIndex?: Record<string, Array<{ threadPath: string; blockId: string; confidence?: number }>>
 }
 
 /** @deprecated Use ThreadFrontmatter. The format's note type was called StrandFrontmatter before the thread rename. */

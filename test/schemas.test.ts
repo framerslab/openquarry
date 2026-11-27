@@ -1,5 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import yaml from 'js-yaml'
@@ -24,7 +25,7 @@ describe('the schema files', () => {
     ])
   })
 
-  it('match the corpus commit recorded in schema/SOURCE.json', () => {
+  it('match the hashes recorded in schema/SOURCE.json', () => {
     const source = JSON.parse(readFileSync(join(schemaDir, 'SOURCE.json'), 'utf8')) as {
       repository: string
       commit: string
@@ -43,11 +44,40 @@ describe('the schema files', () => {
     expect(readFileSync(join(root, 'src', 'schemas.ts'), 'utf8')).toBe(renderSchemasModule())
   })
 
-  it('keep the strand schema as a copy of the thread schema under its old title', () => {
-    const { title: threadTitle, ...thread } = load('thread.schema.yaml')
-    const { title: strandTitle, ...strand } = load('strand.schema.yaml')
+  it('keeps the old thread schema valid on its own and labels it deprecated', () => {
+    const { title: threadTitle, description: _description, ...thread } = load('thread.schema.yaml')
+    const { title: aliasTitle, description, deprecated, ...alias } = load('strand.schema.yaml')
     expect(threadTitle).toBe('ThreadFrontmatter')
-    expect(strandTitle).toBe('StrandFrontmatter')
-    expect(thread).toEqual(strand)
+    expect(aliasTitle).toBe('StrandFrontmatter')
+    expect(deprecated).toBe(true)
+    expect(description).toContain('thread.schema')
+    expect(thread).toEqual(alias)
+  })
+
+  it('keeps the deprecated annotation when a sync reads a quoted thread title and a description', () => {
+    const checkout = mkdtempSync(join(root, '.schema-sync-'))
+    try {
+      const upstream = join(checkout, 'upstream')
+      const upstreamSchemas = join(upstream, 'schema')
+      mkdirSync(upstreamSchemas, { recursive: true })
+      const thread = '$schema: "https://json-schema.org/draft/2020-12/schema"\ntitle: "ThreadFrontmatter"\ndescription: "A thread"\ntype: object\n'
+      writeFileSync(join(upstreamSchemas, 'thread.schema.yaml'), thread)
+      const git = (...args: string[]) => execFileSync('git', args, { cwd: upstream, stdio: 'pipe' })
+      git('init', '--quiet')
+      git('add', 'schema')
+      git('-c', 'user.name=Schema fixture', '-c', 'user.email=fixture@example.com', 'commit', '--quiet', '-m', 'Add thread schema')
+      cpSync(join(root, 'schema'), join(checkout, 'schema'), { recursive: true })
+      mkdirSync(join(checkout, 'scripts'))
+      mkdirSync(join(checkout, 'src'))
+      for (const file of ['sync-schema.mjs', 'build-schemas.mjs']) {
+        cpSync(join(root, 'scripts', file), join(checkout, 'scripts', file))
+      }
+      execFileSync(process.execPath, [join(checkout, 'scripts', 'sync-schema.mjs'), upstream])
+      expect(readFileSync(join(checkout, 'schema', 'thread.schema.yaml'), 'utf8')).toBe(thread)
+      const alias = yaml.load(readFileSync(join(checkout, 'schema', 'strand.schema.yaml'), 'utf8'))
+      expect(alias).toMatchObject({ title: 'StrandFrontmatter', type: 'object', deprecated: true })
+    } finally {
+      rmSync(checkout, { recursive: true, force: true })
+    }
   })
 })
