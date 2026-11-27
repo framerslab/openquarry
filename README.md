@@ -250,6 +250,7 @@ const { valid, errors } = validateThreadFrontmatter(parse(frontmatter))
 | `validateThreadFrontmatter`, `validateLoom`, `validateWeave`, `validateFabricManifest`, `validateCatalogue`, `validateBlocksIndex` | validators that return `{ valid, errors }` with optional `warnings` |
 | `ThreadFrontmatter`, `ThreadLink`, `ThreadLinkGroups`, `ThreadBlock`, `Loom`, `Weave`, `FabricManifest`, `Catalogue`, `CatalogueSubject`, `CatalogueEntry`, `BlocksIndex` | types for each file |
 | `LinkType`, `ContentType`, `DifficultyLevel`, `FabricNodeType`, `SkillReference` | value types |
+| `ValidationResult`, `NormalizedValidationResult` | validator results, including the type for a normalized value |
 | `threadSchema`, `loomSchema`, `weaveSchema`, `fabricSchema`, `catalogueSchema`, `blocksIndexSchema` | the JSON Schemas as objects |
 
 `validateCatalogue` checks the record against its schema and then the rules a schema cannot hold: see [the catalogue](docs/courses.md#the-catalogue).

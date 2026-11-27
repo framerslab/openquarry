@@ -12,7 +12,7 @@ export interface ValidationResult {
   warnings?: string[]
 }
 
-interface NormalizedValidationResult<T> extends ValidationResult {
+export interface NormalizedValidationResult<T> extends ValidationResult {
   /** Present when the input is valid. Uses the current field names. */
   value?: T
 }
@@ -66,10 +66,12 @@ function check(schema: Record<string, unknown>, value: unknown): ValidationResul
 }
 
 function renameField(
-  record: Record<string, unknown>, legacy: string, current: string, warnings: Set<string>, path = current,
+  record: Record<string, unknown>, legacy: string, current: string, warnings: Set<string>,
+  { path = current, preserveUndefined = false } = {},
 ): void {
   if (!Object.hasOwn(record, legacy)) return
-  if (record[current] === undefined) record[current] = record[legacy]
+  const hasCurrent = preserveUndefined ? Object.hasOwn(record, current) : record[current] !== undefined
+  if (!hasCurrent) record[current] = record[legacy]
   delete record[legacy]
   warnings.add(path)
 }
@@ -106,9 +108,9 @@ export function validateFabricManifest(manifest: unknown, options?: { normalize:
 
   const value = { ...manifest as Record<string, unknown> }
   const fields = new Set<string>()
-  renameField(value, 'strand', 'thread', fields)
-  renameField(value, 'strands', 'threads', fields)
-  renameField(value, 'strandPath', 'threadPath', fields)
+  for (const [legacy, current] of [['strand', 'thread'], ['strands', 'threads'], ['strandPath', 'threadPath']]) {
+    renameField(value, legacy, current, fields, { preserveUndefined: true })
+  }
   return normalized(result, value, fields)
 }
 
@@ -236,7 +238,7 @@ export function validateBlocksIndex(index: unknown, options?: { normalize: true 
   const fields = new Set<string>()
   renameField(value, 'strands', 'threads', fields)
   const stats = { ...value.stats as Record<string, unknown> }
-  renameField(stats, 'totalStrands', 'totalThreads', fields, 'stats.totalThreads')
+  renameField(stats, 'totalStrands', 'totalThreads', fields, { path: 'stats.totalThreads' })
   value.stats = stats
   if (value.tagIndex !== undefined) {
     const tagIndex = value.tagIndex as Record<string, Record<string, unknown>[]>
@@ -244,7 +246,7 @@ export function validateBlocksIndex(index: unknown, options?: { normalize: true 
       tag,
       entries.map((entry) => {
         const reference = { ...entry }
-        renameField(reference, 'strandPath', 'threadPath', fields, 'tagIndex[].threadPath')
+        renameField(reference, 'strandPath', 'threadPath', fields, { path: 'tagIndex[].threadPath' })
         return reference
       }),
     ]))

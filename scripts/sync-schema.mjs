@@ -3,9 +3,11 @@
 //   node scripts/sync-schema.mjs <path to the codex checkout>
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { copyFileSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
+import yaml from 'js-yaml'
 import { renderSchemasModule } from './build-schemas.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -26,10 +28,18 @@ for (const file of schemaFiles(join(codex, 'schema'))) {
   }
 }
 // Keep the deprecated schema self-contained so existing readers can compile it without resolving a reference.
-const thread = readFileSync(join(schemaDir, 'thread.schema.yaml'), 'utf8')
-const oldTitle = 'title: StrandFrontmatter'
-const annotation = 'description: "Deprecated alias for thread.schema. Use thread.schema.json or thread.schema.yaml for new files."'
-writeFileSync(join(schemaDir, alias), thread.replace(/^title: ThreadFrontmatter$/m, `${oldTitle}\n${annotation}\ndeprecated: true`))
+const thread = yaml.load(readFileSync(join(schemaDir, 'thread.schema.yaml'), 'utf8'))
+if (thread?.title !== 'ThreadFrontmatter') throw new Error('thread.schema.yaml must define ThreadFrontmatter')
+const aliasSchema = {
+  ...thread,
+  title: 'StrandFrontmatter',
+  description: 'Deprecated alias for thread.schema. Use thread.schema.json or thread.schema.yaml for new files.',
+  deprecated: true,
+}
+const aliasPath = join(schemaDir, alias)
+if (!existsSync(aliasPath) || !isDeepStrictEqual(yaml.load(readFileSync(aliasPath, 'utf8')), aliasSchema)) {
+  writeFileSync(aliasPath, yaml.dump(aliasSchema, { noRefs: true }))
+}
 
 source.commit = commit
 source.files = Object.fromEntries(schemaFiles(schemaDir).map((file) => [

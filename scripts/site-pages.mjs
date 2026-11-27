@@ -132,7 +132,7 @@ function packagePage(index) {
     [['ThreadFrontmatter', 'Weave', 'Loom', 'FabricManifest', 'Catalogue', 'BlocksIndex'], 'the files.'],
     [['CatalogueSubject', 'CatalogueEntry', 'ThreadLink', 'ThreadLinkGroups', 'ThreadBlock', 'SkillReference', 'SuggestedTag'], 'the records inside them.'],
     [['ContentType', 'DifficultyLevel', 'LinkType', 'FabricNodeType'], 'the values a field allows.'],
-    [['ValidationResult'], 'what every validator returns.'],
+    [['ValidationResult', 'NormalizedValidationResult'], 'validator results, with the current field names in a normalized value.'],
   ].map(([names, what]) => item(names, what)).join('')}</ul><section aria-labelledby="compatibility-exports"><h3 id="compatibility-exports">Compatibility exports</h3><ul class="exports">${[
     [['strandSchema'], 'deprecated alias for <code>threadSchema</code>.'],
     [['StrandFrontmatter'], 'deprecated alias for <code>ThreadFrontmatter</code>.'],
