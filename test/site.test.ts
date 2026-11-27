@@ -358,7 +358,7 @@ describe('the public format site', () => {
       expect(validate).toContain('<p>The <code>openquarry</code> package is not on npm yet. Once it is, <code>npx openquarry check</code> validates every file of a project: <a href="/package/#start">Start a project</a> shows it.')
       expect(validate.indexOf('not on npm yet')).toBeLessThan(validate.indexOf('npx openquarry check'))
     } else {
-      expect(validate).toContain('<a href="/package/#start-check"><code>npx openquarry check</code></a> validates <code>fabric.yaml</code>')
+      expect(validate).toContain('<a href="/package/#start-check"><code>npx openquarry check</code></a> validates <code>fabric.yaml</code>, <code>catalogue.yaml</code> and <code>blocks-index.json</code>')
       expect(validate).not.toContain('not on npm yet')
     }
     // Until the release, no paragraph on any page tells a reader to run the command before it says the package is not on
