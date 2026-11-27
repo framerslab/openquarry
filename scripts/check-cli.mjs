@@ -674,6 +674,55 @@ entries:
       writeFileSync(cataloguePath, previous)
     }
   })
+  exercise('The starter checks match CLI catalogue coverage', () => {
+    const previous = readFileSync(cataloguePath, 'utf8')
+    const copy = join(catalogueProject, 'weaves', 'copy')
+    mkdirSync(copy)
+    copyFileSync(join(firstWeave, 'weave.yaml'), join(copy, 'weave.yaml'))
+    writeFileSync(cataloguePath, catalogue.replace('slug: first', 'slug: retired'))
+    try {
+      const cli = checkCatalogue()
+      same(cli.status, 1, 'CLI status for catalogue coverage errors')
+      for (const { id } of starters) {
+        const source = join(installed, 'templates', id)
+        copyFileSync(join(source, 'check-input.mjs'), join(catalogueProject, 'check-input.mjs'))
+        copyFileSync(join(source, 'check.mjs'), join(catalogueProject, 'check.mjs'))
+        const report = run(process.execPath, ['check.mjs'], catalogueProject)
+        same([report.status, report.stdout], [cli.status, cli.stdout], `${id} starter catalogue report`)
+      }
+    } finally {
+      rmSync(copy, { recursive: true })
+      writeFileSync(cataloguePath, previous)
+    }
+  })
+  exercise('Course rollback keeps a manifest replaced by another writer', () => {
+    const original = readFileSync(cataloguePath, 'utf8')
+    const target = join(catalogueProject, 'weaves', 'raced-course', 'weave.yaml')
+    const replacement = 'slug: raced-course\ntitle: Replaced course\nkind: course\n'
+    const preload = join(work, 'raced-course.cjs')
+    writeFileSync(preload, `
+      const fs = require('node:fs')
+      const rename = fs.renameSync
+      fs.renameSync = function (from, to) {
+        if (to !== ${JSON.stringify(cataloguePath)}) return rename(from, to)
+        if (process.env.REPLACE_WEAVE === 'yes') {
+          const target = ${JSON.stringify(target)}
+          fs.writeFileSync(target + '.replacement', ${JSON.stringify(replacement)})
+          rename(target + '.replacement', target)
+        }
+        throw new Error('catalogue rename failed')
+      }
+      require('node:module').syncBuiltinESMExports()
+    `)
+    const args = ['--require', preload, join(installed, 'bin', 'openquarry.mjs'), 'new', 'course', 'Raced course', '--subject', 'navigation']
+    const rolledBack = run(process.execPath, args, catalogueProject)
+    same(rolledBack.status, 1, 'new course status after a catalogue write fails')
+    same(existsSync(target), false, 'rollback removes the manifest just created')
+    const raced = run(process.execPath, args, catalogueProject, { REPLACE_WEAVE: 'yes' })
+    same(raced.status, 1, 'new course status when rollback races a replacement')
+    same(existsSync(target) && readFileSync(target, 'utf8'), replacement, 'rollback preserves the replacement manifest')
+    same(readFileSync(cataloguePath, 'utf8'), original, 'catalogue after a failed replacement')
+  })
   if (catalogueFailures.length) fail(catalogueFailures.join('\n'))
 
   // 8. init: what it refuses, and what --force does.

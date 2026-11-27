@@ -63,6 +63,12 @@ describe('the docs', () => {
     }
   })
 
+  it('installs both dependencies of the README validator example', () => {
+    const section = read('README.md').split('## The package\n')[1].split('\n## ')[0]
+    const install = /^npm install (.+)$/m.exec(section)?.[1].split(' ')
+    expect(install).toEqual(['openquarry', 'yaml'])
+  })
+
   it('link only to files the package ships', () => {
     const { files } = JSON.parse(read('package.json')) as { files: string[] }
     let links = 0
