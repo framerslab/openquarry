@@ -34,7 +34,9 @@ function projectIndex(index, preferCurrent, fields, projectedPaths) {
     return record
   }
   const projected = { ...project(index, 'threads', 'strands') }
-  projected.stats = project(index.stats, 'totalThreads', 'totalStrands', '/stats', 'stats.totalThreads')
+  if (Object.hasOwn(index, 'stats')) {
+    projected.stats = project(index.stats, 'totalThreads', 'totalStrands', '/stats', 'stats.totalThreads')
+  }
   if (isRecord(index.tagIndex)) {
     projected.tagIndex = Object.fromEntries(Object.entries(index.tagIndex).map(([tag, entries]) => {
       const pointer = `/tagIndex/${tag.replaceAll('~', '~0').replaceAll('/', '~1')}`

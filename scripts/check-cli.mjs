@@ -430,69 +430,71 @@ try {
     rmSync(indexFile)
   }
 
-  // A previously installed library still satisfies the command and starter dependency ranges.
-  const oldest = join(work, 'oldest-library')
-  mkdirSync(oldest)
-  if (run('npm', ['install', '--no-audit', '--no-fund', specs[0], `${library.name}@0.3.0`], oldest).status !== 0) {
-    fail('installing the command with the oldest supported library failed')
-  }
-  const oldBin = join(oldest, 'node_modules', '.bin', 'openquarry')
-  const oldLock = JSON.parse(readFileSync(join(oldest, 'package-lock.json'), 'utf8')).packages
-  same(oldLock['node_modules/@framers/openquarry'].version, '0.3.0', 'the pinned old library is installed')
-  writeFileSync(join(oldest, 'fabric.yaml'), 'format: openquarry\nversion: 2\nstrand: 5\n')
-  for (const [fixture, warning] of [
-    ['blocks-index-v1.json', undefined],
-    ['blocks-index-v1-legacy.json', '  warning: Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.'],
-  ]) {
-    copyFileSync(join(root, 'test/fixtures', fixture), join(oldest, 'blocks-index.json'))
-    const commands = [[oldBin, ['check']]]
-    for (const starter of starters) {
-      const folder = join(oldest, 'node_modules', 'openquarry', 'templates', starter.id)
-      const checkFile = join(oldest, `check-${starter.id}.mjs`)
-      for (const name of readdirSync(folder).filter((name) => name.endsWith('.mjs') && name !== 'check.mjs')) {
-        copyFileSync(join(folder, name), join(oldest, name))
-      }
-      copyFileSync(join(folder, 'check.mjs'), checkFile)
-      commands.push([process.execPath, [checkFile]])
+  // This fixture pins the pre-migration library while the command supports its release line.
+  if (cli.dependencies[library.name] === '^0.3.0') {
+    const oldest = join(work, 'oldest-library')
+    mkdirSync(oldest)
+    if (run('npm', ['install', '--no-audit', '--no-fund', specs[0], `${library.name}@0.3.0`], oldest).status !== 0) {
+      fail('installing the command with the oldest supported library failed')
     }
-    for (const [command, args] of commands) {
-      const report = run(command, args, oldest)
-      const warnings = report.lines.filter((line) => line.includes('warning:'))
-      if (report.status !== 0 || JSON.stringify(warnings) !== JSON.stringify(warning ? [warning] : [])) {
-        indexFailures.push(`${fixture} with the oldest supported library: ${args.join(' ')}\n${report.output}`)
+    const oldBin = join(oldest, 'node_modules', '.bin', 'openquarry')
+    const oldLock = JSON.parse(readFileSync(join(oldest, 'package-lock.json'), 'utf8')).packages
+    same(oldLock['node_modules/@framers/openquarry'].version, '0.3.0', 'the pinned old library is installed')
+    writeFileSync(join(oldest, 'fabric.yaml'), 'format: openquarry\nversion: 2\nstrand: 5\n')
+    for (const [fixture, warning] of [
+      ['blocks-index-v1.json', undefined],
+      ['blocks-index-v1-legacy.json', '  warning: Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.'],
+    ]) {
+      copyFileSync(join(root, 'test/fixtures', fixture), join(oldest, 'blocks-index.json'))
+      const commands = [[oldBin, ['check']]]
+      for (const starter of starters) {
+        const folder = join(oldest, 'node_modules', 'openquarry', 'templates', starter.id)
+        const checkFile = join(oldest, `check-${starter.id}.mjs`)
+        for (const name of readdirSync(folder).filter((name) => name.endsWith('.mjs') && name !== 'check.mjs')) {
+          copyFileSync(join(folder, name), join(oldest, name))
+        }
+        copyFileSync(join(folder, 'check.mjs'), checkFile)
+        commands.push([process.execPath, [checkFile]])
+      }
+      for (const [command, args] of commands) {
+        const report = run(command, args, oldest)
+        const warnings = report.lines.filter((line) => line.includes('warning:'))
+        if (report.status !== 0 || JSON.stringify(warnings) !== JSON.stringify(warning ? [warning] : [])) {
+          indexFailures.push(`${fixture} with the oldest supported library: ${args.join(' ')}\n${report.output}`)
+        }
       }
     }
-  }
-  const invalidCurrent = JSON.parse(readFileSync(join(root, 'test/fixtures/blocks-index-v1.json'), 'utf8'))
-  invalidCurrent.threads = []
-  invalidCurrent.stats.totalThreads = 'one'
-  invalidCurrent.tagIndex = { 'map/scale': [{ threadPath: 42, blockId: 'scale' }] }
-  const mixedInvalid = {
-    ...invalidCurrent,
-    generatedAt: 'yesterday',
-    strands: [],
-    stats: { ...invalidCurrent.stats, totalStrands: 'one' },
-    tagIndex: { 'map/scale': [{ threadPath: 42, strandPath: 43, blockId: 'scale' }] },
-  }
-  const missingNames = {
-    ...invalidCurrent,
-    threads: undefined,
-    stats: { ...invalidCurrent.stats, totalThreads: undefined },
-    tagIndex: { 'map/scale': [{ blockId: 'scale' }] },
-  }
-  const currentErrors = ['  /threads must be object', '  /stats/totalThreads must be integer', '  /tagIndex/map~1scale/0/threadPath must be string']
-  for (const [fixture, expected] of [
-    [invalidCurrent, currentErrors],
-    [mixedInvalid, [...currentErrors, '  /strands must be object', '  /stats/totalStrands must be integer', '  /tagIndex/map~1scale/0/strandPath must be string', '  /generatedAt must match format "date-time"']],
-    [missingNames, ["  / must have required property 'threads'", "  /stats must have required property 'totalThreads'", "  /tagIndex/map~1scale/0 must have required property 'threadPath'"]],
-    [{ ...invalidCurrent, stats: undefined }, ["  / must have required property 'stats'"]],
-  ]) {
-    writeFileSync(join(oldest, 'blocks-index.json'), JSON.stringify(fixture))
-    for (const [command, args] of [[oldBin, ['check']], ...starters.map(({ id }) => [process.execPath, [`check-${id}.mjs`]])]) {
-      const report = run(command, args, oldest)
-      for (const line of expected) {
-        if (report.status !== 1 || report.lines.filter((actual) => actual === line).length !== 1) {
-          indexFailures.push(`${args.join(' ')} did not report ${line.trim()} exactly once`)
+    const invalidCurrent = JSON.parse(readFileSync(join(root, 'test/fixtures/blocks-index-v1.json'), 'utf8'))
+    invalidCurrent.threads = []
+    invalidCurrent.stats.totalThreads = 'one'
+    invalidCurrent.tagIndex = { 'map/scale': [{ threadPath: 42, blockId: 'scale' }] }
+    const mixedInvalid = {
+      ...invalidCurrent,
+      generatedAt: 'yesterday',
+      strands: [],
+      stats: { ...invalidCurrent.stats, totalStrands: 'one' },
+      tagIndex: { 'map/scale': [{ threadPath: 42, strandPath: 43, blockId: 'scale' }] },
+    }
+    const missingNames = {
+      ...invalidCurrent,
+      threads: undefined,
+      stats: { ...invalidCurrent.stats, totalThreads: undefined },
+      tagIndex: { 'map/scale': [{ blockId: 'scale' }] },
+    }
+    const currentErrors = ['  /threads must be object', '  /stats/totalThreads must be integer', '  /tagIndex/map~1scale/0/threadPath must be string']
+    for (const [fixture, expected] of [
+      [invalidCurrent, currentErrors],
+      [mixedInvalid, [...currentErrors, '  /strands must be object', '  /stats/totalStrands must be integer', '  /tagIndex/map~1scale/0/strandPath must be string', '  /generatedAt must match format "date-time"']],
+      [missingNames, ["  / must have required property 'threads'", "  /stats must have required property 'totalThreads'", "  /tagIndex/map~1scale/0 must have required property 'threadPath'"]],
+      [{ ...invalidCurrent, stats: undefined }, ["  / must have required property 'stats'"]],
+    ]) {
+      writeFileSync(join(oldest, 'blocks-index.json'), JSON.stringify(fixture))
+      for (const [command, args] of [[oldBin, ['check']], ...starters.map(({ id }) => [process.execPath, [`check-${id}.mjs`]])]) {
+        const report = run(command, args, oldest)
+        for (const line of expected) {
+          if (report.status !== 1 || report.lines.filter((actual) => actual === line).length !== 1) {
+            indexFailures.push(`${args.join(' ')} did not report ${line.trim()} exactly once`)
+          }
         }
       }
     }
