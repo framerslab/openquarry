@@ -43,11 +43,13 @@ describe('the schema files', () => {
     expect(readFileSync(join(root, 'src', 'schemas.ts'), 'utf8')).toBe(renderSchemasModule())
   })
 
-  it('keep the strand schema as a copy of the thread schema under its old title', () => {
-    const { title: threadTitle, ...thread } = load('thread.schema.yaml')
-    const { title: strandTitle, ...strand } = load('strand.schema.yaml')
+  it('keeps the old thread schema valid on its own and labels it deprecated', () => {
+    const { title: threadTitle, description: _description, ...thread } = load('thread.schema.yaml')
+    const { title: aliasTitle, description, deprecated, ...alias } = load('strand.schema.yaml')
     expect(threadTitle).toBe('ThreadFrontmatter')
-    expect(strandTitle).toBe('StrandFrontmatter')
-    expect(thread).toEqual(strand)
+    expect(aliasTitle).toBe('StrandFrontmatter')
+    expect(deprecated).toBe(true)
+    expect(description).toContain('thread.schema')
+    expect(thread).toEqual(alias)
   })
 })

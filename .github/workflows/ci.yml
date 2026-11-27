@@ -28,12 +28,14 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
+        id: dependencies
         run: npm install --no-audit --no-fund
 
       - name: Type check
         run: npm run typecheck
 
       - name: Tests
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
         run: npm test
 
       - name: Build

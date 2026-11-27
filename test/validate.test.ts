@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
+  type BlocksIndex,
+  type KnowledgeNodeType,
+  type StrandFrontmatter,
   type ThreadFrontmatter,
   validateBlocksIndex,
   validateFabricManifest,
@@ -9,8 +12,51 @@ import {
   validateWeave,
 } from '../src/index.js'
 
+const threadNode: KnowledgeNodeType = 'thread'
+const legacyNode: KnowledgeNodeType = 'strand'
+
 describe('validateBlocksIndex', () => {
   const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1.json', import.meta.url), 'utf8')) as Record<string, unknown>
+  const path = 'weaves/reading-a-map/the-map/scale-and-distance.md'
+  const current: BlocksIndex = {
+    generatedAt: '2026-11-26T00:00:00Z',
+    version: '1.0.0',
+    stats: { totalThreads: 1, totalBlocks: 1, totalTags: 1, worthyBlocks: 0 },
+    threads: { [path]: { path, blockCount: 1, blocks: [{ id: 'scale', line: 1, type: 'heading' }] } },
+    tagIndex: { maps: [{ threadPath: path, blockId: 'scale' }] },
+  }
+
+  it('accepts thread names in a version 1 index', () => {
+    expect(validateBlocksIndex(current)).toStrictEqual({ valid: true, errors: [] })
+    expect([threadNode, legacyNode]).toEqual(['thread', 'strand'])
+  })
+
+  it('returns the thread names when reading a legacy index without rewriting the input', () => {
+    const input = structuredClone(index)
+    const result = validateBlocksIndex(input, { normalize: true })
+    expect(result).toMatchObject({
+      valid: true,
+      warnings: ['Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.'],
+    })
+    expect(result.value).not.toHaveProperty('strands')
+    expect(result.value?.threads).toEqual(index.strands)
+    expect(result.value?.stats).not.toHaveProperty('totalStrands')
+    expect(result.value?.stats.totalThreads).toBe(1)
+    expect(result.value?.tagIndex?.maps).toEqual([{ threadPath: path, blockId: 'scale' }])
+    expect(input).toEqual(index)
+  })
+
+  it('uses the current value when both spellings are present', () => {
+    const input = {
+      ...current,
+      strands: {},
+      stats: { ...current.stats, totalStrands: 0 },
+      tagIndex: { maps: [{ ...current.tagIndex?.maps[0], strandPath: 'other.md' }] },
+    }
+    expect(validateBlocksIndex(input, { normalize: true })).toMatchObject({ valid: true, value: current })
+    expect(validateBlocksIndex({ ...input, strands: [] }).valid).toBe(false)
+  })
+
   it.each([
     ['with a strandPath reference', index],
     ['with no tag references', { ...index, tagIndex: { maps: [] } }],
@@ -55,7 +101,8 @@ const thread: ThreadFrontmatter = {
 
 describe('validateThreadFrontmatter', () => {
   it('accepts the frontmatter the corpus stores', () => {
-    expect(validateThreadFrontmatter(thread)).toEqual({ valid: true, errors: [] })
+    const oldImport: StrandFrontmatter = thread
+    expect(validateThreadFrontmatter(oldImport)).toEqual({ valid: true, errors: [] })
   })
 
   it('accepts typed links, a note as text, and the skill ids a thread teaches and requires', () => {
@@ -86,6 +133,19 @@ describe('validateThreadFrontmatter', () => {
 })
 
 describe('validateFabricManifest', () => {
+  it('returns current fabric field names for legacy and mixed inputs', () => {
+    const manifest = { format: 'openquarry', version: 1 }
+    expect(validateFabricManifest({ ...manifest, strand: 'old.md', strands: ['old.md'] })).toStrictEqual({ valid: true, errors: [] })
+    expect(validateFabricManifest({
+      ...manifest, strand: 'old.md', thread: 'new.md', strands: ['old.md'], strandPath: 'old.md',
+    }, { normalize: true })).toStrictEqual({
+      valid: true,
+      errors: [],
+      value: { ...manifest, thread: 'new.md', threads: ['old.md'], threadPath: 'old.md' },
+      warnings: ['Deprecated fields: use thread, threads, threadPath.'],
+    })
+  })
+
   it('takes format openquarry and version 1 or 2', () => {
     expect(validateFabricManifest({ format: 'openquarry', name: 'Frame Codex', version: 2 }).valid).toBe(true)
     expect(validateFabricManifest({ format: 'openquarry', version: 1 }).valid).toBe(true)

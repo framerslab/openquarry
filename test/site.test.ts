@@ -38,6 +38,12 @@ describe('the schema host', () => {
   it('lists the seven schemas, their corpus commit and the package in the index', () => {
     const idx = JSON.parse(readFileSync(join(served, 'index.json'), 'utf8'))
     expect(idx.schemas.map((s: { name: string }) => s.name)).toEqual(schemaFiles().map((f) => f.replace(/\.yaml$/, '')))
+    expect(idx.schemas[0].name).toBe('thread.schema')
+    expect(idx.schemas.at(-1)).toMatchObject({
+      name: 'strand.schema',
+      deprecated: true,
+      aliasOf: 'thread.schema',
+    })
     expect(idx.schemas.find((s: { name: string }) => s.name === 'catalogue.schema')).toEqual({
       name: 'catalogue.schema',
       title: 'Catalogue',

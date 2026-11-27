@@ -377,6 +377,17 @@ try {
   }
   if (failures.length) fail(failures.join('\n\n'))
 
+  const indexFile = join(legacyProject, 'blocks-index.json')
+  copyFileSync(join(root, 'test/fixtures/blocks-index-v1.json'), indexFile)
+  const indexReport = run(bin, ['check'], legacyProject)
+  same(indexReport.status, 0, 'check accepts the legacy blocks index')
+  same(indexReport.lines.filter((line) => line.includes('warning:')), [
+    '  warning: Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.',
+  ], 'check reports one blocks-index field warning')
+  writeFileSync(indexFile, '{"version":"1.0.0"}\n')
+  same(run(bin, ['check'], legacyProject).status, 1, 'check refuses a malformed blocks index')
+  rmSync(indexFile)
+
   // 8. init: what it refuses, and what --force does.
   console.log('\n=== init: refusals')
   const notes = starters.find((starter) => starter.id === 'notes')
