@@ -223,18 +223,31 @@ function copyOwnFields(record: Record<string, unknown>): Record<string, unknown>
   return Object.fromEntries(Object.getOwnPropertyNames(record).map((key) => [key, record[key]]))
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function copyIndexForNormalization(index: unknown): unknown {
+  if (!isRecord(index)) return index
+  const value = copyOwnFields(index)
+  // Make all own tag entries enumerable so Ajv checks the same entries normalization reads.
+  if (isRecord(value.tagIndex)) value.tagIndex = copyOwnFields(value.tagIndex)
+  return value
+}
+
 /** Checks a parsed blocks index. Pass `{ normalize: true }` to read it with current field names. */
 export function validateBlocksIndex(index: unknown): ValidationResult
 export function validateBlocksIndex(index: unknown, options: { normalize: true }): NormalizedValidationResult<BlocksIndex>
 export function validateBlocksIndex(index: unknown, options?: { normalize: true }): NormalizedValidationResult<BlocksIndex> {
-  const result = check(blocksIndexSchema, index, {
+  const valueToCheck = options?.normalize ? copyIndexForNormalization(index) : index
+  const result = check(blocksIndexSchema, valueToCheck, {
     includeError: (error) => !redundantBlocksIndexErrors.has(error.schemaPath),
     // The result only copies own fields. Validate that same data when normalization is requested.
     ownProperties: options?.normalize,
   })
   if (!result.valid || !options?.normalize) return result
 
-  const value = copyOwnFields(index as Record<string, unknown>)
+  const value = valueToCheck as Record<string, unknown>
   const fields = new Set<string>()
   renameField(value, 'strands', 'threads', fields)
   const stats = copyOwnFields(value.stats as Record<string, unknown>)
@@ -244,8 +257,8 @@ export function validateBlocksIndex(index: unknown, options?: { normalize: true 
     const tagIndex = value.tagIndex as Record<string, Record<string, unknown>[]>
     value.tagIndex = Object.fromEntries(Object.entries(tagIndex).map(([tag, entries]) => [
       tag,
-      entries.map((entry) => {
-        const reference = copyOwnFields(entry)
+      Array.from({ length: entries.length }, (_, offset) => {
+        const reference = copyOwnFields(entries[offset])
         renameField(reference, 'strandPath', 'threadPath', fields, 'tagIndex[].threadPath')
         return reference
       }),
