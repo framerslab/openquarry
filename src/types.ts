@@ -4,11 +4,11 @@
  * frontmatter.
  */
 
-/** @deprecated Use 'thread' for new nodes. */
-type LegacyThreadNodeType = 'strand'
-
 /** A node's level in a fabric. */
-export type KnowledgeNodeType = 'fabric' | 'weave' | 'loom' | 'thread' | LegacyThreadNodeType
+export type FabricNodeType = 'fabric' | 'weave' | 'loom' | 'thread'
+
+/** @deprecated Use FabricNodeType for new nodes. This type retains the original stored values. */
+export type KnowledgeNodeType = Exclude<FabricNodeType, 'thread'> | 'strand'
 
 /** The type of a typed link between two threads. */
 export type LinkType =

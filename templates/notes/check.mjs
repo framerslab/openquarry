@@ -1,7 +1,7 @@
 // Checks fabric.yaml, catalogue.yaml and blocks-index.json at the top, and under weaves/ each weave.yaml, each
 // loom.yaml and the frontmatter of each Markdown file. It reports each file and exits with 1 when any file is invalid.
 //   npm run check
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parse } from 'yaml'
@@ -13,6 +13,7 @@ import {
   validateThreadFrontmatter,
   validateWeave,
 } from '@framers/openquarry'
+import { checkThreadFields, readPlain } from './check-input.mjs'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const shown = (path) => relative(root, path).split(sep).join('/')
@@ -30,10 +31,11 @@ function walk(dir) {
 const frontmatter = (text) => /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text)?.[1]
 
 const files = []
+const rootEntries = new Set(readdirSync(root))
 for (const [name, validate] of [
   ['fabric.yaml', validateFabricManifest], ['catalogue.yaml', validateCatalogue], ['blocks-index.json', validateBlocksIndex],
 ]) {
-  if (existsSync(join(root, name))) files.push({ path: join(root, name), validate, json: name.endsWith('.json') })
+  if (rootEntries.has(name)) files.push({ path: join(root, name), validate, json: name.endsWith('.json') })
 }
 let fabricVersion = files.some(({ validate }) => validate === validateFabricManifest) ? undefined : 1
 if (existsSync(join(root, 'weaves'))) {
@@ -51,13 +53,14 @@ for (const { path, validate, thread, json } of files) {
   let errors
   let warnings
   try {
-    const text = readFileSync(path, 'utf8').replace(/^﻿/, '')
-    const content = thread ? frontmatter(text) : text
-    if (content === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
+    const text = readPlain(path)
+    const content = text === undefined || !thread ? text : frontmatter(text)
+    if (text === undefined) errors = ['/ is not a plain file']
+    else if (content === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
     else {
       const value = json ? JSON.parse(content) : parse(content)
       const result = json || validate === validateFabricManifest
-        ? validate(value, { normalize: true })
+        ? checkThreadFields(value, validate)
         : validate(value)
       errors = result.errors
       warnings = result.warnings

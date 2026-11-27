@@ -17,7 +17,7 @@ For a new fabric use `format: openquarry` and `version: 2` in `fabric.yaml`, and
 
 ## Fields and stored values
 
-`KnowledgeNodeType` uses `'thread'` for new nodes and still accepts the deprecated stored value `'strand'`.
+`FabricNodeType` uses `'thread'` for new nodes. The deprecated `KnowledgeNodeType` retains its original set of values, including the stored value `'strand'`.
 
 | Current field | Deprecated alias | Where it appears |
 | --- | --- | --- |

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   type BlocksIndex,
+  type FabricNodeType,
   type KnowledgeNodeType,
   type StrandFrontmatter,
   type ThreadFrontmatter,
@@ -12,7 +13,7 @@ import {
   validateWeave,
 } from '../src/index.js'
 
-const threadNode: KnowledgeNodeType = 'thread'
+const threadNode: FabricNodeType = 'thread'
 const legacyNode: KnowledgeNodeType = 'strand'
 const labelsFromAnExistingReader: Record<KnowledgeNodeType, string> = {
   fabric: 'Fabric', weave: 'Weave', loom: 'Loom', strand: 'Thread',

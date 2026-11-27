@@ -1,33 +1,17 @@
 // openquarry check: validates fabric.yaml, catalogue.yaml and blocks-index.json at the top, and under weaves/
 // each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two threads may share an id.
 // For a starter project the report matches the check.mjs script it carries.
-import { closeSync, constants, fstatSync, openSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateBlocksIndex, validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
+import { checkThreadFields, readPlain } from './check-input.mjs'
 import { Refusal } from './errors.mjs'
-import { block, parse, unmarked } from './frontmatter.mjs'
+import { block, parse } from './frontmatter.mjs'
 import { entry } from './paths.mjs'
 
-// The text of a plain file, or undefined for anything else. O_NONBLOCK lets a pipe open at once instead of waiting for a
-// writer; a regular file reads as usual. A socket cannot be opened at all (ENXIO), and a link that leads nowhere
-// (ENOENT, or ENOTDIR when its path runs through a plain file) or round in a loop (ELOOP) leads to no file: none of
-// them is a plain file.
+// A link can lead nowhere, pass through a file or go round in a loop.
 const leadsNowhere = (error) => error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP'
 const legacyThreadPath = /^weaves\/[^/]+\/(?:[^/]+\/)*(?:looms|strands)\//
-function readPlain(path) {
-  let fd
-  try {
-    fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0))
-  } catch (error) {
-    if (error.code === 'ENXIO' || leadsNowhere(error)) return undefined
-    throw error
-  }
-  try {
-    return fstatSync(fd).isFile() ? unmarked(readFileSync(fd, 'utf8')) : undefined
-  } finally {
-    closeSync(fd)
-  }
-}
 
 // Every file under a folder, in name order. Folders whose names start with a dot, and node_modules, are skipped. A link
 // to a folder is not followed: it is listed as an entry, like a file.
@@ -101,7 +85,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
         else {
           const value = json ? JSON.parse(content) : parse(content)
           const result = json || validate === validateFabricManifest
-            ? validate(value, { normalize: true })
+            ? checkThreadFields(value, validate)
             : validate(value)
           errors = result.errors
           warnings = result.warnings

@@ -131,11 +131,12 @@ function packagePage(index) {
   ].map(([names, what]) => item(names, what)).join('')}</ul><h3>Types</h3><ul class="exports">${[
     [['ThreadFrontmatter', 'Weave', 'Loom', 'FabricManifest', 'Catalogue', 'BlocksIndex'], 'the files.'],
     [['CatalogueSubject', 'CatalogueEntry', 'ThreadLink', 'ThreadLinkGroups', 'ThreadBlock', 'SkillReference', 'SuggestedTag'], 'the records inside them.'],
-    [['ContentType', 'DifficultyLevel', 'LinkType', 'KnowledgeNodeType'], 'the values a field allows.'],
+    [['ContentType', 'DifficultyLevel', 'LinkType', 'FabricNodeType'], 'the values a field allows.'],
     [['ValidationResult'], 'what every validator returns.'],
   ].map(([names, what]) => item(names, what)).join('')}</ul><section aria-labelledby="compatibility-exports"><h3 id="compatibility-exports">Compatibility exports</h3><ul class="exports">${[
     [['strandSchema'], 'deprecated alias for <code>threadSchema</code>.'],
     [['StrandFrontmatter'], 'deprecated alias for <code>ThreadFrontmatter</code>.'],
+    [['KnowledgeNodeType'], 'deprecated type for the original stored node values. Use <code>FabricNodeType</code> for new nodes.'],
   ].map(([names, what]) => item(names, what)).join('')}</ul><p><a href="/format/#version-1-fabrics">Version 1 compatibility</a></p></section><h3>Files</h3><ul class="exports"><li><code>@framers/openquarry/schema/*.schema.yaml</code>: each schema's YAML source, byte for byte.</li><li>The package also ships its docs, the <a href="${repo}/tree/master/examples/reading-a-map">map-reading course</a> under <code>examples/</code>, and its <a href="${repo}/blob/master/CHANGELOG.md">changelog</a>.</li></ul>`
   const examples = packageExamples.map((e) => `<section aria-labelledby="${e.id}"><h2 id="${e.id}">${e.title}</h2>${e.text}${codeBlock(e.code, e.lang, e.file)}${codeBlock(e.output, 'text', 'Prints')}</section>`).join('')
   const schemaLinks = index.schemas.filter((s) => !s.deprecated).map((s) => `<a href="${s.url}">${esc(s.name)}.json</a>`).join(', ')

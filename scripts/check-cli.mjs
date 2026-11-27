@@ -222,14 +222,10 @@ try {
     copyFileSync(threadPath, join(project, copy))
     report('two threads with one id', 1, [`not ok ${copy}`, `  /id is already the id of ${thread}: give this file its own id`, invalid(files.length + 1)])
     rmSync(join(project, copy))
-    // A pipe named like a thread is never opened (check.mjs would wait on it for ever): the command names it and goes on.
+    // A pipe named like a thread is reported without waiting for a writer.
     const pipe = `${loom}/pipe.md`
     if (run('mkfifo', [join(project, pipe)], project).status !== 0) fail('mkfifo failed')
-    {
-      const result = run(bin, ['check'], project)
-      if (result.status !== 1) fail(`${starter.id}: check exited ${result.status} for a pipe`)
-      for (const line of [`not ok ${pipe}`, '  / is not a plain file', invalid(files.length + 1)]) if (!result.lines.includes(line)) fail(`${starter.id}: for a pipe, no line ${JSON.stringify(line)}`)
-    }
+    report('a pipe named like a thread', 1, [`not ok ${pipe}`, '  / is not a plain file', invalid(files.length + 1)])
     rmSync(join(project, pipe))
 
     // 7. new: the documented line, inside the project.
@@ -353,7 +349,7 @@ try {
     const commandReport = run(bin, ['check'], legacyProject)
     const reports = [{ name: 'openquarry check', report: commandReport }]
     for (const starter of starters) {
-      for (const name of ['check.mjs', 'package.json']) {
+      for (const name of ['check.mjs', 'check-input.mjs', 'package.json']) {
         copyFileSync(join(installed, 'templates', starter.id, name), join(legacyProject, name))
       }
       reports.push({ name: starter.id, report: run('npm', ['run', '--silent', 'check'], legacyProject) })
@@ -382,7 +378,9 @@ try {
   same(legacyFields.status, 0, 'check accepts legacy fabric fields')
   same(legacyFields.lines.slice(0, 2), ['ok fabric.yaml', '  warning: Deprecated fields: use threads.'], 'check reports one fabric field warning')
   for (const starter of starters) {
-    copyFileSync(join(installed, 'templates', starter.id, 'check.mjs'), join(legacyProject, 'check.mjs'))
+    for (const name of ['check.mjs', 'check-input.mjs']) {
+      copyFileSync(join(installed, 'templates', starter.id, name), join(legacyProject, name))
+    }
     const report = run(process.execPath, ['check.mjs'], legacyProject)
     same(report.status, 0, `${starter.id}: accepts legacy fields`)
     same(report.stdout, legacyFields.stdout, `${starter.id}: reports the same field warnings as the command`)
