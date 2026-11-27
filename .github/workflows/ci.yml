@@ -13,6 +13,9 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  PLAYWRIGHT_VERSION: '1.65.1'
+
 jobs:
   test:
     name: Types, tests, build and the packed files
@@ -143,7 +146,7 @@ jobs:
 
       - name: Browser checks and screenshots (CI only)
         run: |
-          npm install --no-save playwright
+          npm install --no-save "playwright@$PLAYWRIGHT_VERSION"
           npx playwright install --with-deps chromium
           node scripts/check-site-browser.mjs
 
@@ -224,7 +227,7 @@ jobs:
 
       - name: Capture openquarry.dev and compare with the build
         run: |
-          npm install --no-save playwright pngjs
+          npm install --no-save "playwright@$PLAYWRIGHT_VERSION" pngjs
           npx playwright install --with-deps chromium
           node scripts/check-site-browser.mjs --live
 

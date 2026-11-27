@@ -68,6 +68,15 @@ export function schemaFiles() {
   return [primary, ...files.filter((file) => file !== primary && file !== alias), alias]
 }
 
+function latestChangeDate(paths) {
+  try {
+    return execFileSync('git', ['log', '-1', '--format=%cs', '--', ...paths], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    // Builds from source archives can omit the last modification date.
+    return ''
+  }
+}
+
 export function buildSite(out = join(root, 'dist-site')) {
   rmSync(out, { recursive: true, force: true })
   const site = join(out, 'site')
@@ -107,13 +116,7 @@ export function buildSite(out = join(root, 'dist-site')) {
   writeFileSync(join(site, '_headers'), HEADERS)
   writeFileSync(join(site, '_redirects'), REDIRECTS)
   writeFileSync(join(site, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${ORIGIN}/sitemap.xml\n`)
-  let lastmod = ''
-  try {
-    lastmod = execFileSync('git', ['log', '-1', '--format=%cs', '--', 'scripts/site-pages.mjs', 'scripts/package-examples.mjs', 'scripts/start-commands.mjs', 'docs', 'site'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-  } catch {
-    // Builds from source archives can omit the last modification date.
-  }
-  writePages(site, index, lastmod)
+  writePages(site, index, latestChangeDate)
   writeFileSync(join(out, 'functions', '_middleware.js'), MIDDLEWARE)
   return index
 }
