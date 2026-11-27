@@ -5,8 +5,7 @@
 // page): init for each starter, check, new note, new lesson and id. It holds what init wrote to the starters under
 // templates/ byte for byte, breaks a file and reads the check's lines and exit code, and tries every refusal: a folder
 // that is not empty, a file already there, a template name that is a path, and a link that leads out of the target.
-// The library comes from npm at the version package.json names; while that version is not on npm yet, this build is
-// packed and installed beside the command, as a release that carries both would publish them.
+// CI installs the library packed from the same checkout as the command.
 //   node scripts/check-cli.mjs --tarballs <folder>
 // tests the tarballs already in that folder and packs nothing: the release publishes the exact files it tested.
 import { spawnSync } from 'node:child_process'
@@ -60,26 +59,16 @@ try {
   const specs = [join(tarballs, `openquarry-${cli.version}.tgz`)]
   if (!existsSync(specs[0])) fail(`No ${specs[0]}: the folder holds ${readdirSync(tarballs).join(', ') || 'nothing'}`)
 
-  // 2. The library: from npm when its version is there, otherwise this build: installed, built, then packed. npm answers
-  // a version it never published with no output and a package it never saw with E404; any other failure stops the check.
+  // 2. Pack the library from this checkout. A command-only release uses its dependency range from npm.
   const libraryTarball = join(tarballs, `framers-openquarry-${library.version}.tgz`)
-  const view = run('npm', ['view', `${library.name}@${library.version}`, 'version', '--json'], work)
-  if (view.status !== 0 && !/\bE404\b/.test(view.output)) fail(`npm view ${library.name}@${library.version} failed`)
-  const libraryOnNpm = (view.status === 0 && view.stdout.trim() ? JSON.parse(view.stdout) : '') === library.version
-  // From npm, the exact version is installed beside the command, so a newer patch on npm never stands in for it.
-  if (existsSync(libraryTarball)) specs.push(libraryTarball)
-  else if (libraryOnNpm) {
-    specs.push(`${library.name}@${library.version}`)
-    console.log(`${library.name}@${library.version} comes from npm`)
-  } else if (given) fail(`${library.name}@${library.version} is not on npm and ${tarballs} holds no tarball of it`)
-  else {
-    console.log(`${library.name}@${library.version} is not on npm yet: installing, building and packing this checkout`)
+  if (!given) {
     for (const args of [['install', '--no-audit', '--no-fund'], ['run', 'build'], ['pack', '--pack-destination', tarballs]]) {
       if (run('npm', args, root).status !== 0) fail(`npm ${args.join(' ')} failed for the library`)
     }
     if (!existsSync(libraryTarball)) fail(`npm pack did not write ${libraryTarball}`)
-    specs.push(libraryTarball)
   }
+  const packedLibrary = existsSync(libraryTarball)
+  specs.push(packedLibrary ? libraryTarball : `${library.name}@${cli.dependencies[library.name]}`)
 
   // 3. Install into an empty folder.
   const home = join(work, 'home')
@@ -113,8 +102,11 @@ try {
   }
   // Which library the installed command resolved, and from where.
   const locked = JSON.parse(readFileSync(join(home, 'package-lock.json'), 'utf8')).packages['node_modules/@framers/openquarry']
-  if (locked?.version !== library.version) fail(`The command resolved ${library.name} ${locked?.version}; this checkout holds ${library.version}`)
-  if (!specs.includes(libraryTarball) && !String(locked.resolved).startsWith('https://registry.npmjs.org/')) fail(`${library.name} did not come from npm: ${locked.resolved}`)
+  if (!locked) fail(`The command did not resolve ${library.name}`)
+  if (packedLibrary && (locked.version !== library.version || !String(locked.resolved).startsWith('file:'))) {
+    fail(`The command did not resolve the packed ${library.name}@${library.version}: ${locked.resolved}`)
+  }
+  if (!packedLibrary && !String(locked.resolved).startsWith('https://registry.npmjs.org/')) fail(`${library.name} did not come from npm: ${locked.resolved}`)
   console.log(`ok installed openquarry ${manifest.version} with ${library.name} ${locked.version} from ${locked.resolved}`)
 
   // 4. Version, help, and a wrong command line.
@@ -378,12 +370,26 @@ try {
   if (failures.length) fail(failures.join('\n\n'))
 
   const indexFile = join(legacyProject, 'blocks-index.json')
-  copyFileSync(join(root, 'test/fixtures/blocks-index-v1.json'), indexFile)
+  copyFileSync(join(root, 'test/fixtures/blocks-index-v1-legacy.json'), indexFile)
   const indexReport = run(bin, ['check'], legacyProject)
   same(indexReport.status, 0, 'check accepts the legacy blocks index')
   same(indexReport.lines.filter((line) => line.includes('warning:')), [
     '  warning: Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.',
   ], 'check reports one blocks-index field warning')
+  const fabricFile = join(legacyProject, 'fabric.yaml')
+  writeFileSync(fabricFile, 'format: openquarry\nversion: 1\nstrands: [old.md]\n')
+  const legacyFields = run(bin, ['check'], legacyProject)
+  same(legacyFields.status, 0, 'check accepts legacy fabric fields')
+  same(legacyFields.lines.slice(0, 2), ['ok fabric.yaml', '  warning: Deprecated fields: use threads.'], 'check reports one fabric field warning')
+  for (const starter of starters) {
+    copyFileSync(join(installed, 'templates', starter.id, 'check.mjs'), join(legacyProject, 'check.mjs'))
+    const report = run(process.execPath, ['check.mjs'], legacyProject)
+    same(report.status, 0, `${starter.id}: accepts legacy fields`)
+    same(report.stdout, legacyFields.stdout, `${starter.id}: reports the same field warnings as the command`)
+  }
+  rmSync(fabricFile)
+  copyFileSync(join(root, 'test/fixtures/blocks-index-v1.json'), indexFile)
+  same(run(bin, ['check'], legacyProject).lines, ['ok blocks-index.json', '1 files checked, all valid.', ''], 'check accepts current fields without a warning')
   writeFileSync(indexFile, '{"version":"1.0.0"}\n')
   same(run(bin, ['check'], legacyProject).status, 1, 'check refuses a malformed blocks index')
   rmSync(indexFile)
@@ -553,7 +559,7 @@ try {
   const empty = join(home, 'empty')
   mkdirSync(empty)
   const none = run(bin, ['check', 'empty'], home)
-  if (none.status !== 1 || !none.lines.includes('No OpenQuarry files found: expected fabric.yaml or a weaves/ folder here.')) fail('check of an empty folder did not say so')
+  if (none.status !== 1 || !none.lines.includes('No OpenQuarry files found: expected fabric.yaml, blocks-index.json or a weaves/ folder here.')) fail('check of an empty folder did not say so')
   refuses(['check', 'not-there'], home, 'openquarry check: not-there is not a folder')
 
   console.log('\n=== links, a weaves/ that is a file, unreadable templates, and writes that fail')

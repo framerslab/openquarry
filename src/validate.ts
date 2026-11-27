@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import { blocksIndexSchema, catalogueSchema, fabricSchema, loomSchema, threadSchema, weaveSchema } from './schemas.js'
-import type { Catalogue } from './types.js'
+import type { BlocksIndex, Catalogue, FabricManifest } from './types.js'
 
 export interface ValidationResult {
   valid: boolean
@@ -10,6 +10,11 @@ export interface ValidationResult {
   errors: string[]
   /** Advisory messages for accepted inputs that use a deprecated spelling. */
   warnings?: string[]
+}
+
+interface NormalizedValidationResult<T> extends ValidationResult {
+  /** Present when the input is valid. Uses the current field names. */
+  value?: T
 }
 
 const compiled = new Map<object, ValidateFunction>()
@@ -60,6 +65,23 @@ function check(schema: Record<string, unknown>, value: unknown): ValidationResul
   return { valid, errors }
 }
 
+function renameField(
+  record: Record<string, unknown>, legacy: string, current: string, warnings: Set<string>, path = current,
+): void {
+  if (!Object.hasOwn(record, legacy)) return
+  if (record[current] === undefined) record[current] = record[legacy]
+  delete record[legacy]
+  warnings.add(path)
+}
+
+function normalized<T>(result: ValidationResult, value: unknown, fields: Set<string>): NormalizedValidationResult<T> {
+  return {
+    ...result,
+    value: value as T,
+    ...(fields.size ? { warnings: [`Deprecated fields: use ${[...fields].join(', ')}.`] } : {}),
+  }
+}
+
 /** Checks a thread's frontmatter (already parsed from YAML) against thread.schema.yaml. */
 export function validateThreadFrontmatter(frontmatter: unknown): ValidationResult {
   return check(threadSchema, frontmatter)
@@ -75,9 +97,19 @@ export function validateWeave(weave: unknown): ValidationResult {
   return check(weaveSchema, weave)
 }
 
-/** Checks a parsed fabric.yaml against fabric.schema.yaml. */
-export function validateFabricManifest(manifest: unknown): ValidationResult {
-  return check(fabricSchema, manifest)
+/** Checks a parsed fabric.yaml. Pass `{ normalize: true }` to read it with current field names. */
+export function validateFabricManifest(manifest: unknown): ValidationResult
+export function validateFabricManifest(manifest: unknown, options: { normalize: true }): NormalizedValidationResult<FabricManifest>
+export function validateFabricManifest(manifest: unknown, options?: { normalize: true }): NormalizedValidationResult<FabricManifest> {
+  const result = check(fabricSchema, manifest)
+  if (!result.valid || !options?.normalize) return result
+
+  const value = { ...manifest as Record<string, unknown> }
+  const fields = new Set<string>()
+  renameField(value, 'strand', 'thread', fields)
+  renameField(value, 'strands', 'threads', fields)
+  renameField(value, 'strandPath', 'threadPath', fields)
+  return normalized(result, value, fields)
 }
 
 /**
@@ -193,7 +225,29 @@ export function validateCatalogue(catalogue: unknown): ValidationResult {
   return { valid: errors.length === 0, errors }
 }
 
-/** Checks a parsed blocks index against blocks-index.schema.yaml. */
-export function validateBlocksIndex(index: unknown): ValidationResult {
-  return check(blocksIndexSchema, index)
+/** Checks a parsed blocks index. Pass `{ normalize: true }` to read it with current field names. */
+export function validateBlocksIndex(index: unknown): ValidationResult
+export function validateBlocksIndex(index: unknown, options: { normalize: true }): NormalizedValidationResult<BlocksIndex>
+export function validateBlocksIndex(index: unknown, options?: { normalize: true }): NormalizedValidationResult<BlocksIndex> {
+  const result = check(blocksIndexSchema, index)
+  if (!result.valid || !options?.normalize) return result
+
+  const value = { ...index as Record<string, unknown> }
+  const fields = new Set<string>()
+  renameField(value, 'strands', 'threads', fields)
+  const stats = { ...value.stats as Record<string, unknown> }
+  renameField(stats, 'totalStrands', 'totalThreads', fields, 'stats.totalThreads')
+  value.stats = stats
+  if (value.tagIndex !== undefined) {
+    const tagIndex = value.tagIndex as Record<string, Record<string, unknown>[]>
+    value.tagIndex = Object.fromEntries(Object.entries(tagIndex).map(([tag, entries]) => [
+      tag,
+      entries.map((entry) => {
+        const reference = { ...entry }
+        renameField(reference, 'strandPath', 'threadPath', fields, 'tagIndex[].threadPath')
+        return reference
+      }),
+    ]))
+  }
+  return normalized(result, value, fields)
 }

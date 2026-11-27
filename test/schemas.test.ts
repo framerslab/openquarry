@@ -24,7 +24,7 @@ describe('the schema files', () => {
     ])
   })
 
-  it('match the corpus commit recorded in schema/SOURCE.json', () => {
+  it('match the hashes recorded in schema/SOURCE.json', () => {
     const source = JSON.parse(readFileSync(join(schemaDir, 'SOURCE.json'), 'utf8')) as {
       repository: string
       commit: string

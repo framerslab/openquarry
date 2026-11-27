@@ -1,8 +1,8 @@
 {
   "generatedAt": "2026-11-17T09:30:00Z",
   "version": "1.0.0",
-  "stats": { "totalStrands": 1, "totalBlocks": 1, "totalTags": 1, "worthyBlocks": 0 },
-  "strands": {
+  "stats": { "totalThreads": 1, "totalBlocks": 1, "totalTags": 1, "worthyBlocks": 0 },
+  "threads": {
     "weaves/reading-a-map/the-map/scale-and-distance.md": {
       "path": "weaves/reading-a-map/the-map/scale-and-distance.md",
       "blockCount": 1,
@@ -10,6 +10,6 @@
     }
   },
   "tagIndex": {
-    "maps": [{ "strandPath": "weaves/reading-a-map/the-map/scale-and-distance.md", "blockId": "scale" }]
+    "maps": [{ "threadPath": "weaves/reading-a-map/the-map/scale-and-distance.md", "blockId": "scale" }]
   }
 }

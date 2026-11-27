@@ -91,7 +91,7 @@ for (const error of result.errors) console.log(error)`,
   {
     id: 'blocks-index',
     title: 'Check a saved blocks index',
-    text: '<p>A blocks index lists tagged blocks by thread. Save this script as <code>blocks.mjs</code> and run <code>node blocks.mjs blocks-index.json</code> on a generated index. <a href="/format/#version-1-fabrics">Version 1 compatibility</a> explains the older field names.</p>',
+    text: '<p>A blocks index lists tagged blocks in <code>threads</code> and uses <code>threadPath</code> in tag references. Save this script as <code>blocks.mjs</code> and run <code>node blocks.mjs blocks-index.json</code> on a generated index. <a href="/format/#version-1-fabrics">Version 1 compatibility</a> explains the older field names.</p>',
     file: 'blocks.mjs',
     fixture: 'test/fixtures/blocks-index-v1.json',
     lang: 'js',

@@ -16,14 +16,25 @@ if (!codex) throw new Error('usage: node scripts/sync-schema.mjs <path to the co
 const dirty = execFileSync('git', ['status', '--porcelain', '--', 'schema'], { cwd: codex }).toString().trim()
 if (dirty) throw new Error(`the codex checkout has uncommitted changes under schema/:\n${dirty}`)
 const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: codex }).toString().trim()
-const files = readdirSync(join(codex, 'schema')).filter((file) => file.endsWith('.schema.yaml')).sort()
-const source = JSON.parse(readFileSync(join(root, 'schema', 'SOURCE.json'), 'utf8'))
-source.commit = commit
-source.files = {}
-for (const file of files) {
-  copyFileSync(join(codex, 'schema', file), join(root, 'schema', file))
-  source.files[file] = createHash('sha256').update(readFileSync(join(root, 'schema', file))).digest('hex')
+const schemaDir = join(root, 'schema')
+const source = JSON.parse(readFileSync(join(schemaDir, 'SOURCE.json'), 'utf8'))
+const schemaFiles = (dir) => readdirSync(dir).filter((file) => file.endsWith('.schema.yaml')).sort()
+const alias = 'strand.schema.yaml'
+for (const file of schemaFiles(join(codex, 'schema'))) {
+  if (file !== alias && !source.maintainedHere.includes(file)) {
+    copyFileSync(join(codex, 'schema', file), join(schemaDir, file))
+  }
 }
-writeFileSync(join(root, 'schema', 'SOURCE.json'), `${JSON.stringify(source, null, 2)}\n`)
+// Keep the deprecated schema self-contained so existing readers can compile it without resolving a reference.
+const thread = readFileSync(join(schemaDir, 'thread.schema.yaml'), 'utf8')
+const oldTitle = 'title: StrandFrontmatter'
+const annotation = 'description: "Deprecated alias for thread.schema. Use thread.schema.json or thread.schema.yaml for new files."'
+writeFileSync(join(schemaDir, alias), thread.replace(/^title: ThreadFrontmatter$/m, `${oldTitle}\n${annotation}\ndeprecated: true`))
+
+source.commit = commit
+source.files = Object.fromEntries(schemaFiles(schemaDir).map((file) => [
+  file, createHash('sha256').update(readFileSync(join(schemaDir, file))).digest('hex'),
+]))
+writeFileSync(join(schemaDir, 'SOURCE.json'), `${JSON.stringify(source, null, 2)}\n`)
 writeFileSync(join(root, 'src', 'schemas.ts'), renderSchemasModule())
 console.log(`schema files synced from framerslab/codex ${commit}`)

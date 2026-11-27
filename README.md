@@ -248,11 +248,13 @@ const { valid, errors } = validateThreadFrontmatter(parse(frontmatter))
 | Export | What it is |
 |---|---|
 | `validateThreadFrontmatter`, `validateLoom`, `validateWeave`, `validateFabricManifest`, `validateCatalogue`, `validateBlocksIndex` | validators that return `{ valid, errors }` with optional `warnings` |
-| `ThreadFrontmatter`, `ThreadLink`, `ThreadLinkGroups`, `ThreadBlock`, `Loom`, `Weave`, `FabricManifest`, `Catalogue`, `CatalogueSubject`, `CatalogueEntry` | types for each file |
+| `ThreadFrontmatter`, `ThreadLink`, `ThreadLinkGroups`, `ThreadBlock`, `Loom`, `Weave`, `FabricManifest`, `Catalogue`, `CatalogueSubject`, `CatalogueEntry`, `BlocksIndex` | types for each file |
 | `LinkType`, `ContentType`, `DifficultyLevel`, `KnowledgeNodeType`, `SkillReference` | value types |
 | `threadSchema`, `loomSchema`, `weaveSchema`, `fabricSchema`, `catalogueSchema`, `blocksIndexSchema` | the JSON Schemas as objects |
 
 `validateCatalogue` checks the record against its schema and then the rules a schema cannot hold: see [the catalogue](docs/courses.md#the-catalogue).
+
+Blocks indexes use `threads`, `stats.totalThreads` and `threadPath`. Pass `{ normalize: true }` to `validateBlocksIndex` or `validateFabricManifest` to read either spelling and receive `value` with the current fields.
 
 The YAML sources ship in the package too: `@framers/openquarry/schema/thread.schema.yaml` and its siblings, all JSON Schema draft 2020-12. So do the docs under `docs/` and the example course under `examples/`.
 
@@ -267,7 +269,7 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 For new content use `thread.schema.yaml`, `ThreadFrontmatter` and a version 2 layout such as `weaves/reading-a-map/the-map/scale-and-distance.md`. A fabric without `fabric.yaml` is version 1.
 
-The version 1 export `strandSchema` and schema index entry `strand.schema` carry the old name for the thread schema. The [version 1 compatibility guide](docs/compatibility.md) explains the aliases, the folder warnings from `openquarry check` and how to move an existing fabric.
+The [version 1 compatibility guide](docs/compatibility.md) lists the deprecated schema, exports and fields, and explains how to move an existing fabric. `openquarry check` warns once per file when it finds deprecated fields in `fabric.yaml` or `blocks-index.json`.
 
 ## The schema host
 
@@ -277,9 +279,9 @@ The schemas are served from https://openquarry.dev, built in CI by `scripts/buil
 |---|---|
 | `https://openquarry.dev/schema/v1/<name>.json` | the JSON Schema, with `$id` set to this address; otherwise the YAML file's content |
 | `https://openquarry.dev/schema/v1/<name>.yaml` | the YAML source, byte for byte the file in `schema/` (its SHA-256 is in `schema/SOURCE.json`) |
-| `https://openquarry.dev/schema/v1/index.json` | every schema with its addresses and hash, the corpus commit they came from, and this package's version |
+| `https://openquarry.dev/schema/v1/index.json` | the thread schema first, then the other schemas and the deprecated alias, with addresses, hashes and the package version |
 
-`<name>` is one of `blocks-index.schema`, `catalogue.schema`, `fabric.schema`, `loom.schema`, `thread.schema` and `weave.schema`, plus the compatibility copy listed in Version 1 fabrics. Every address answers with `Access-Control-Allow-Origin: *`, so a page on any origin can fetch a schema. `openquarry.io`, `www.openquarry.io` and `www.openquarry.dev` redirect to the same path on `openquarry.dev`; the root serves the format’s landing page. OpenQuarry is a Framers Lab project.
+`<name>` is one of `thread.schema`, `blocks-index.schema`, `catalogue.schema`, `fabric.schema`, `loom.schema` and `weave.schema`, plus the deprecated alias listed in Version 1 fabrics. Every address answers with `Access-Control-Allow-Origin: *`, so a page on any origin can fetch a schema. `openquarry.io`, `www.openquarry.io` and `www.openquarry.dev` redirect to the same path on `openquarry.dev`; the root serves the format’s landing page. OpenQuarry is a Framers Lab project.
 
 ## Releases
 
@@ -287,7 +289,7 @@ Every day at 10:41 UTC the `release` workflow publishes each package whose shipp
 
 ## Keeping the schemas in step
 
-The schema files come from the Frame Codex corpus repository, and a change to a schema is made there first. `schema/SOURCE.json` records the commit they were copied from and each file's SHA-256, and the tests fail when a file drifts from that record or from the generated `src/schemas.ts`. To take newer schemas: `node scripts/sync-schema.mjs <path to the corpus checkout>`.
+`schema/SOURCE.json` records the last schema sync commit and each file's SHA-256. OpenQuarry maintains the blocks-index and fabric schemas and derives the deprecated alias from the thread schema. The tests check the hashes and the generated `src/schemas.ts`. Refresh the synced schemas with `node scripts/sync-schema.mjs <path to the corpus checkout>`.
 
 ## FAQ
 

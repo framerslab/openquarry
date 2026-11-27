@@ -16,7 +16,7 @@ const threadNode: KnowledgeNodeType = 'thread'
 const legacyNode: KnowledgeNodeType = 'strand'
 
 describe('validateBlocksIndex', () => {
-  const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1.json', import.meta.url), 'utf8')) as Record<string, unknown>
+  const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1-legacy.json', import.meta.url), 'utf8')) as Record<string, unknown>
   const path = 'weaves/reading-a-map/the-map/scale-and-distance.md'
   const current: BlocksIndex = {
     generatedAt: '2026-11-26T00:00:00Z',

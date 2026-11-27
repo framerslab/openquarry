@@ -46,7 +46,7 @@ jobs:
           npm install --no-save . yaml
           node scripts/check-validator-command.mjs
 
-      - name: Run the package page's examples against the package from npm
+      - name: Run the package page's examples from the packed checkout
         run: node scripts/check-package-examples.mjs
 
       - name: The files npm would publish

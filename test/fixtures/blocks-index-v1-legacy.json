@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-11-17T09:30:00Z",
+  "version": "1.0.0",
+  "stats": { "totalStrands": 1, "totalBlocks": 1, "totalTags": 1, "worthyBlocks": 0 },
+  "strands": {
+    "weaves/reading-a-map/the-map/scale-and-distance.md": {
+      "path": "weaves/reading-a-map/the-map/scale-and-distance.md",
+      "blockCount": 1,
+      "blocks": [{ "id": "scale", "line": 12, "type": "heading" }]
+    }
+  },
+  "tagIndex": {
+    "maps": [{ "strandPath": "weaves/reading-a-map/the-map/scale-and-distance.md", "blockId": "scale" }]
+  }
+}

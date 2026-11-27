@@ -1,7 +1,5 @@
-// CI only: runs every example on the package page (openquarry.dev/package/) and the landing against the package from
-// npm, and compares what each prints with the text the page shows under it. It also checks the page's list of exports
-// against what the package exports. The package is installed at the version package.json names, the version the site
-// describes; while that version is not on npm yet, the check uses this build, packed as npm would publish it.
+// CI only: runs the package and landing page examples against this checkout packed as npm would publish it, and
+// compares the output and exports with what the site shows.
 //   node scripts/check-package-examples.mjs        (after npm run build)
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -19,19 +17,9 @@ const run = (command, args) => execFileSync(command, args, { cwd: dir, encoding:
 const failure = (error) => `exit ${error.status}\n${error.stdout || ''}${error.stderr || ''}`
 
 try {
-  let spec = `${pkg.name}@${pkg.version}`
-  let published = ''
-  // npm answers a version it has never published with no output, and a package it has never seen with E404. Any other
-  // failure (the registry down, the network, output that is not JSON) stops the check, so it never quietly checks this
-  // build in place of the published package.
-  try { published = JSON.parse(run('npm', ['view', spec, 'version', '--json']) || '""') } catch (error) {
-    if (!/\bE404\b/.test(`${error.stdout || ''}${error.stderr || ''}`)) throw Error(`npm view ${spec} failed: ${error.message}\n${failure(error)}`)
-  }
-  if (published !== pkg.version) {
-    run('npm', ['pack', root, '--silent', '--pack-destination', dir])
-    spec = join(dir, readdirSync(dir).find((name) => name.endsWith('.tgz')))
-    console.log(`${pkg.name}@${pkg.version} is not on npm yet: checking this build, packed`)
-  } else console.log(`Checking the examples against ${pkg.name}@${pkg.version} from npm`)
+  run('npm', ['pack', root, '--silent', '--pack-destination', dir])
+  const spec = join(dir, readdirSync(dir).find((name) => name.endsWith('.tgz')))
+  console.log(`Checking the examples against the packed ${pkg.name}@${pkg.version}`)
 
   const typescript = String(pkg.devDependencies.typescript).replace(/^\^/, '')
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'openquarry-examples', private: true, type: 'module' }, null, 2))

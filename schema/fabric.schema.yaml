@@ -3,6 +3,7 @@ title: FabricManifest
 description: >-
   The optional manifest at the root of a fabric (fabric.yaml). A directory or repository that holds weaves/ is a fabric
   with or without it; a missing manifest reads as version 1. .quarry/vault.json is the app's per-device state, never this file.
+  When both spellings of a field are present, readers use the current spelling.
 type: object
 required: [format, version]
 properties:
@@ -15,6 +16,20 @@ properties:
     type: integer
     enum: [1, 2]
     description: >-
-      1: the file names before the thread rename (weave.yaml, loom.yaml, strand.schema.yaml, looms/ and strands/ prefix
-      folders accepted). 2: the thread names (thread.schema.yaml; the prefix folders still accepted on read). A reader
-      refuses a fabric whose version it does not support.
+      1: the original thread layout. 2: the current thread layout. Both versions accept the legacy prefix folders
+      when reading. A reader refuses a fabric whose version it does not support.
+  thread:
+    description: "Optional publisher-defined information about a thread."
+  threads:
+    description: "Optional publisher-defined information about threads."
+  threadPath:
+    description: "Optional publisher-defined thread path field."
+  strand:
+    deprecated: true
+    description: "Deprecated alias for thread."
+  strands:
+    deprecated: true
+    description: "Deprecated alias for threads."
+  strandPath:
+    deprecated: true
+    description: "Deprecated alias for threadPath."

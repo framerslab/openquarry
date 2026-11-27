@@ -61,7 +61,10 @@ export function siteVersion(pkg) {
 }
 
 export function schemaFiles() {
-  return readdirSync(join(root, 'schema')).filter((file) => file.endsWith('.schema.yaml')).sort()
+  const primary = 'thread.schema.yaml'
+  const alias = 'strand.schema.yaml'
+  const files = readdirSync(join(root, 'schema')).filter((file) => file.endsWith('.schema.yaml')).sort()
+  return [primary, ...files.filter((file) => file !== primary && file !== alias), alias]
 }
 
 export function buildSite(out = join(root, 'dist-site')) {
@@ -88,6 +91,7 @@ export function buildSite(out = join(root, 'dist-site')) {
       url,
       yaml: `${ORIGIN}${SCHEMA_PATH}${file}`,
       sha256: createHash('sha256').update(text).digest('hex'),
+      ...(name === 'strand.schema' ? { deprecated: schema.deprecated, aliasOf: 'thread.schema' } : {}),
     })
   }
   const index = {

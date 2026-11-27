@@ -4,6 +4,8 @@ Every release of `@framers/openquarry`, newest first. The package follows semant
 
 The `openquarry` package, the command built on this library (`openquarry init`, `new`, `check` and `id`), keeps its own changelog: [packages/openquarry/CHANGELOG.md](https://github.com/framerslab/openquarry/blob/master/packages/openquarry/CHANGELOG.md). Its first release is 0.3.0, for the 0.3.0 format; this library is unchanged by it.
 
+**Thread naming migration.** Blocks indexes and fabric manifests accept the current thread fields and the deprecated spellings. The validators can return current field names, and the command warns when it reads a deprecated field. The published compatibility schema stays available.
+
 ## 0.3.0
 
 The course layer. A course is a weave of kind `course`, a unit is a loom of kind `unit`, and a catalogue files courses under subjects.
