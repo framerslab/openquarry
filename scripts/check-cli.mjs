@@ -91,6 +91,22 @@ try {
   if (!readFileSync(join(installed, 'bin', 'openquarry.mjs'), 'utf8').startsWith('#!/usr/bin/env node\n')) fail('The bin does not start with #!/usr/bin/env node')
   const manifest = JSON.parse(readFileSync(join(installed, 'package.json'), 'utf8'))
   same([manifest.name, manifest.version, manifest.license, manifest.bin], ['openquarry', cli.version, 'MIT', { openquarry: 'bin/openquarry.mjs' }], 'the packed manifest')
+  const readme = readFileSync(join(installed, 'README.md'), 'utf8')
+  const describedCheck = readme.split('\n').find((line) => line.startsWith('Each template also carries '))
+  if (!describedCheck) fail('the command README does not list the starter check files')
+  const describedFiles = [...describedCheck.matchAll(/`([a-z.-]+\.(?:mjs|json))`/g)].map((match) => match[1])
+  for (const starter of starters) {
+    const project = join(home, `copied-check-${starter.id}`)
+    mkdirSync(project)
+    for (const name of describedFiles) {
+      copyFileSync(join(installed, 'templates', starter.id, name), join(project, name))
+    }
+    writeFileSync(join(project, 'fabric.yaml'), 'format: openquarry\nversion: 2\n')
+    const report = run('npm', ['run', '--silent', 'check'], project)
+    if (report.status !== 0 || !report.lines.includes('ok fabric.yaml')) {
+      fail(`${starter.id}: the documented starter check files are insufficient:\n${report.output}`)
+    }
+  }
   // The command reaches no network and starts no process: its modules import the file system, paths, crypto, the YAML
   // parser and the library, nothing more.
   for (const file of packed.filter((name) => /^(bin|src)\//.test(name))) {
