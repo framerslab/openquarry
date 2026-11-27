@@ -3,6 +3,36 @@ import { chromium } from 'playwright'
 import { createServer } from 'node:http'
 import { readFileSync, existsSync, statSync, mkdirSync } from 'node:fs'
 import { resolve, extname } from 'node:path'
+async function captureQa(browser, origin, destination) {
+ const routes = [['', 'home'], ['learning/', 'learning'], ['package/', 'package']]
+ mkdirSync(destination, { recursive: true })
+ for (const width of [390, 1440]) {
+  for (const colorScheme of ['light', 'dark']) {
+   const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme, reducedMotion: 'reduce' })
+   try {
+    for (const [route, name] of routes) {
+     const response = await page.goto(origin + route)
+     if (!response?.ok()) throw Error(`Could not capture ${origin}${route}`)
+     await page.evaluate(() => document.fonts.ready)
+     await page.screenshot({ path: `${destination}/qa-${name}-${width}-${colorScheme}.png`, animations: 'disabled' })
+    }
+   } finally {
+    await page.close()
+   }
+  }
+ }
+}
+
+if (process.argv.includes('--live')) {
+ const browser = await chromium.launch()
+ try {
+  await captureQa(browser, 'https://openquarry.dev/', 'live-site-screenshots')
+ } finally {
+  await browser.close()
+ }
+ process.exit(0)
+}
+
 const root = resolve('dist-site/site')
 const server = createServer((req,res)=>{
   let path=resolve(root, '.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname))
@@ -102,6 +132,7 @@ const inspect=()=>{
  return errors
 }
 try {
+await captureQa(browser, 'http://127.0.0.1:4173/', 'site-screenshots')
 // The compatibility link on the package page opens the Format disclosure on arrival and on a fragment change.
 {
  const page=await browser.newPage({viewport:{width:390,height:900}})
@@ -145,7 +176,7 @@ for(const width of [320,390,768,1024,1440]) for(const theme of ['light','dark'])
  await page.goto('http://127.0.0.1:4173/')
  // The copy key on a code block copies the code and says so.
  await page.context().grantPermissions(['clipboard-read','clipboard-write'],{origin:'http://127.0.0.1:4173'})
- for(const block of ['.check','.install>div']){
+ for(const block of ['.check .code:has(.language-bash)', '.check .code:has(.language-text)', '.install>div .code']){
   const copy=page.locator(`${block} [data-copy]`)
   await copy.click()
   // The clipboard write is asynchronous: wait for the key to say how it went, then read the clipboard back.
