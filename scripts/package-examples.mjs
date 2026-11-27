@@ -3,15 +3,15 @@
 // the page shows under it (scripts/check-package-examples.mjs).
 
 export const installs = [
-  ['npm', 'npm install @framers/openquarry'],
-  ['pnpm', 'pnpm add @framers/openquarry'],
-  ['yarn', 'yarn add @framers/openquarry'],
+  ['npm', 'npm install openquarry'],
+  ['pnpm', 'pnpm add openquarry'],
+  ['yarn', 'yarn add openquarry'],
 ]
 
 export const quickExample = {
   file: 'check.mjs',
   lang: 'js',
-  code: `import { validateWeave } from '@framers/openquarry'
+  code: `import { validateWeave } from 'openquarry'
 
 const result = validateWeave({
   slug: 'reading-a-map',
@@ -31,7 +31,7 @@ export const packageExamples = [
     file: 'lesson.mjs',
     lang: 'js',
     code: `import { parse } from 'yaml'
-import { validateThreadFrontmatter } from '@framers/openquarry'
+import { validateThreadFrontmatter } from 'openquarry'
 
 const frontmatter = parse(\`
 id: 70c967bf-2dba-4399-aef1-671174eb904f
@@ -48,11 +48,11 @@ for (const error of result.errors) console.log(error)`,
   },
   {
     id: 'folders',
-    title: 'Check the folder files',
-    text: '<p>A fabric can carry a <code>fabric.yaml</code>, a weave carries a <code>weave.yaml</code> and a loom a <code>loom.yaml</code>. Each has its own validator. A <code>kind</code> is one lowercase word, so <code>Course</code> is refused.</p>',
+    title: 'Check fabric.yaml, weave.yaml and loom.yaml',
+    text: '<p>A fabric can have a <code>fabric.yaml</code>, a weave has a <code>weave.yaml</code> and a loom a <code>loom.yaml</code>, and each file has its own validator. A <code>kind</code> is one lowercase word, so <code>Course</code> fails.</p>',
     file: 'folders.mjs',
     lang: 'js',
-    code: `import { validateFabricManifest, validateLoom, validateWeave } from '@framers/openquarry'
+    code: `import { validateFabricManifest, validateLoom, validateWeave } from 'openquarry'
 
 console.log(validateFabricManifest({ format: 'openquarry', version: 2 }).valid)
 console.log(validateLoom({ slug: 'the-map', title: 'The map', kind: 'unit' }).valid)
@@ -66,10 +66,10 @@ true
   {
     id: 'catalogue',
     title: 'Check a catalogue',
-    text: "<p><code>validateCatalogue</code> checks a <code>catalogue.yaml</code> against its schema, then four rules a schema cannot hold: each id is listed once, every link names something the catalogue lists, an entry's <code>home</code> is one of its subjects, and no chain of links makes a circle.</p>",
+    text: "<p><code>validateCatalogue</code> checks a <code>catalogue.yaml</code> against its schema, then four rules a schema cannot hold. Each id is listed once, every link names something the catalogue lists, an entry's <code>home</code> is one of its subjects, and no chain of links makes a circle.</p>",
     file: 'catalogue.mjs',
     lang: 'js',
-    code: `import { validateCatalogue } from '@framers/openquarry'
+    code: `import { validateCatalogue } from 'openquarry'
 
 const result = validateCatalogue({
   id: 'field-skills',
@@ -96,7 +96,7 @@ for (const error of result.errors) console.log(error)`,
     fixture: 'test/fixtures/blocks-index-v1.json',
     lang: 'js',
     code: `import { readFileSync } from 'node:fs'
-import { validateBlocksIndex } from '@framers/openquarry'
+import { validateBlocksIndex } from 'openquarry'
 
 const index = JSON.parse(readFileSync(process.argv[2], 'utf8'))
 const result = validateBlocksIndex(index)
@@ -111,7 +111,7 @@ console.log(result.valid)`,
     lang: 'js',
     code: `import Ajv2020 from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
-import { loomSchema } from '@framers/openquarry'
+import { loomSchema } from 'openquarry'
 
 const ajv = new Ajv2020({ allErrors: true, strict: false })
 addFormats(ajv)
@@ -126,11 +126,11 @@ must have required property 'title'`,
   },
   {
     id: 'types',
-    title: 'Types in TypeScript',
+    title: 'Catch a wrong value with the TypeScript types',
     text: "<p>The types describe every file the schemas check. A value the format does not allow, such as <code>contentType: 'lecture'</code>, fails type checking before the code runs.</p>",
     file: 'lesson.ts',
     lang: 'ts',
-    code: `import { validateThreadFrontmatter, type ThreadFrontmatter } from '@framers/openquarry'
+    code: `import { validateThreadFrontmatter, type ThreadFrontmatter } from 'openquarry'
 
 const lesson: ThreadFrontmatter = {
   id: '70c967bf-2dba-4399-aef1-671174eb904f',
@@ -149,11 +149,11 @@ console.log(validateThreadFrontmatter(lesson).valid)`,
   },
   {
     id: 'commonjs',
-    title: 'From CommonJS',
+    title: 'Load the package from CommonJS',
     text: '<p>The package ships an ES module build and a CommonJS build, so <code>require</code> works too.</p>',
     file: 'check.cjs',
     lang: 'js',
-    code: `const { validateLoom } = require('@framers/openquarry')
+    code: `const { validateLoom } = require('openquarry')
 
 console.log(validateLoom({ slug: 'the-map', title: 'The map', kind: 'unit' }))`,
     output: '{ valid: true, errors: [] }',
@@ -161,7 +161,7 @@ console.log(validateLoom({ slug: 'the-map', title: 'The map', kind: 'unit' }))`,
   {
     id: 'yaml-sources',
     title: 'Read the YAML sources',
-    text: '<p>The package ships each schema\'s YAML source, byte for byte, under <code>@framers/openquarry/schema/</code>.</p>',
+    text: '<p>The package ships each schema\'s YAML source, byte for byte, under <code>@framers/openquarry/schema/</code>. These files come from <code>@framers/openquarry</code>, so install it to import them.</p>',
     file: 'sources.mjs',
     lang: 'js',
     code: `import { readFileSync } from 'node:fs'

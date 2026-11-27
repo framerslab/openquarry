@@ -43,7 +43,7 @@ jobs:
 
       - name: Check the documented validator command
         run: |
-          npm install --no-save . yaml
+          npm install --no-save . ./packages/openquarry yaml
           node scripts/check-validator-command.mjs
 
       - name: Run the package page's examples from the packed checkout
@@ -114,6 +114,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -123,7 +125,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      # The version badge and index.json name npm's newest library version (scripts/build-site.mjs, siteVersion).
+      # index.json names npm's newest library version (scripts/build-site.mjs, siteVersion).
       - name: Build the host
         env:
           OPENQUARRY_SITE_NPM_VERSION: '1'
@@ -155,7 +157,7 @@ jobs:
 
   # Every green push to master goes live: the site artifact this run built is uploaded to the Cloudflare Pages project
   # behind openquarry.dev (openquarry-schema), then the host is read until it serves this commit. A run dispatched on
-  # master deploys too (the release workflow starts one after a library release, so the version badge follows npm);
+  # master deploys too (the release workflow starts one after a library release, so index.json follows npm);
   # a pull request deploys nothing. The token can edit Pages projects on the one account and nothing else.
   deploy-site:
     name: Deploy openquarry.dev

@@ -1,10 +1,10 @@
-# Writing OpenQuarry files with a language model
+# Write lessons with a language model
 
-An OpenQuarry file is text that a model can write and a program can check. This page shows what to give the model, a prompt for one lesson, the check to run on the reply, and what the check leaves to you.
+An OpenQuarry file is plain text. A model can write it and the validator can check it. The prompt below asks for one lesson. The loop after it sends the validator's error lines back to the model for up to three more tries and rejects a reply that still fails.
 
-## What helps
+## Parts of the format that help a model
 
-| In the format | Why it helps |
+| In the format | Why it matters to a model |
 |---|---|
 | A thread is Markdown with a YAML block on top | A model writes it as plain text, and a person can read and fix the reply in any editor |
 | JSON Schemas at `https://openquarry.dev/schema/v1/<name>.json` | The model, your code and any tool that reads JSON Schema (draft 2020-12) work from the same rules. The index at `https://openquarry.dev/schema/v1/index.json` gives the SHA-256 of each schema's YAML source |
@@ -18,7 +18,7 @@ An OpenQuarry file is text that a model can write and a program can check. This 
 1. **The keys and their rules.** The thread schema is long, because it also describes `blocks`, which an indexer writes. For a lesson, the keys in the prompt below are enough.
 2. **An id made in code.** The schema asks for a UUID. Make it with `crypto.randomUUID()` and put it in the prompt, so no two threads share an id.
 3. **Your skill ids.** `teaches` and `requires` take any string, so nothing stops a model from inventing an id. Give it your list and tell it to use no other.
-4. **The licence of your content**, for `publishing.license`: see [the licence of your content](courses.md#the-licence-of-your-content).
+4. **The license of your content**, for `publishing.license`, as [the license of your content](courses.md#the-license-of-your-content) explains.
 
 ## A prompt for one lesson
 
@@ -81,7 +81,7 @@ A path measures 6 cm on a 1:25,000 map. 6 cm x 250 m = 1,500 m, so the path is 1
 A bigger second number means a smaller drawing. A 1:50,000 map shows the same path at half the length.
 ```
 
-## The check
+## Check the reply and send the errors back
 
 ```ts
 import { randomUUID } from 'node:crypto'
@@ -105,9 +105,10 @@ for (let round = 0; round < 3 && problems(reply).length > 0; round++) {
   const lines = problems(reply).join('\n')
   reply = await ask(`${prompt}\n\nYour last reply failed these checks. Send the whole file again with them fixed.\n${lines}`)
 }
+if (problems(reply).length > 0) throw new Error(problems(reply).join('\n'))
 ```
 
-`lessonPrompt` and `ask` are yours: the first builds the prompt, the second calls the model you use.
+`lessonPrompt` and `ask` are yours to write. The first builds the prompt, and the second calls the model you use.
 
 A reply the validator refuses:
 
@@ -132,11 +133,11 @@ The lines it gives:
 /contentType must be equal to one of the allowed values: "lesson", "reference", "exercise", "assessment", "project", "discussion", "resource", "markdown", "code", "data", "media"
 ```
 
-YAML reads `1.0` as a number, so the first line asks for a string: the fix is `1.0.0`. The second line lists the values `contentType` takes. Both lines can go back to the model as they are.
+YAML reads `1.0` as a number, so the first line asks for a string. `1.0.0` fixes it. The second line lists the values `contentType` takes. Both lines go back to the model as they are.
 
-## A whole course
+## Write a whole course, one file at a time
 
-Ask for one file at a time, and check each with the validator of its kind:
+Ask for one file at a time, and check each one with the validator for its kind.
 
 | File | Ask for | Check with |
 |---|---|---|
@@ -145,19 +146,19 @@ Ask for one file at a time, and check each with the validator of its kind:
 | a thread for each lesson, exercise and assessment | the prompt above, with its `contentType` | `validateThreadFrontmatter` |
 | `catalogue.yaml` | the subjects, and one entry for the course | `validateCatalogue` |
 
-Plan the skills first. Ask the model for the list of skill ids and the lesson that teaches each, read the list yourself, then ask for each lesson with its ids fixed in the prompt. [The example course](../examples/reading-a-map) is small enough to put in a prompt as a pattern to follow, and [Courses and lessons](courses.md) explains each of its files.
+Plan the skills first. Ask the model for the list of skill ids and the lesson that teaches each, read the list yourself, then ask for each lesson with its ids fixed in the prompt. [The example course](../examples/reading-a-map) is small enough to put in a prompt as a pattern to follow, and [the courses guide](courses.md) explains each of its files.
 
-## What the validator does not check
+## What the validator leaves to you
 
-The validator checks frontmatter and manifests against their schemas, and the catalogue's links. The rest is for your own build and for a person:
+The validator checks frontmatter and manifests against their schemas, and the links inside `catalogue.yaml`. Four checks stay with your build and with a reviewer who knows the subject.
 
 - Whether the lesson is right. A model can write a wrong lesson in a valid file, so a person who knows the subject reads it.
-- Whether a thread's `slug` is its file name, and whether two threads share an `id`.
+- Whether a thread's `slug` is its file name, and whether two threads share an `id`. `openquarry check` catches a shared `id`.
 - Whether every skill a thread requires is taught by a lesson.
 - Whether the target of a link exists.
 
 [test/example.test.ts](https://github.com/framerslab/openquarry/blob/master/test/example.test.ts) makes the second and third checks for the example course.
 
-## Reading a fabric with a model
+## Have a model read a fabric
 
-A model that reads a fabric can start from the frontmatter and leave the bodies for later. `title`, `summary`, `contentType`, `difficulty`, `teaches` and `requires` say what a thread is and where it sits in a course, and the catalogue lists the courses by subject in one small file. Then give the model the bodies of the threads it picks.
+Give a model the frontmatter first and the bodies later. `title`, `contentType`, `difficulty`, `teaches` and `requires`, with a summary where the thread has one, say what a thread is and where it belongs in a course. `catalogue.yaml` lists the courses by subject in one small file. Then give the model the bodies of the threads it picks.

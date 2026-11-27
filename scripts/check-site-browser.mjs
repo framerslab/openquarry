@@ -18,6 +18,7 @@ const browser=await chromium.launch()
 for(const asset of ['icon.svg','favicon.ico','apple-touch-icon.png','icon-192.png','icon-512.png','manifest.webmanifest','og.png','site.js','robots.txt','sitemap.xml']) if(!existsSync(resolve(root,asset)))throw Error('Missing '+asset)
 mkdirSync('site-screenshots',{recursive:true})
 const routes=['','format/','courses/','llm/','schema/','validate/','spiral/','learning/','package/','about/']
+const innerCaptures=['learning/','format/','courses/','llm/']
 // What a page must hold at the width it is open at. It runs inside the page, so it uses nothing from this file.
 const inspect=()=>{
  const errors=[]
@@ -64,18 +65,7 @@ const inspect=()=>{
   if(links.some(a=>Math.round(a.getBoundingClientRect().height)<44))errors.push('a notes or course link is under 44 px tall')
  }
  for(const k of document.querySelectorAll('.actions > a'))if(k.scrollWidth>k.clientWidth+1||k.getBoundingClientRect().height>56)errors.push('a key does not fit its label')
- const badgeTops=[...document.querySelectorAll('.badges a')].map(top)
- if(new Set(badgeTops).size>1)errors.push('the badges wrap')
- // The facts row fits the page at every width: one row, nothing scrolled, faded or cut at its edge, each fact whole.
- for(const facts of document.querySelectorAll('.badges')){
-  const box=facts.getBoundingClientRect(),style=getComputedStyle(facts),mask=style.maskImage||style.webkitMaskImage
-  if(facts.scrollWidth>facts.clientWidth+1)errors.push('the facts row scrolls sideways')
-  if(mask&&mask!=='none')errors.push('the facts row is faded at an edge')
-  for(const fact of facts.querySelectorAll('li')){const r=fact.getBoundingClientRect();if(r.left<box.left-1||r.right>box.right+1||r.right>innerWidth)errors.push('a fact is cut off: '+fact.textContent)}
-  for(const part of facts.querySelectorAll('span,strong'))if(part.scrollWidth>part.clientWidth+1)errors.push('a fact does not fit its chip: '+part.textContent)
-  // A box measured while the hero's arrival animation moves it can read a hair under its height, so the sizes round.
-  if(innerWidth<=900)for(const a of facts.querySelectorAll('a'))if(Math.round(a.getBoundingClientRect().height)<44)errors.push('a fact is under 44 px tall')
- }
+ if(document.querySelector('.eyebrow, .badges'))errors.push('a page shows an eyebrow or badge strip')
  // The guides' row: its tabs sit in a strip between a previous and a next key. The keys show only when the tabs do
  // not fit; then each is a named button of 44 px or more inside the page, beside the strip and on its line.
  const guides=document.querySelector('.docs-nav')
@@ -99,7 +89,7 @@ const inspect=()=>{
    if(guides.getBoundingClientRect().height>64)errors.push('the guides row is taller than one line')
   }
  }
- if(location.pathname==='/'&&(!document.querySelector('.hero .actions a[href="https://github.com/framerslab/openquarry"]')||!document.querySelector('.hero .actions a[href="/package/"]')||badgeTops.length<3))errors.push('the landing lacks its GitHub key, its package key or its badges')
+ if(location.pathname==='/'&&(!document.querySelector('.hero .actions a[href="https://github.com/framerslab/openquarry"]')||!document.querySelector('.hero .actions a[href="/package/#install"]')))errors.push('the landing lacks its GitHub or install key')
  if(location.pathname==='/'&&!document.querySelector('.install a[href="/package/"]'))errors.push('the landing lacks the install section')
  for(const el of document.querySelectorAll('p, a, code, button, li, td')) if(parseFloat(getComputedStyle(el).fontSize)<14)errors.push('small type')
  const luminance=c=>{const v=c.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4});return v[0]*.2126+v[1]*.7152+v[2]*.0722}
@@ -209,6 +199,17 @@ for(const width of [390,999,1000,1279,1280]) for(const theme of ['light','dark']
  }
  // The parts a change to Start a project touches, from this build and, where they exist there, from the live site.
  if(width===390||width===1280){
+  for(const route of innerCaptures){
+   const name=route.slice(0,-1)
+   await page.goto('http://127.0.0.1:4173/'+route)
+   await page.evaluate(()=>document.fonts.ready)
+   await page.screenshot({path:`site-screenshots/page-${name}-${width}-${theme}.png`,animations:'disabled'})
+   try {
+    await page.goto('https://openquarry.dev/'+route,{timeout:30000})
+    await page.evaluate(()=>document.fonts.ready)
+    await page.screenshot({path:`site-screenshots/live-page-${name}-${width}-${theme}.png`,animations:'disabled'})
+   } catch(error){console.log(`The live ${route} could not be captured at ${width} ${theme}: ${error.message}`)}
+  }
   const parts=[['package/','.start','start'],['package/','.top','package-top'],['','.install','install'],['format/','p.start-link','format-link'],['package/','#command-line + p','command-line'],['format/','.product-links','format-product-links'],['courses/','.product-links','courses-product-links']]
   for(const [route,selector,name] of parts){
    await page.goto('http://127.0.0.1:4173/'+route);await page.evaluate(()=>document.fonts.ready)
@@ -240,7 +241,7 @@ for(const width of [390,999,1000,1279,1280]) for(const theme of ['light','dark']
  await page.close()
 }
 } catch(error){await browser.close();server.close();throw error}
-// The facts row and the guides' arrow keys on the real pages, at each phone width and one tablet width, in both
+// The guides' arrow keys on the real pages, at each phone width and one tablet width, in both
 // looks. The pictures are taken at 2x.
 const base='http://127.0.0.1:4173/'
 // Every scroll the page asks of the strip is recorded with the behaviour it asked for, then carried out.
@@ -271,25 +272,11 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
  const context=await browser.newContext({viewport:{width,height:900},colorScheme:theme,reducedMotion:'no-preference',deviceScaleFactor:2})
  const page=await context.newPage()
  await page.addInitScript(record)
- // The facts row on the landing and on the package page, and every other rule of a page at this width.
+ // Check the page rules at each width.
  for(const route of ['','package/','format/','spiral/','schema/']){
   await open(page,route)
   const issues=await page.evaluate(inspect)
   if(issues.length){await page.screenshot({path:`site-screenshots/failed-${width}-${theme}-${route.replace('/','')||'home'}.png`,fullPage:true,animations:'disabled'});throw Error(`${at} ${route}: ${issues.join(', ')}`)}
-  if(route==='package/'){
-   const facts=await page.locator('.badges li').allTextContents()
-   if(facts.length!==3||!/^npm/.test(facts[0])||!/^licence/.test(facts[1])||!/^node\d+ or later$/.test(facts[2]))throw Error(`${at}: the package facts are not npm, licence and node: ${facts.join(' | ')}`)
-   // The picture runs from the top of the page to just under the keys below the facts.
-   if(width<=390||width===768)await picture(page,`facts-package-${width}-${theme}`,Math.min(900,Math.ceil(await page.locator('.reading .actions').first().evaluate(e=>e.getBoundingClientRect().bottom))+24))
-  }
-  if(!route&&width<=390)await page.locator('.hero').screenshot({path:`site-screenshots/facts-landing-${width}-${theme}.png`,animations:'disabled'})
-  // A reader's text at 200 per cent (a browser's text-only zoom, set here on the facts themselves): the facts may
-  // take a second row, and the page keeps to its width with every fact inside it.
-  if(width===320&&(route===''||route==='package/')){
-   await page.addStyleTag({content:'.badges a{font-size:30px!important}'})
-   const big=await page.evaluate(()=>({page:document.documentElement.scrollWidth>innerWidth,cut:[...document.querySelectorAll('.badges li')].filter(li=>li.getBoundingClientRect().right>innerWidth+1||li.getBoundingClientRect().left<0).map(li=>li.textContent)}))
-   if(big.page||big.cut.length)throw Error(`${at} ${route}: with text at 200 per cent the facts leave the page: ${big.cut.join(' | ')}`)
-  }
  }
  // The first guide: the strip opens at its start, Previous is inactive, and only the right edge fades.
  await open(page,'format/')
@@ -340,7 +327,7 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
   // A guide in the middle opens with its tab whole in view; the last guide opens at the end with Next inactive.
   await open(page,'spiral/')
   s=await row(page)
-  if(!s.tabs.find(t=>t.name==='Spiral learning').whole)throw Error(`${at}: the current guide's tab is not in view`)
+  if(!s.tabs.find(t=>t.name==='Spiral curriculum').whole)throw Error(`${at}: the current guide's tab is not in view`)
   await open(page,'schema/')
   s=await row(page)
   if(!s.tabs.find(t=>t.name==='Schemas').whole||!s.next.off||s.prev.off||s.scroll!=='end'||fadeOf(s).join()!=='true,false')throw Error(`${at}: the last guide should open at the end with Next inactive: ${JSON.stringify(s)}`)
@@ -349,7 +336,7 @@ for(const width of [320,360,390,430,480,768]) for(const theme of ['light','dark'
  } else if(width<=480)throw Error(`${at}: the guides fit a phone, so the arrow keys were not exercised`)
  // The live site at the same width, for the pictures of a change: never part of the check.
  if(width===390){
-  for(const [route,name,height] of [['spiral/','live-guides',300],['package/','live-facts-package',700]]){
+  for(const [route,name,height] of [['spiral/','live-guides',300]]){
    try {await page.goto('https://openquarry.dev/'+route,{timeout:30000});await page.evaluate(()=>document.fonts.ready);await picture(page,`${name}-${width}-${theme}`,height)}
    catch(error){console.log(`The live ${route} could not be captured at ${at}: ${error.message}`)}
   }
@@ -426,9 +413,6 @@ for(const theme of ['light','dark']){
  await rest(page)
  const narrow=await row(page)
  if(!narrow.prev.shown||!narrow.next.shown||!narrow.tabs.find(t=>t.name==='Language models').whole)throw Error(`1280 to 390 ${theme}: after the window narrows the current guide's tab is not whole in view: ${JSON.stringify(narrow)}`)
- await page.setViewportSize({width:1280,height:900})
- await open(page,'package/')
- await picture(page,`facts-package-1280-${theme}`,Math.min(900,Math.ceil(await page.locator('.reading .actions').first().evaluate(e=>e.getBoundingClientRect().bottom))+24))
  await context.close()
 }
 } finally {await browser.close();server.close()}

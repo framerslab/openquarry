@@ -62,7 +62,7 @@ describe('the schema host', () => {
     const redirects = readFileSync(join(site, '_redirects'), 'utf8')
     expect(redirects).not.toMatch(/^\/ /m)
     expect(redirects).not.toContain('/schema/ /schema/v1/index.json')
-    expect(readFileSync(join(site, 'index.html'), 'utf8')).toContain('Notes and courses,')
+    expect(redirects).toContain('/npm https://www.npmjs.com/package/openquarry 302')
     expect(redirects).toContain('/schema/v1 /schema/v1/index.json 302')
   })
 
@@ -112,13 +112,18 @@ describe('the public format site', () => {
   })
 
   it('writes all ten canonical pages, navigation and sitemap entries', () => {
+    const sitemap = readFileSync(join(site, 'sitemap.xml'), 'utf8')
     for (const path of ['', 'format', 'courses', 'llm', 'schema', 'validate', 'spiral', 'learning', 'package', 'about']) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       const url = `${ORIGIN}/${path ? path + '/' : ''}`
       expect(html).toContain(`<link rel="canonical" href="${url}">`)
       expect(html).toContain('application/ld+json')
       expect(html).toContain('Skip to content')
-      expect(readFileSync(join(site, 'sitemap.xml'), 'utf8')).toContain(`<loc>${url}</loc>`)
+      expect(sitemap).toContain(`<loc>${url}</loc>`)
+      if (process.env.GITHUB_ACTIONS === 'true') {
+        const entry = sitemap.split(`<loc>${url}</loc>`)[1]
+        expect(entry).toMatch(/^<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/)
+      }
     }
   })
   it('answers an unknown address with a not-found page, so a mistyped schema URL is not served the landing', () => {
@@ -131,7 +136,7 @@ describe('the public format site', () => {
   it('uses the real example and labels unsupported reading depths as a proposal', () => {
     expect(readFileSync(join(site, 'index.html'), 'utf8')).toContain('70c967bf-2dba-4399-aef1-671174eb904f')
     const format = readFileSync(join(site, 'format/index.html'), 'utf8')
-    expect(format).toContain('Proposal only.')
+    expect(format).toContain('This is a proposal.')
     expect(format).toContain('Version 1 fabrics')
     for (const path of ['', 'courses', 'llm', 'validate', 'spiral', 'learning']) {
       expect(readFileSync(join(site, path, 'index.html'), 'utf8')).not.toMatch(/strand\.schema|StrandFrontmatter|strands\//)
@@ -159,15 +164,15 @@ describe('the public format site', () => {
   it('pairs the notes and course destinations in the landing hero, Format guide and course example', () => {
     for (const [path, region] of [
       ['', /<section class="hero">([\s\S]*?)<\/section>/],
-      ['format', /<h2>One real file<\/h2>([\s\S]*?)<(?:h2|details) id="version-1-fabrics">/],
-      ['courses', /<h2 id="the-example">The example<\/h2>([\s\S]*?)<h2 id="the-course-a-weave-of-kind-course">/],
+      ['format', /<h2>A lesson from the example course<\/h2>([\s\S]*?)<(?:h2|details) id="version-1-fabrics">/],
+      ['courses', /<h2 id="the-example-course">The example course<\/h2>([\s\S]*?)<h2 id="the-course-is-a-weave-of-kind-course">/],
     ] as const) {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       const body = region.exec(html)?.[1] ?? ''
       const pair = /<ul class="product-links"[^>]*>([\s\S]*?)<\/ul>/.exec(body)?.[1]
       expect(pair, `${path || 'landing hero'} has no notes and course CTA pair`).toBeDefined()
-      expect(pair).toMatch(/href="https:\/\/quarry\.space">See notes in Quarry[\s\S]*?Quarry reads your notes in the format\./)
-      expect(pair).toMatch(/href="https:\/\/quarry\.school">See courses in Quarry School[\s\S]*?Each course is a weave, each unit a loom, each lesson a thread\./)
+      expect(pair).toMatch(/href="https:\/\/quarry\.space">See notes in Quarry[\s\S]*?Quarry is a reader and editor for knowledge kept in the format\./)
+      expect(pair).toMatch(/href="https:\/\/quarry\.school">See courses in Quarry School[\s\S]*?In Quarry School, each free course is a weave of kind <code>course<\/code>\./)
     }
   })
   it('keeps version 1 names in compatibility material and checks a saved thread index in the package example', () => {
@@ -189,9 +194,9 @@ describe('the public format site', () => {
   it('documents optional validator warnings and the version 1 blocks index result on the package page', () => {
     const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
     const exports = /<h2 id="exports">[^<]*<\/h2>([\s\S]*?)<h2/.exec(page)?.[1]
-    expect(exports).toContain('optional <code>warnings</code>')
-    expect(exports).toContain('<code>validateBlocksIndex</code> returns <code>{ valid, errors }</code> by default')
-    expect(exports).toContain('<code>{ normalize: true }</code>')
+    expect(exports).toContain('<code>warnings</code> when it has advice')
+    expect(exports).toContain('<code>validateBlocksIndex</code> also takes <code>{ normalize: true }</code>')
+    expect(exports).toContain('under the thread names as <code>value</code>')
   })
   it('leads the schema page with the thread schema and labels its compatibility alias once', () => {
     const page = readFileSync(join(site, 'schema', 'index.html'), 'utf8')
@@ -199,21 +204,17 @@ describe('the public format site', () => {
     expect(listed).toMatch(/^<li><strong>thread\.schema<\/strong>/)
     expect(listed.match(/<strong>strand\.schema \(deprecated alias\)<\/strong>/g)).toHaveLength(1)
   })
-  it('gives the landing a GitHub key, the project badges and a card for Frame', () => {
+  it('gives the landing its format, install and GitHub links and a card for Frame', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     const actions = /<div class="actions">([\s\S]*?)<\/div>/.exec(home)?.[1] ?? ''
-    expect(actions).toContain('<a class="button" href="/format/"><span class="wide">Read the format</span>')
-    expect(actions).toContain('<a class="key" href="/package/">npm package</a>')
+    expect(actions).toContain('<a class="button" href="/format/"><span class="wide">Read the format guide</span>')
+    expect(actions).toContain('<a class="key" href="/package/#install">Install from npm</a>')
     expect(actions).toContain('<a class="key" href="https://github.com/framerslab/openquarry">')
-    // The version on the npm badge is the package's own, read at build time.
-    expect(home).toContain(`<a href="https://www.npmjs.com/package/@framers/openquarry"><span>npm</span><strong>${index.package.version}</strong></a>`)
-    expect(home).toContain('<span>licence</span><strong>MIT</strong>')
-    expect(home).toContain('<span>JSON Schema</span><strong>2020-12</strong>')
     expect(home).toContain('<a class="card" href="https://frame.dev">')
-    expect(home).toContain('<a href="/about/">About OpenQuarry: who makes it and why</a>')
+    expect(home).toContain('<a href="/about/">About OpenQuarry</a>')
     const about = readFileSync(join(site, 'about', 'index.html'), 'utf8')
     expect(/<div class="actions">([\s\S]*?)<\/div>/.exec(about)?.[1]).toContain('<a class="key" href="https://frame.dev">')
-    expect(about).toContain('It is a Framers Lab project.')
+    expect(about).toContain('with Framers Lab, Inc. as the copyright holder.')
     expect(about).not.toContain('Manic Agency')
     expect(about).not.toContain('the team behind')
     expect(about).not.toContain('Manic Agency LLC')
@@ -221,16 +222,15 @@ describe('the public format site', () => {
   it('gives the package a page: the install lines, every export with an example, and its links', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     const install = /<section class="install"[\s\S]*?<\/section>/.exec(home)?.[0] ?? ''
-    expect(install).toContain('<span class="t-key">npm</span> install @framers/openquarry')
+    expect(install).toContain('<span class="t-key">npm</span> install openquarry')
     expect(install).toContain('<a href="/package/">')
     expect(install).toContain('data-copy')
     const page = readFileSync(join(site, 'package', 'index.html'), 'utf8')
-    for (const line of ['npm install @framers/openquarry', 'pnpm add @framers/openquarry', 'yarn add @framers/openquarry']) {
+    for (const line of ['npm install openquarry', 'pnpm add openquarry', 'yarn add openquarry']) {
       expect(page).toContain(line.replace(/^(\S+)/, '<span class="t-key">$1</span>'))
     }
     expect(page.match(/data-copy/g)!.length).toBeGreaterThan(10)
-    expect(page).toContain(`<strong>${index.package.version}</strong>`)
-    expect(page).toContain('<strong>MIT</strong>')
+    expect(page).toContain('<p><code>openquarry</code> runs on Node 18 or later and is on npm under the MIT License.</p>')
     for (const link of ['https://www.npmjs.com/package/@framers/openquarry', 'https://github.com/framerslab/openquarry', 'https://openquarry.dev/schema/v1/thread.schema.json', '/schema/v1/index.json', '/format/']) {
       expect(page, `the package page links ${link}`).toContain(`href="${link}"`)
     }
@@ -262,7 +262,7 @@ describe('the public format site', () => {
     }
     const home = readFileSync(join(site, 'index.html'), 'utf8')
     expect(/<section class="install"[\s\S]*?<\/section>/.exec(home)?.[0]).toContain('<a href="/package/#start">Start a project</a>')
-    expect(readFileSync(join(site, 'format', 'index.html'), 'utf8')).toContain('<a href="/package/#start">start a project from a starter</a>')
+    expect(readFileSync(join(site, 'format', 'index.html'), 'utf8')).toContain('<a href="/package/#start">start a project</a>')
   })
   it('shows the start commands on the landing, above the install lines, and at the top of the Courses guide', () => {
     const unescape = (s: string) => s.replace(/<[^>]+>/g, '').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
@@ -289,14 +289,14 @@ describe('the public format site', () => {
       const html = readFileSync(join(site, path, 'index.html'), 'utf8')
       for (const gone of ['npm create', 'no standalone CLI', 'no command-line tool']) expect(html, `${path || 'home'}: ${gone}`).not.toContain(gone)
     }
-    expect(readFileSync(join(site, 'package', 'index.html'), 'utf8')).toContain('The command line is the <code>openquarry</code> package: <a href="#start">Start a project</a> shows it.')
+    expect(readFileSync(join(site, 'package', 'index.html'), 'utf8')).toContain('<a href="#start">Start a project</a> documents the <code>openquarry</code> command')
     // Until the release, the Validate page says the package is not on npm yet before it names the command.
     const validate = readFileSync(join(site, 'validate', 'index.html'), 'utf8')
     if (beforeRelease) {
       expect(validate).toContain('<p>The <code>openquarry</code> package is not on npm yet. Once it is, <code>npx openquarry check</code> validates every file of a project: <a href="/package/#start">Start a project</a> shows it.')
       expect(validate.indexOf('not on npm yet')).toBeLessThan(validate.indexOf('npx openquarry check'))
     } else {
-      expect(validate).toContain('<code>npx openquarry check</code> validates every file of a project: <a href="/package/#start-check">Start a project</a> shows it.')
+      expect(validate).toContain('<a href="/package/#start-check"><code>npx openquarry check</code></a> validates <code>fabric.yaml</code>')
       expect(validate).not.toContain('not on npm yet')
     }
     // Until the release, no paragraph on any page tells a reader to run the command before it says the package is not on
@@ -370,7 +370,7 @@ describe('the public format site', () => {
     const schema = JSON.parse(readFileSync(join(served, 'thread.schema.json'), 'utf8')) as {
       properties: Record<string, { enum?: string[]; oneOf?: { enum?: string[]; items?: { properties: { type: { enum: string[] } } } }[] }>
     }
-    for (const field of ['id', 'summary', 'contentType', 'difficulty', 'relationships', 'teaches', 'requires']) {
+    for (const field of ['id', 'contentType', 'difficulty', 'relationships', 'teaches', 'requires']) {
       expect(schema.properties, `the thread schema has ${field}`).toHaveProperty(field)
       expect(page).toContain(`<code>${field}</code>`)
     }
@@ -378,9 +378,9 @@ describe('the public format site', () => {
     const linkTypes = schema.properties.relationships.oneOf?.find((o) => o.items)?.items?.properties.type.enum ?? []
     for (const type of ['extends', 'applies', 'refines', 'prerequisite']) expect(linkTypes, `link type ${type}`).toContain(type)
     // The format schedules nothing: the page says so and never claims a review field.
-    expect(page).toContain('The format does not schedule reviews.')
+    expect(page).toContain('The review history and the due dates live in your app.')
     const home = readFileSync(join(site, 'index.html'), 'utf8')
-    expect(home).toContain('<a href="/learning/">The learning science behind the format</a>')
+    expect(home).toContain('<a href="/learning/">The research behind these fields</a>')
   })
   it('highlights code at build time, keeps its text exact and gives each block a copy key', () => {
     const home = readFileSync(join(site, 'index.html'), 'utf8')
