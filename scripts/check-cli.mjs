@@ -467,11 +467,33 @@ try {
   invalidCurrent.threads = []
   invalidCurrent.stats.totalThreads = 'one'
   invalidCurrent.tagIndex = { 'map/scale': [{ threadPath: 42, blockId: 'scale' }] }
-  writeFileSync(join(oldest, 'blocks-index.json'), JSON.stringify(invalidCurrent))
-  for (const [command, args] of [[oldBin, ['check']], ...starters.map(({ id }) => [process.execPath, [`check-${id}.mjs`]])]) {
-    const report = run(command, args, oldest)
-    for (const line of ['  /threads must be object', '  /stats/totalThreads must be integer', '  /tagIndex/map~1scale/0/threadPath must be string']) {
-      if (report.status !== 1 || !report.lines.includes(line)) indexFailures.push(`${args.join(' ')} did not report ${line.trim()}`)
+  const mixedInvalid = {
+    ...invalidCurrent,
+    generatedAt: 'yesterday',
+    strands: [],
+    stats: { ...invalidCurrent.stats, totalStrands: 'one' },
+    tagIndex: { 'map/scale': [{ threadPath: 42, strandPath: 43, blockId: 'scale' }] },
+  }
+  const missingNames = {
+    ...invalidCurrent,
+    threads: undefined,
+    stats: { ...invalidCurrent.stats, totalThreads: undefined },
+    tagIndex: { 'map/scale': [{ blockId: 'scale' }] },
+  }
+  const currentErrors = ['  /threads must be object', '  /stats/totalThreads must be integer', '  /tagIndex/map~1scale/0/threadPath must be string']
+  for (const [fixture, expected] of [
+    [invalidCurrent, currentErrors],
+    [mixedInvalid, [...currentErrors, '  /strands must be object', '  /stats/totalStrands must be integer', '  /tagIndex/map~1scale/0/strandPath must be string', '  /generatedAt must match format "date-time"']],
+    [missingNames, ["  / must have required property 'threads'", "  /stats must have required property 'totalThreads'", "  /tagIndex/map~1scale/0 must have required property 'threadPath'"]],
+  ]) {
+    writeFileSync(join(oldest, 'blocks-index.json'), JSON.stringify(fixture))
+    for (const [command, args] of [[oldBin, ['check']], ...starters.map(({ id }) => [process.execPath, [`check-${id}.mjs`]])]) {
+      const report = run(command, args, oldest)
+      for (const line of expected) {
+        if (report.status !== 1 || report.lines.filter((actual) => actual === line).length !== 1) {
+          indexFailures.push(`${args.join(' ')} did not report ${line.trim()} exactly once`)
+        }
+      }
     }
   }
   if (indexFailures.length) fail(indexFailures.join('\n\n'))
