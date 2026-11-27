@@ -144,7 +144,7 @@ try {
   usage(['check', '--json'], 'openquarry check: no option named --json')
   usage(['check', 'a', 'b'], 'openquarry check: one folder at most, got 2')
   usage(['id', 'now'], 'openquarry id: takes no argument')
-  usage(['new', 'page', 'A title'], 'openquarry new: say note or lesson, not "page"')
+  usage(['new', 'page', 'A title'], 'openquarry new: say note, lesson or course, not "page"')
   usage(['new', 'note'], 'openquarry new: a title is missing: openquarry new note "A title"')
   usage(['init', '--template'], 'openquarry init: --template needs a value')
 

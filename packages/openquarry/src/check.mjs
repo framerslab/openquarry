@@ -1,6 +1,6 @@
 // openquarry check: validates fabric.yaml, catalogue.yaml and blocks-index.json at the top, and under weaves/
 // each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two threads may share an id.
-// For a starter project the report matches the check.mjs script it carries.
+// When there is a catalogue, it must list the weaves by slug.
 import { readdirSync, statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
@@ -69,10 +69,11 @@ export function check({ folder, cwd = process.cwd() } = {}) {
 
   const lines = []
   const ids = new Map()
-  let invalid = 0
-  for (const { path, validate, thread, json } of files) {
+  const weaveSlugs = new Set()
+  const results = files.map(({ path, validate, thread, json }) => {
     let errors
     let warnings
+    let value
     try {
       // Opened once, without waiting on a pipe, and read from that same handle only when it is a plain file: a pipe, a
       // socket, a device or a folder named like a file of the format is reported and never read. A link to a plain file
@@ -83,11 +84,12 @@ export function check({ folder, cwd = process.cwd() } = {}) {
         const content = thread ? block(text) : text
         if (content === undefined) errors = ['/ has no YAML frontmatter between two --- lines at the top']
         else {
-          const value = json ? JSON.parse(content) : parse(content)
+          value = json ? JSON.parse(content) : parse(content)
           const result = validate(value)
           errors = result.errors
           warnings = result.warnings
           if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version
+          if (validate === validateWeave && typeof value?.slug === 'string') weaveSlugs.add(value.slug)
           if (thread && errors.length === 0) {
             const other = ids.get(value.id)
             if (other) errors = [`/id is already the id of ${shown(other)}: give this file its own id`]
@@ -98,7 +100,26 @@ export function check({ folder, cwd = process.cwd() } = {}) {
     } catch (error) {
       errors = [`/ cannot be read as ${json ? 'JSON' : 'YAML'}: ${String(error.message).split('\n')[0]}`]
     }
-    const relativePath = shown(path)
+    return { relativePath: shown(path), thread, errors, warnings, value }
+  })
+
+  const catalogue = results.find(({ relativePath }) => relativePath === 'catalogue.yaml')
+  const entries = catalogue?.value?.entries
+  // Compare even when there are other catalogue errors, as long as all entry slugs can be read.
+  if (Array.isArray(entries) && entries.every((entry) => typeof entry?.slug === 'string')) {
+    const slugs = new Set(entries.map(({ slug }) => slug))
+    const coverage = []
+    for (const slug of weaveSlugs) {
+      if (!slugs.has(slug)) coverage.push(`/entries has no entry for weave ${JSON.stringify(slug)}: add a catalogue entry with that slug`)
+    }
+    for (const slug of slugs) {
+      if (!weaveSlugs.has(slug)) coverage.push(`/entries lists ${JSON.stringify(slug)} without a weave: add its weave.yaml under weaves/ or remove the entry`)
+    }
+    catalogue.errors = [...catalogue.errors, ...coverage]
+  }
+
+  let invalid = 0
+  for (const { relativePath, thread, errors, warnings } of results) {
     if (errors.length === 0) {
       lines.push(`ok ${relativePath}`)
       for (const warning of warnings ?? []) lines.push(`  warning: ${warning}`)

@@ -1,16 +1,15 @@
-// openquarry new: writes one note or lesson, a Markdown file with the five keys every thread needs. It writes no
-// licence: a person's notes and lessons carry the licence they state themselves.
+// openquarry new: writes a thread or a course weave, and files the course in the project's catalogue if it has one.
 import { randomUUID } from 'node:crypto'
-import { closeSync, openSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, mkdirSync, openSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
-import { stringify } from 'yaml'
-import { validateThreadFrontmatter } from '@framers/openquarry'
+import { isAlias, parseDocument, stringify, visit } from 'yaml'
+import { validateCatalogue, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
+import { readPlain } from './check-input.mjs'
 import { Refusal, UsageError } from './errors.mjs'
 import { block, parse } from './frontmatter.mjs'
 import { entry } from './paths.mjs'
 
 const contentTypes = { note: 'markdown', lesson: 'lesson' }
-const example = 'openquarry new note "A title"'
 
 /** A title as a slug: its letters without their accents, in lowercase, with a hyphen for each run of anything else. */
 export function slugOf(title) {
@@ -22,13 +21,7 @@ export function slugOf(title) {
     .replace(/^-+|-+$/g, '')
 }
 
-/**
- * Writes the file and returns the lines to print. `folder` is the folder as the person typed it (undefined: the current
- * folder), `cwd` where they typed it.
- */
-export function newThread({ kind, title: given, folder, slug: wanted, cwd = process.cwd() }) {
-  if (kind === undefined) throw new UsageError(`say note or lesson: ${example}`)
-  if (!Object.hasOwn(contentTypes, kind)) throw new UsageError(`say note or lesson, not ${JSON.stringify(kind)}`)
+function titleAndSlug(given, wanted, example) {
   const title = (given ?? '').trim()
   if (title === '') throw new UsageError(`a title is missing: ${example}`)
   if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(title)) throw new UsageError('the title must be one line with no control character')
@@ -37,6 +30,18 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   }
   const slug = wanted ?? slugOf(title)
   if (slug === '') throw new UsageError(`no slug can be made from the title ${JSON.stringify(title)}: pass --slug with lowercase letters, digits and hyphens`)
+  return { title, slug }
+}
+
+/**
+ * Writes the file and returns the lines to print. `folder` is the folder as the person typed it (undefined: the current
+ * folder), `cwd` where they typed it.
+ */
+export function newThread({ kind, title: given, folder, slug: wanted, cwd = process.cwd() }) {
+  const example = 'openquarry new note "A title"'
+  if (kind === undefined) throw new UsageError(`say note, lesson or course: ${example}`)
+  if (!Object.hasOwn(contentTypes, kind)) throw new UsageError(`say note, lesson or course, not ${JSON.stringify(kind)}`)
+  const { title, slug } = titleAndSlug(given, wanted, example)
 
   const typed = folder === undefined ? '' : folder.replace(/[/\\]+$/, '') || folder
   const here = typed === '' || typed === '.'
@@ -105,7 +110,11 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
   if (!same || !validateThreadFrontmatter(read).valid) throw new Refusal(`the title ${JSON.stringify(title)} cannot be written as YAML that reads back the same: nothing written`)
 
   const shown = here ? `${slug}.md` : `${typed}/${slug}.md`
-  const path = join(dir, `${slug}.md`)
+  writeNew(join(dir, `${slug}.md`), shown, text)
+  return [`wrote ${shown}`]
+}
+
+function writeNew(path, shown, text) {
   let fd
   try {
     // wx: create the file or fail. A file that is there is never opened.
@@ -128,5 +137,99 @@ export function newThread({ kind, title: given, folder, slug: wanted, cwd = proc
     rmSync(path, { force: true })
     throw new Refusal(`${shown} could not be written: ${String(error.message).split('\n')[0]}. Nothing was left in its place.`)
   }
-  return [`wrote ${shown}`]
+}
+
+function updateCatalogue(path, slug, subject) {
+  const info = entry(path)
+  const text = info?.isFile() ? readPlain(path) : undefined
+  if (text === undefined) throw new Refusal('catalogue.yaml must be a regular file to add an entry')
+  const doc = parseDocument(text)
+  if (doc.errors.length) throw new Refusal(`catalogue.yaml: ${doc.errors[0].message}`)
+  const value = doc.toJS()
+  const result = validateCatalogue(value)
+  if (!result.valid) throw new Refusal(`catalogue.yaml: ${result.errors[0]}. Run openquarry check for the full report.`)
+  const ids = value.subjects.map(({ id }) => id)
+  if (ids.length === 0) throw new Refusal('catalogue.yaml has no subjects: add one, then pass its id with --subject')
+  if (!ids.includes(subject)) {
+    const problem = subject === undefined ? 'pass --subject' : `unknown subject ${JSON.stringify(subject)}`
+    throw new Refusal(`${problem}: catalogue.yaml lists ${ids.join(', ')}`)
+  }
+  if (value.entries.some((item) => item.slug === slug)) {
+    throw new Refusal(`catalogue.yaml already lists ${JSON.stringify(slug)}: choose another slug or restore the listed weave`)
+  }
+
+  const added = { slug, home: subject, subjects: [subject], requires: [] }
+  const entries = doc.get('entries', true)
+  const withComments = (node, from) => Object.assign(node, {
+    comment: from.comment, commentBefore: from.commentBefore, spaceBefore: from.spaceBefore,
+  })
+  if (isAlias(entries)) {
+    // An empty sequence can be shared with a subject's broader links. Only entries should grow.
+    doc.set('entries', withComments(doc.createNode([...value.entries, added]), entries))
+  } else {
+    if (entries.anchor) {
+      visit(doc, { Alias: (_, alias) => {
+        if (alias.resolve(doc) === entries) return withComments(doc.createNode([]), alias)
+      } })
+    }
+    entries.add(doc.createNode(added))
+  }
+  const updated = doc.toString({ lineWidth: 0 })
+  return { text, updated: text.includes('\r\n') ? updated.replaceAll('\n', '\r\n') : updated, mode: info.mode }
+}
+
+/** Creates a course in the current project's weaves/ and appends its catalogue entry, when there is a catalogue. */
+export function newCourse({ title: given, slug: wanted, subject, cwd = process.cwd() }) {
+  const { title, slug } = titleAndSlug(given, wanted, 'openquarry new course "A title"')
+  const data = { slug, title, kind: 'course' }
+  const result = validateWeave(data)
+  if (!result.valid) throw new Refusal(`weave.yaml: ${result.errors.join('; ')}`)
+
+  const root = resolve(cwd)
+  const weaves = join(root, 'weaves')
+  const dir = join(weaves, slug)
+  const shown = `weaves/${slug}/weave.yaml`
+  const path = join(dir, 'weave.yaml')
+  for (const folder of [weaves, dir]) {
+    const info = entry(folder)
+    if (info && !info.isDirectory()) throw new Refusal(`${folder === weaves ? 'weaves' : `weaves/${slug}`} must be a real folder`)
+  }
+
+  const catalogue = join(root, 'catalogue.yaml')
+  if (!entry(catalogue)) {
+    if (subject !== undefined) throw new Refusal('--subject needs a catalogue.yaml in the current folder')
+    mkdirSync(dir, { recursive: true })
+    writeNew(path, shown, stringify(data, { lineWidth: 0 }))
+    return [`wrote ${shown}`]
+  }
+
+  // Serialize catalogue updates by this command and stage the replacement beside the original for an atomic rename.
+  const lock = join(root, '.openquarry-catalogue.lock')
+  try {
+    mkdirSync(lock)
+  } catch (error) {
+    if (error.code === 'EEXIST') throw new Refusal('another course creation is updating catalogue.yaml: try again when it finishes')
+    throw error
+  }
+  const staged = join(lock, 'catalogue.yaml')
+  try {
+    const { text, updated, mode } = updateCatalogue(catalogue, slug, subject)
+    writeFileSync(staged, updated, { flag: 'wx' })
+    chmodSync(staged, mode & 0o777)
+    mkdirSync(dir, { recursive: true })
+    writeNew(path, shown, stringify(data, { lineWidth: 0 }))
+    try {
+      if (!entry(catalogue)?.isFile() || readPlain(catalogue) !== text) {
+        throw new Refusal('catalogue.yaml changed while adding the course: try again')
+      }
+      renameSync(staged, catalogue)
+    } catch (error) {
+      rmSync(path)
+      throw error
+    }
+  } finally {
+    rmSync(staged, { force: true })
+    rmdirSync(lock)
+  }
+  return [`wrote ${shown}`, 'updated catalogue.yaml']
 }

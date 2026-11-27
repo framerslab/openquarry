@@ -1,14 +1,15 @@
 # openquarry
 
-Start a folder of notes or a course in the [OpenQuarry](https://openquarry.dev/) format, add notes and lessons, and check every file, from the command line.
+Start a project in the [OpenQuarry](https://openquarry.dev/) format, add notes, lessons and courses, and check the files from the command line.
 
 ```bash
+npm install openquarry
 npx openquarry init my-notes
 cd my-notes
 npx openquarry check
 ```
 
-OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A note or a lesson is one Markdown file with YAML frontmatter, and folders group the files. This package is the format's command. The validators and types are in [`@framers/openquarry`](https://www.npmjs.com/package/@framers/openquarry), which this package depends on and re-exports.
+OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A note or a lesson is one Markdown file with YAML frontmatter, and folders group the files. This package includes the command and re-exports the validators and types from the library-only package, `@framers/openquarry`.
 
 ## Commands
 
@@ -16,7 +17,8 @@ OpenQuarry is an open format for knowledge bases and courses kept as Markdown. A
 | --- | --- |
 | `openquarry init [folder] [--template notes\|course] [--force]` | Starts a project from a template. |
 | `openquarry new note\|lesson <title> [--in <folder>] [--slug <slug>]` | Writes a note or a lesson with its required keys filled in. |
-| `openquarry check [folder]` | Validates every OpenQuarry file in a folder. |
+| `openquarry new course <title> [--slug <slug>] [--subject <id>]` | Creates a course weave and adds its entry to the catalogue if present. |
+| `openquarry check [folder]` | Validates project files and checks that the catalogue lists the weaves. |
 | `openquarry id` | Prints a new UUID. |
 
 `openquarry --help` prints this list and `openquarry --version` prints the version. The command runs on Node 18 or later.
@@ -46,7 +48,7 @@ npx openquarry new note "Scale and distance" --in weaves/notes/getting-started
 npx openquarry new lesson "Reading contour lines" --in weaves/my-course/first-unit
 ```
 
-`new` writes one Markdown file with the five keys every thread needs, then a heading with the title:
+`new note` and `new lesson` write one Markdown file with the five keys every thread needs, then a heading with the title:
 
 ```markdown
 ---
@@ -67,6 +69,18 @@ contentType: markdown
 
 `new` writes no `license` or `publishing` key. Your notes and lessons are yours: state their licence yourself in `publishing.license`.
 
+#### Add a course
+
+Run `new course` from the project root.
+
+```bash
+npx openquarry new course "Reading contour lines"
+```
+
+The command creates `weaves/reading-contour-lines/weave.yaml` with `slug`, `title` and `kind: course`. Use `--slug` to choose the folder name. An existing manifest is left as it is.
+
+When `catalogue.yaml` exists, pass `--subject <id>` with a subject it lists. The command appends an entry with that subject as its `home` and sole `subjects` member, and an empty `requires` list. It keeps the existing entry order and comments. If you omit the subject, the command lists the available IDs and leaves the files alone. If the catalogue lists no subjects, add one before creating the course.
+
 ### check
 
 ```bash
@@ -74,6 +88,8 @@ npx openquarry check
 ```
 
 `check` validates `fabric.yaml`, `catalogue.yaml` and `blocks-index.json` at the top of the folder, and under `weaves/` every `weave.yaml`, every `loom.yaml` and the frontmatter of every Markdown file. Two threads may not share an `id`. Name a folder to check it from elsewhere: `openquarry check my-notes`.
+
+The catalogue is optional. When it exists, `check` expects exactly one entry for each weave's manifest slug and a matching weave for each entry. It reports each missing or unmatched slug on its own line. It also reports repeated subject IDs or entry slugs, links to unknown subjects or entries, a home outside the entry's subjects, and cycles in `broader` or `requires`.
 
 It prints one line for each file, and under a file that is invalid one line for each problem. In a project made with `init`, after `version` is taken out of the first note:
 
@@ -108,7 +124,7 @@ A refusal is one line on standard error that says what is wrong and what to do. 
 
 ## Use it as a library
 
-Every named export of `@framers/openquarry` is also an export of `openquarry`, as an ES module and from CommonJS, with its TypeScript types:
+The library's named exports are available from `openquarry` as an ES module and from CommonJS, with their TypeScript types.
 
 ```js
 import { validateThreadFrontmatter } from 'openquarry'
@@ -117,7 +133,7 @@ const result = validateThreadFrontmatter({ slug: 'scale-and-distance', title: 'S
 // { valid: false, errors: ["/ must have required property 'id'", ...] }
 ```
 
-The schema files stay in the library: `@framers/openquarry/schema/thread.schema.yaml`. [The package page](https://openquarry.dev/package/) lists every export with an example.
+The library-only package ships the schema files under `schema/`. [The package page](https://openquarry.dev/package/) lists every export with an example.
 
 ## Releases
 
@@ -127,7 +143,6 @@ Each version is published from [framerslab/openquarry](https://github.com/framer
 
 - [Start a project](https://openquarry.dev/package/#start) and [the format guide](https://openquarry.dev/format/) on openquarry.dev
 - [Source on GitHub](https://github.com/framerslab/openquarry/tree/master/packages/openquarry) and [the changelog](https://github.com/framerslab/openquarry/blob/master/packages/openquarry/CHANGELOG.md)
-- [`@framers/openquarry`](https://www.npmjs.com/package/@framers/openquarry), the library
 
 ## License
 
