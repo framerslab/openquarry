@@ -14,6 +14,14 @@ export function entry(path) {
   }
 }
 
+/** Files beneath a project folder in name order. Skip dot folders and node_modules, and list links without following them. */
+export function walkProjectFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((item) => !item.isDirectory() || (!item.name.startsWith('.') && item.name !== 'node_modules'))
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+    .flatMap((item) => (item.isDirectory() ? walkProjectFiles(join(dir, item.name)) : [join(dir, item.name)]))
+}
+
 // npm never packs a nested .gitignore, so the bundled copy of a starter stores a name that starts with a dot as _dot_
 // plus the rest. The name is turned back here, BEFORE it is checked.
 const decoded = (name) => (name.startsWith('_dot_') ? `.${name.slice(5)}` : name)

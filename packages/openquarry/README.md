@@ -89,7 +89,7 @@ npx openquarry check
 
 `check` validates `fabric.yaml`, `catalogue.yaml` and `blocks-index.json` at the top of the folder, and under `weaves/` every `weave.yaml`, every `loom.yaml` and the frontmatter of every Markdown file. Two threads may not share an `id`. Name a folder to check it from elsewhere: `openquarry check my-notes`.
 
-The catalogue is optional. When it exists, `check` expects exactly one entry for each weave's manifest slug and a matching weave for each entry. It reports each missing or unmatched slug on its own line. It also reports repeated subject IDs or entry slugs, links to unknown subjects or entries, a home outside the entry's subjects, and cycles in `broader` or `requires`.
+The catalogue is optional. When it exists, `check` expects a unique slug for each weave, exactly one entry for each weave's manifest slug, and a matching weave for each entry. It reports each missing or unmatched slug on its own line. It also reports repeated subject IDs or entry slugs, links to unknown subjects or entries, a home outside the entry's subjects, and cycles in `broader` or `requires`.
 
 It prints one line for each file, and under a file that is invalid one line for each problem. In a project made with `init`, after `version` is taken out of the first note:
 

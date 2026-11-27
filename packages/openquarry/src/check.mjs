@@ -1,26 +1,17 @@
 // openquarry check: validates fabric.yaml, catalogue.yaml and blocks-index.json at the top, and under weaves/
 // each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two threads may share an id.
 // When there is a catalogue, it must list the weaves by slug.
-import { readdirSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
 import { checkBlocksIndex, readPlain } from './check-input.mjs'
 import { Refusal } from './errors.mjs'
 import { block, parse } from './frontmatter.mjs'
-import { entry } from './paths.mjs'
+import { entry, walkProjectFiles } from './paths.mjs'
 
 // A link can lead nowhere, pass through a file or go round in a loop.
 const leadsNowhere = (error) => error.code === 'ENOENT' || error.code === 'ENOTDIR' || error.code === 'ELOOP'
 const legacyThreadPath = /^weaves\/[^/]+\/(?:[^/]+\/)*(?:looms|strands)\//
-
-// Every file under a folder, in name order. Folders whose names start with a dot, and node_modules, are skipped. A link
-// to a folder is not followed: it is listed as an entry, like a file.
-function walk(dir) {
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((item) => !item.isDirectory() || (!item.name.startsWith('.') && item.name !== 'node_modules'))
-    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
-    .flatMap((item) => (item.isDirectory() ? walk(join(dir, item.name)) : [join(dir, item.name)]))
-}
 
 /**
  * Checks the folder and returns the lines of the report and whether every file is valid.
@@ -45,6 +36,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   ]) {
     if (entry(join(root, name))) files.push({ path: join(root, name), validate, json: name.endsWith('.json') })
   }
+  const hasCatalogue = files.some(({ validate }) => validate === validateCatalogue)
   let fabricVersion = files.some(({ validate }) => validate === validateFabricManifest) ? undefined : 1
   if (entry(join(root, 'weaves'))) {
     // weaves/ is a folder, or a link to one, which the walk starts by reading.
@@ -59,7 +51,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
       const at = folder === undefined ? '' : `${folder.replace(/[/\\]+$/, '') || folder}/`
       throw new Refusal(`${at}weaves is not a folder: a project keeps its notes and lessons in a weaves/ folder`)
     }
-    for (const path of walk(join(root, 'weaves'))) {
+    for (const path of walkProjectFiles(join(root, 'weaves'))) {
       const name = path.split(sep).pop()
       if (name === 'weave.yaml') files.push({ path, validate: validateWeave })
       else if (name === 'loom.yaml') files.push({ path, validate: validateLoom })
@@ -69,7 +61,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
 
   const lines = []
   const ids = new Map()
-  const weaveSlugs = new Set()
+  const weaveSlugs = new Map()
   const results = files.map(({ path, validate, thread, json }) => {
     let errors
     let warnings
@@ -89,7 +81,11 @@ export function check({ folder, cwd = process.cwd() } = {}) {
           errors = result.errors
           warnings = result.warnings
           if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version
-          if (validate === validateWeave && typeof value?.slug === 'string') weaveSlugs.add(value.slug)
+          if (hasCatalogue && validate === validateWeave && typeof value?.slug === 'string') {
+            const other = weaveSlugs.get(value.slug)
+            if (other) errors = [...errors, `/slug ${JSON.stringify(value.slug)} is already the slug of ${shown(other)}: give this weave its own slug`]
+            else weaveSlugs.set(value.slug, path)
+          }
           if (thread && errors.length === 0) {
             const other = ids.get(value.id)
             if (other) errors = [`/id is already the id of ${shown(other)}: give this file its own id`]
@@ -109,7 +105,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   if (Array.isArray(entries) && entries.every((entry) => typeof entry?.slug === 'string')) {
     const slugs = new Set(entries.map(({ slug }) => slug))
     const coverage = []
-    for (const slug of weaveSlugs) {
+    for (const slug of weaveSlugs.keys()) {
       if (!slugs.has(slug)) coverage.push(`/entries has no entry for weave ${JSON.stringify(slug)}: add a catalogue entry with that slug`)
     }
     for (const slug of slugs) {
