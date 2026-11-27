@@ -17,6 +17,7 @@ weaves/notes/weave.yaml                       a weave: this knowledge base
 weaves/notes/getting-started/loom.yaml        a loom: a folder of notes
 weaves/notes/getting-started/first-note.md    a thread: one note
 check.mjs                                     the script behind npm run check
+check-input.mjs                               the checker’s file and index reader
 ```
 
 ## Add a note

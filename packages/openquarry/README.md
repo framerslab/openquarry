@@ -37,7 +37,7 @@ Both templates ship inside the package, so `init` works offline. It copies the f
 
 A folder that already holds files is refused. With `--force`, `init` adds the files that are missing and keeps every file that is already there. It never overwrites a file. A folder that holds only `.git` counts as empty.
 
-Each template also carries a `check.mjs` script and a `package.json`, for projects that check with `npm run check` after `npm install`. `npx openquarry check` needs neither.
+Each template also carries `check.mjs`, its helper `check-input.mjs` and a `package.json` for projects that check with `npm run check` after `npm install`. Copy both scripts together when adding the check to an existing project. `npx openquarry check` runs without these files.
 
 ### new
 
