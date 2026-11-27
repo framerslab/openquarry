@@ -5,6 +5,7 @@ import { readFileSync, existsSync, statSync, mkdirSync } from 'node:fs'
 import { resolve, extname } from 'node:path'
 async function captureQa(browser, origin, destination) {
  const routes = [['', 'home'], ['learning/', 'learning'], ['package/', 'package']]
+ const names = []
  mkdirSync(destination, { recursive: true })
  for (const width of [390, 1440]) {
   for (const colorScheme of ['light', 'dark']) {
@@ -14,19 +15,40 @@ async function captureQa(browser, origin, destination) {
      const response = await page.goto(origin + route)
      if (!response?.ok()) throw Error(`Could not capture ${origin}${route}`)
      await page.evaluate(() => document.fonts.ready)
-     await page.screenshot({ path: `${destination}/qa-${name}-${width}-${colorScheme}.png`, animations: 'disabled' })
+     const filename = `qa-${name}-${width}-${colorScheme}.png`
+     await page.screenshot({ path: `${destination}/${filename}`, animations: 'disabled' })
+     names.push(filename)
     }
    } finally {
     await page.close()
    }
   }
  }
+ return names
+}
+
+async function compareQa(names) {
+ const { PNG } = await import('pngjs')
+ for (const name of names) {
+  const built = PNG.sync.read(readFileSync(`site-screenshots/${name}`))
+  const live = PNG.sync.read(readFileSync(`live-site-screenshots/${name}`))
+  if (built.width !== live.width || built.height !== live.height) throw Error(`${name}: live and build dimensions differ`)
+  let changed = 0
+  for (let offset = 0; offset < built.data.length; offset += 4) {
+   if (built.data.readUInt32BE(offset) !== live.data.readUInt32BE(offset)) changed++
+  }
+  const total = built.width * built.height
+  // Chromium's antialiasing can vary slightly between identical builds.
+  if (changed > total / 1000) throw Error(`${name}: ${changed} of ${total} pixels differ from the build`)
+  console.log(`${name}: ${changed} of ${total} pixels differ from the build`)
+ }
 }
 
 if (process.argv.includes('--live')) {
  const browser = await chromium.launch()
  try {
-  await captureQa(browser, 'https://openquarry.dev/', 'live-site-screenshots')
+  const names = await captureQa(browser, 'https://openquarry.dev/', 'live-site-screenshots')
+  await compareQa(names)
  } finally {
   await browser.close()
  }

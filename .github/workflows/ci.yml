@@ -222,19 +222,11 @@ jobs:
           name: site-screenshots
           path: site-screenshots
 
-      - name: Capture openquarry.dev after deploy
+      - name: Capture openquarry.dev and compare with the build
         run: |
-          npm install --no-save playwright
+          npm install --no-save playwright pngjs
           npx playwright install --with-deps chromium
           node scripts/check-site-browser.mjs --live
-
-      - name: Compare each live capture with its build capture
-        run: |
-          for screenshot in live-site-screenshots/qa-*.png; do
-            name=${screenshot##*/}
-            cmp "$screenshot" "site-screenshots/$name"
-            echo "Matches the build $name"
-          done
 
       - name: Keep live screenshots
         if: always()
