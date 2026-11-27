@@ -43,8 +43,8 @@ Commands:
           are missing. No file is ever overwritten.
   new     Write a note or a lesson: a Markdown file with a new id, a slug from the title,
           version 1.0.0 and its contentType. --in names the folder, --slug the file name.
-  check   Validate fabric.yaml, catalogue.yaml and, under weaves/, every weave.yaml,
-          loom.yaml and Markdown file. Exits with 1 when a file is invalid.
+  check   Validate fabric.yaml, catalogue.yaml, blocks-index.json and, under weaves/,
+          every weave.yaml, loom.yaml and Markdown file. Exits with 1 for an invalid file.
   id      Print a new UUID.
 
 Options:

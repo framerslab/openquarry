@@ -269,7 +269,7 @@ The YAML sources ship in the package too: `@framers/openquarry/schema/thread.sch
 
 For new content use `thread.schema.yaml`, `ThreadFrontmatter` and a version 2 layout such as `weaves/reading-a-map/the-map/scale-and-distance.md`. A fabric without `fabric.yaml` is version 1.
 
-The [version 1 compatibility guide](docs/compatibility.md) lists the deprecated schema, exports and fields, and explains how to move an existing fabric. `openquarry check` warns once per file when it finds deprecated fields in `fabric.yaml` or `blocks-index.json`.
+The `strand.schema` URL and the `strandSchema` and `StrandFrontmatter` exports are deprecated aliases. The [version 1 compatibility guide](docs/compatibility.md) lists the old fields and explains how to move an existing fabric. `openquarry check` warns once per file when it finds deprecated fields in `fabric.yaml` or `blocks-index.json`.
 
 ## The schema host
 

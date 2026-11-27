@@ -698,6 +698,9 @@ try {
 
   // 14. A project made by init, far from this install: npm install, then the starter's own npm run check, as its README
   // says. The library comes from npm here, so the step waits for a library version that is published.
+  const view = run('npm', ['view', `${library.name}@${library.version}`, 'version', '--json'], work)
+  if (view.status !== 0 && !/\bE404\b/.test(view.output)) fail(`npm view ${library.name}@${library.version} failed`)
+  const libraryOnNpm = (view.status === 0 && view.stdout.trim() ? JSON.parse(view.stdout) : '') === library.version
   if (libraryOnNpm) {
     const far = mkdtempSync(join(tmpdir(), 'openquarry-far-'))
     try {
