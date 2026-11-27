@@ -74,6 +74,13 @@ jobs:
       - name: Pack the command, install the tarball and run every command
         run: node scripts/check-cli.mjs
 
+      - name: Check packed packages before a new library line reaches npm
+        if: matrix.node == 22
+        run: |
+          npm pkg set version=999.0.0
+          npm --prefix packages/openquarry pkg set version=999.0.0 'dependencies.@framers/openquarry=^999.0.0'
+          node scripts/check-cli.mjs
+
   start:
     name: Start a project (the documented commands, against npm)
     runs-on: ubuntu-latest

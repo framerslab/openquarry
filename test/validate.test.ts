@@ -80,6 +80,23 @@ describe('validateBlocksIndex', () => {
     ].sort())
   })
 
+  const { generatedAt, ...withoutGeneratedAt } = current
+  it.each([
+    [Object.assign(Object.create({ generatedAt }), withoutGeneratedAt), "/ must have required property 'generatedAt'"],
+    [{ ...current, stats: Object.create(current.stats) }, "/stats must have required property 'totalThreads'"],
+  ])('requires data that survives normalization', (input, error) => {
+    expect(validateBlocksIndex(input).valid).toBe(true)
+    const result = validateBlocksIndex(input, { normalize: true })
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain(error)
+    expect(result.value).toBeUndefined()
+  })
+
+  it('keeps validated own fields that are non-enumerable', () => {
+    const input = Object.defineProperty({ ...withoutGeneratedAt }, 'generatedAt', { value: generatedAt })
+    expect(validateBlocksIndex(input, { normalize: true }).value?.generatedAt).toBe(generatedAt)
+  })
+
   it.each([
     ['with a strandPath reference', index],
     ['with no tag references', { ...index, tagIndex: { maps: [] } }],

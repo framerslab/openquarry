@@ -485,6 +485,7 @@ try {
     [invalidCurrent, currentErrors],
     [mixedInvalid, [...currentErrors, '  /strands must be object', '  /stats/totalStrands must be integer', '  /tagIndex/map~1scale/0/strandPath must be string', '  /generatedAt must match format "date-time"']],
     [missingNames, ["  / must have required property 'threads'", "  /stats must have required property 'totalThreads'", "  /tagIndex/map~1scale/0 must have required property 'threadPath'"]],
+    [{ ...invalidCurrent, stats: undefined }, ["  / must have required property 'stats'"]],
   ]) {
     writeFileSync(join(oldest, 'blocks-index.json'), JSON.stringify(fixture))
     for (const [command, args] of [[oldBin, ['check']], ...starters.map(({ id }) => [process.execPath, [`check-${id}.mjs`]])]) {
