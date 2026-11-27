@@ -26,8 +26,8 @@ const fail = (message) => { throw Error(message) }
 const outsideWeaves = "is not inside the project's weaves/ folder, where openquarry check looks for notes and lessons: name a folder with --in, such as --in weaves/notes/getting-started"
 
 // Runs a program, prints what it wrote, and returns its exit status and output.
-function run(command, args, cwd, env = {}) {
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env }, timeout: 300000 })
+function run(command, args, cwd, env = {}, timeout = 300000) {
+  const result = spawnSync(command, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...env }, timeout })
   if (result.error) fail(`${command} ${args.join(' ')} did not finish: ${result.error.message}`)
   const stdout = result.stdout || ''
   const stderr = result.stderr || ''
@@ -393,6 +393,64 @@ try {
   writeFileSync(indexFile, '{"version":"1.0.0"}\n')
   same(run(bin, ['check'], legacyProject).status, 1, 'check refuses a malformed blocks index')
   rmSync(indexFile)
+
+  const indexFailures = []
+  writeFileSync(fabricFile, 'format: openquarry\nversion: 2\n')
+  for (const kind of ['broken link', 'pipe']) {
+    if (kind === 'broken link') symlinkSync('missing.json', indexFile)
+    else if (run('mkfifo', [indexFile], legacyProject).status !== 0) fail('mkfifo failed for blocks-index.json')
+    for (const starter of starters) {
+      const folder = join(installed, 'templates', starter.id)
+      for (const name of readdirSync(folder).filter((name) => name.endsWith('.mjs'))) {
+        copyFileSync(join(folder, name), join(legacyProject, name))
+      }
+      try {
+        const report = run(process.execPath, ['check.mjs'], legacyProject, {}, 3000)
+        if (report.status !== 1 || !report.lines.includes('not ok blocks-index.json') || !report.lines.includes('  / is not a plain file')) {
+          indexFailures.push(`${starter.id}: the index ${kind} was not reported as an invalid file:\n${report.output}`)
+        }
+      } catch (error) {
+        indexFailures.push(`${starter.id}: the index ${kind} blocked check: ${error.message}`)
+      }
+    }
+    rmSync(indexFile)
+  }
+
+  // A previously installed library still satisfies the command and starter dependency ranges.
+  const oldest = join(work, 'oldest-library')
+  mkdirSync(oldest)
+  if (run('npm', ['install', '--no-audit', '--no-fund', specs[0], `${library.name}@0.3.0`], oldest).status !== 0) {
+    fail('installing the command with the oldest supported library failed')
+  }
+  const oldBin = join(oldest, 'node_modules', '.bin', 'openquarry')
+  const oldLock = JSON.parse(readFileSync(join(oldest, 'package-lock.json'), 'utf8')).packages
+  same(oldLock['node_modules/@framers/openquarry'].version, '0.3.0', 'the pinned old library is installed')
+  writeFileSync(join(oldest, 'fabric.yaml'), 'format: openquarry\nversion: 2\nstrand: old.md\n')
+  const fabricWarning = '  warning: Deprecated fields: use thread.'
+  for (const [fixture, warning] of [
+    ['blocks-index-v1.json', undefined],
+    ['blocks-index-v1-legacy.json', '  warning: Deprecated fields: use threads, stats.totalThreads, tagIndex[].threadPath.'],
+  ]) {
+    copyFileSync(join(root, 'test/fixtures', fixture), join(oldest, 'blocks-index.json'))
+    const commands = [[oldBin, ['check']]]
+    for (const starter of starters) {
+      const folder = join(oldest, 'node_modules', 'openquarry', 'templates', starter.id)
+      const checkFile = join(oldest, `check-${starter.id}.mjs`)
+      for (const name of readdirSync(folder).filter((name) => name.endsWith('.mjs') && name !== 'check.mjs')) {
+        copyFileSync(join(folder, name), join(oldest, name))
+      }
+      copyFileSync(join(folder, 'check.mjs'), checkFile)
+      commands.push([process.execPath, [checkFile]])
+    }
+    for (const [command, args] of commands) {
+      const report = run(command, args, oldest)
+      const warnings = report.lines.filter((line) => line.includes('warning:'))
+      if (report.status !== 0 || JSON.stringify(warnings) !== JSON.stringify(warning ? [fabricWarning, warning] : [fabricWarning])) {
+        indexFailures.push(`${fixture} with the oldest supported library: ${args.join(' ')}\n${report.output}`)
+      }
+    }
+  }
+  if (indexFailures.length) fail(indexFailures.join('\n\n'))
 
   // 8. init: what it refuses, and what --force does.
   console.log('\n=== init: refusals')

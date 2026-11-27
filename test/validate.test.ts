@@ -14,6 +14,9 @@ import {
 
 const threadNode: KnowledgeNodeType = 'thread'
 const legacyNode: KnowledgeNodeType = 'strand'
+const labelsFromAnExistingReader: Record<KnowledgeNodeType, string> = {
+  fabric: 'Fabric', weave: 'Weave', loom: 'Loom', strand: 'Thread',
+}
 
 describe('validateBlocksIndex', () => {
   const index = JSON.parse(readFileSync(new URL('./fixtures/blocks-index-v1-legacy.json', import.meta.url), 'utf8')) as Record<string, unknown>
@@ -29,6 +32,7 @@ describe('validateBlocksIndex', () => {
   it('accepts thread names in a version 1 index', () => {
     expect(validateBlocksIndex(current)).toStrictEqual({ valid: true, errors: [] })
     expect([threadNode, legacyNode]).toEqual(['thread', 'strand'])
+    expect(labelsFromAnExistingReader[legacyNode]).toBe('Thread')
   })
 
   it('returns the thread names when reading a legacy index without rewriting the input', () => {
