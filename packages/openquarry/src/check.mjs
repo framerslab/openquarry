@@ -96,11 +96,12 @@ export function check({ folder, cwd = process.cwd() } = {}) {
     } catch (error) {
       errors = [`/ cannot be read as ${json ? 'JSON' : 'YAML'}: ${String(error.message).split('\n')[0]}`]
     }
-    return { relativePath: shown(path), thread, errors, warnings, value }
+    const entries = validate === validateCatalogue ? value?.entries : undefined
+    return { relativePath: shown(path), thread, errors, warnings, entries }
   })
 
   const catalogue = results.find(({ relativePath }) => relativePath === 'catalogue.yaml')
-  const entries = catalogue?.value?.entries
+  const entries = catalogue?.entries
   // Compare even when there are other catalogue errors, as long as all entry slugs can be read.
   if (Array.isArray(entries) && entries.every((entry) => typeof entry?.slug === 'string')) {
     const slugs = new Set(entries.map(({ slug }) => slug))
