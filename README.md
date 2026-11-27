@@ -106,7 +106,7 @@ Links: [the starters on GitHub](https://github.com/framerslab/openquarry/tree/ma
 - [FAQ](#faq) and [changelog](CHANGELOG.md).
 
 ```bash
-npm install yaml
+npm install openquarry yaml
 ```
 
 ```ts

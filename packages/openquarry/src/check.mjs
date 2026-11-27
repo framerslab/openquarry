@@ -1,10 +1,10 @@
 // openquarry check: validates fabric.yaml, catalogue.yaml and blocks-index.json at the top, and under weaves/
 // each weave.yaml, each loom.yaml and the frontmatter of each Markdown file. No two threads may share an id.
-// When there is a catalogue, it must list the weaves by slug.
+// When there is a catalogue, it must list the weaves by slug. The starter checks report the same catalogue errors.
 import { statSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 import { validateCatalogue, validateFabricManifest, validateLoom, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
-import { checkBlocksIndex, readPlain } from './check-input.mjs'
+import { catalogueCoverage, checkBlocksIndex, readPlain, recordWeave } from './check-input.mjs'
 import { Refusal } from './errors.mjs'
 import { block, parse } from './frontmatter.mjs'
 import { entry, walkProjectFiles } from './paths.mjs'
@@ -81,10 +81,9 @@ export function check({ folder, cwd = process.cwd() } = {}) {
           errors = result.errors
           warnings = result.warnings
           if (validate === validateFabricManifest && errors.length === 0) fabricVersion = value.version
-          if (hasCatalogue && validate === validateWeave && typeof value?.slug === 'string') {
-            const other = weaveSlugs.get(value.slug)
-            if (other) errors = [...errors, `/slug ${JSON.stringify(value.slug)} is already the slug of ${shown(other)}: give this weave its own slug`]
-            else weaveSlugs.set(value.slug, path)
+          if (hasCatalogue && validate === validateWeave) {
+            const duplicate = recordWeave(weaveSlugs, value?.slug, shown(path))
+            if (duplicate) errors = [...errors, duplicate]
           }
           if (thread && errors.length === 0) {
             const other = ids.get(value.id)
@@ -101,19 +100,7 @@ export function check({ folder, cwd = process.cwd() } = {}) {
   })
 
   const catalogue = results.find(({ relativePath }) => relativePath === 'catalogue.yaml')
-  const entries = catalogue?.entries
-  // Compare even when there are other catalogue errors, as long as all entry slugs can be read.
-  if (Array.isArray(entries) && entries.every((entry) => typeof entry?.slug === 'string')) {
-    const slugs = new Set(entries.map(({ slug }) => slug))
-    const coverage = []
-    for (const slug of weaveSlugs.keys()) {
-      if (!slugs.has(slug)) coverage.push(`/entries has no entry for weave ${JSON.stringify(slug)}: add a catalogue entry with that slug`)
-    }
-    for (const slug of slugs) {
-      if (!weaveSlugs.has(slug)) coverage.push(`/entries lists ${JSON.stringify(slug)} without a weave: add its weave.yaml under weaves/ or remove the entry`)
-    }
-    catalogue.errors = [...catalogue.errors, ...coverage]
-  }
+  if (catalogue) catalogue.errors = [...catalogue.errors, ...catalogueCoverage(catalogue.entries, weaveSlugs)]
 
   let invalid = 0
   for (const { relativePath, thread, errors, warnings } of results) {

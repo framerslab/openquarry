@@ -1,6 +1,6 @@
 // openquarry new: writes a thread or a course weave, and files the course in the project's catalogue if it has one.
 import { randomUUID } from 'node:crypto'
-import { chmodSync, closeSync, mkdirSync, openSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, fstatSync, lstatSync, mkdirSync, openSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { isAlias, parseDocument, stringify, visit } from 'yaml'
 import { validateCatalogue, validateThreadFrontmatter, validateWeave } from '@framers/openquarry'
@@ -128,7 +128,9 @@ function writeNew(path, shown, text) {
   }
   try {
     writeFileSync(fd, text)
+    const written = fstatSync(fd, { bigint: true })
     closeSync(fd)
+    return written
   } catch (error) {
     // A write that began and failed (a full disk) leaves no half-written file, so the same command works again: this
     // run created the file, so it removes it.
@@ -232,7 +234,7 @@ export function newCourse({ title: given, slug: wanted, subject, cwd = process.c
       throw new Refusal(`slug ${JSON.stringify(slug)} is already used by ${relative(root, other).split(sep).join('/')}: choose another slug`)
     }
     mkdirSync(dir, { recursive: true })
-    writeNew(path, shown, stringify(data, { lineWidth: 0 }))
+    return writeNew(path, shown, stringify(data, { lineWidth: 0 }))
   }
 
   const catalogue = join(root, 'catalogue.yaml')
@@ -257,14 +259,22 @@ export function newCourse({ title: given, slug: wanted, subject, cwd = process.c
     const { text, updated, mode } = updateCatalogue(catalogue, slug, subject)
     writeFileSync(staged, updated, { flag: 'wx' })
     chmodSync(staged, mode & 0o777)
-    writeWeave()
+    const written = writeWeave()
     try {
       if (!entry(catalogue)?.isFile() || readPlain(catalogue) !== text) {
         throw new Refusal('catalogue.yaml changed while adding the course: try again')
       }
       renameSync(staged, catalogue)
     } catch (error) {
-      rmSync(path)
+      const current = lstatSync(path, { bigint: true, throwIfNoEntry: false })
+      if (current) {
+        const unchanged = ['dev', 'ino', 'size', 'mtimeNs', 'ctimeNs'].every((key) => current[key] === written[key])
+        if (!unchanged) {
+          const problem = String(error.message).split('\n')[0]
+          throw new Refusal(`${problem}. Kept ${shown} because it changed during course creation. Run openquarry check.`)
+        }
+        rmSync(path, { force: true })
+      }
       throw error
     }
   } finally {
